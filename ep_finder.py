@@ -294,7 +294,7 @@ class ColorClass(LinkedList):
                 else:
                     C[b].current_p = v.structure_value
 
-                C[b].current_color = b # current color is no loner none or previous value
+                C[b].current_color = b # current color is no longer none or previous value
                 C[b].hit = 0
 
         for v in self.structure_set:
