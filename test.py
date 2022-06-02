@@ -1,12 +1,14 @@
 import numpy as np
 import networkx as nx
 import ep_finder
-import matplotlib.pyplot as plt
+import matplotlib
+import random
 
 def __main__():
     adj_mat = getDolores()
 
-    G, ep = getEquitablePartition(adj_mat)
+    ep = getEquitablePartition(adj_mat)
+    print(max(ep.values()))
     
     p, p_inv = PartitionAristotle(ep)
 
@@ -14,15 +16,34 @@ def __main__():
     printWithLabel("ADJACENCY MATRIX", '=', adj_mat)
     printWithLabel("COARSEST EQUITABLE PARTITION", '=', ep)
 
-    plotEquitablePartition(G, ep)
-
     permuted_adj_mat = np.matmul(p, np.matmul(adj_mat, p_inv))
 
     leps = getLocalEquitablePartitions(ep, permuted_adj_mat)
 
     printWithLabel("PERMUTED ADJACENCY MATRIX", '=', permuted_adj_mat)
     printWithLabel("LOCAL EQUITABLE PARTITIONS", '=', leps)
+    
+    graphWithColoredPartEl(permuted_adj_mat,ep)
+    
 
+def graphWithColoredPartEl(adj_mat, ep):
+    """draws the nx graph with color coded partition elements for the coursest EP
+    if given a permuted adjacency matrix
+    
+    ARGUMENTS
+    =========
+    ep (dict): containts the nodes in each partition element"""
+    hexColors = list(matplotlib.colors.cnames.values())  #get hex colors
+    colorArr = [0 for i in range(max(ep.values())[0]+1)] #create place to store node colors
+    index = 0    #start node index as 9
+    for partEl in ep.values():   #cycle through each partition element
+        color = random.randint(0,148)   #get a random color to assign to this partition element
+        for i in range(len(partEl)):   #cycle through all nodes in partition element
+            colorArr[index] = hexColors[color]   #assign each node that color
+            index+=1   #use this to get different colorArr position each time
+    
+    nx.draw_networkx(nx.from_numpy_array(adj_mat),node_color=colorArr)    #graph it with colors
+    
 def printWithLabel(label, delim, item):
     print("{}\n{}\n{}\n".format(label, delim * len(label), item))
 
@@ -39,11 +60,7 @@ def getEquitablePartition(adjacency_matrix):
     G = nx.Graph(adjacency_matrix)
     C, N = ep_finder.initialize(G)
     ep, N = ep_finder.equitablePartition(C, N)
-    return G, ep
-
-def plotEquitablePartition(G, ep):
-    nx.draw_networkx(G)
-    plt.show()
+    return ep
 
 def getLocalEquitablePartitions(ep, adjMat, print_subgraphs = False, verbose = False):
     """This function finds the local equitable partitions of a graph.
