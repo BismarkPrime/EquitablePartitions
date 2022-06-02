@@ -1,17 +1,20 @@
 import numpy as np
 import networkx as nx
 import ep_finder
+import matplotlib.pyplot as plt
 
 def __main__():
     adj_mat = getDolores()
 
-    ep = getEquitablePartition(adj_mat)
+    G, ep = getEquitablePartition(adj_mat)
     
     p, p_inv = PartitionAristotle(ep)
 
     print()
     printWithLabel("ADJACENCY MATRIX", '=', adj_mat)
     printWithLabel("COARSEST EQUITABLE PARTITION", '=', ep)
+
+    plotEquitablePartition(G, ep)
 
     permuted_adj_mat = np.matmul(p, np.matmul(adj_mat, p_inv))
 
@@ -36,7 +39,11 @@ def getEquitablePartition(adjacency_matrix):
     G = nx.Graph(adjacency_matrix)
     C, N = ep_finder.initialize(G)
     ep, N = ep_finder.equitablePartition(C, N)
-    return ep
+    return G, ep
+
+def plotEquitablePartition(G, ep):
+    nx.draw_networkx(G)
+    plt.show()
 
 def getLocalEquitablePartitions(ep, adjMat, print_subgraphs = False, verbose = False):
     """This function finds the local equitable partitions of a graph.
