@@ -3,8 +3,9 @@ import numpy as np
 import networkx as nx
 import ep_finder
 import matplotlib.pyplot as plt
-from scipy.sparse import dok_matrix
 from timeit import Timer
+import matplotlib
+import random
 
 def main(nodes = 1000, print_results = False):
 
@@ -47,6 +48,24 @@ def complexityTest():
     plt.ylabel('Computation Time')
     plt.show()
 
+def graphWithColoredPartEl(adj_mat, ep):
+    """draws the nx graph with color coded partition elements for the coursest EP
+    if given a permuted adjacency matrix
+    
+    ARGUMENTS
+    =========
+    ep (dict): containts the nodes in each partition element"""
+    hexColors = list(matplotlib.colors.cnames.values())  #get hex colors
+    colorArr = [0 for i in range(max(ep.values())[0]+1)] #create place to store node colors
+    index = 0    #start node index as 9
+    for partEl in ep.values():   #cycle through each partition element
+        color = random.randint(0,148)   #get a random color to assign to this partition element
+        for i in range(len(partEl)):   #cycle through all nodes in partition element
+            colorArr[index] = hexColors[color]   #assign each node that color
+            index+=1   #use this to get different colorArr position each time
+    
+    nx.draw_networkx(nx.from_numpy_array(adj_mat),node_color=colorArr)    #graph it with colors
+    
 def printWithLabel(label, delim, item):
     print("{}\n{}\n{}\n".format(label, delim * len(label), item))
 
@@ -385,7 +404,7 @@ def old_main():
     printWithLabel("PERMUTED ADJACENCY MATRIX", '=', permuted_adj_mat)
     printWithLabel("LOCAL EQUITABLE PARTITIONS", '=', leps)
 
-    plotEquitablePartition(G, ep)
+    graphWithColoredPartEl(permuted_adj_mat,ep)
 
 def getEquitablePartition(adjacency_matrix):
     """This function gets the coarsest equitable partition of a graph.
