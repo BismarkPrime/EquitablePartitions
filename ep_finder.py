@@ -54,8 +54,8 @@ class Node(LinkedListNode):
         super().__init__()
         self.label = label
 
-        self.f = color_class_ind
-        self.temp_f = color_class_ind
+        self.f = color_class_ind        # color?
+        self.temp_f = color_class_ind   # pseudo color?
 
         self.neighbors = neighbors # this is a list of the indices of the neighboring nodes
         self.structure_value = 0
@@ -289,7 +289,7 @@ class ColorClass(LinkedList):
             else:
                 visited.add(v.temp_f)
                 b = v.temp_f
-                if C[b].hit < C[b].size:
+                if C[b].hit < C[b].size: # something like: if v's color class sees as many nodes as size
                     C[b].current_p = 0
                 else:
                     C[b].current_p = v.structure_value
@@ -299,18 +299,18 @@ class ColorClass(LinkedList):
 
         for v in self.structure_set:
             b = v.temp_f
-            if C[b].current_p != v.structure_value:
+            if C[b].current_p != v.structure_value: # if C[b].hit < C[b].size above??
                 C[b].current_p = v.structure_value
-                n_colors += 1
+                n_colors += 1                       # add new color
                 C[b].current_color = n_colors
-                new_colors.add(n_colors)    # track new colors
+                new_colors.add(n_colors)            # track new colors
 
-            if v.temp_f != C[b].current_color:
-                L.add(v)
+            if v.temp_f != C[b].current_color:          # if v got a new color
+                L.add(v)                                # add it to the set of nodes with new (pseudo?) colors
                 # change temp_f (pseudo color) of v
-                C[v.temp_f].size -= 1
+                C[v.temp_f].size -= 1                   # decrement the size of the color class that v used to be in
                 v.temp_f = C[b].current_color
-                C[v.temp_f].size += 1
+                C[v.temp_f].size += 1                   # increment the size of the color class that v is in now
 
         return C, L, n_colors, new_colors
     
@@ -430,7 +430,7 @@ def equitablePartition(C, N):
         temp_new_colors = set()
 
         for c in new_colors:
-            C, N = C[c].computeStructureSet(C, N)
+            C, N = C[c].computeStructureSet(C, N) # has to do with counting the number of neighbors of each vertex and their respective colors
 
             args = (C, L, n_colors, temp_new_colors)
             args = C[c].splitColor(*args)
