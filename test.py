@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from timeit import Timer
 import matplotlib
 import random
+import time
 
 def main(nodes = 1000, print_results = False):
 
@@ -28,24 +29,36 @@ def main(nodes = 1000, print_results = False):
     plotEquitablePartition(G, ep)
 
 def getEquitablePartitions(G):
+    start_time = time.time()
     C, N = ep_finder.initialize(G)
     ep, N = ep_finder.equitablePartition(C, N)
+    coarsest = time.time() - start_time
+    start_time = time.time()
     leps = getLocalEquitablePartitionsFromGraph(ep, G)
+    local = time.time() - start_time
+    return coarsest, local
 
 def complexityTest():
     num_nodes = list()
-    computation_time = list()
-    for i in range(5000, 50000, 5000):
+    ep_comp_time = list()
+    lep_comp_time = list()
+    for i in range(2000, 50000, 2000):
         num_nodes.append(i)
         G = nx.random_internet_as_graph(i)
-        func = lambda: getEquitablePartition(G)
-        t = Timer(func)
-        computation_time.append(t.timeit(1))
+        # func = lambda: getEquitablePartitions(G)
+        # t = Timer(func)
+        # computation_time.append(t.timeit(1))
+        coarsest, local = getEquitablePartitions(G)
+        ep_comp_time.append(coarsest)
+        lep_comp_time.append(local)
+
     
-    plt.scatter(num_nodes, computation_time, color='b')
-    plt.title("Complexity Analysis")
+    plt.scatter(num_nodes, ep_comp_time, color='b', label="ep_finder")
+    plt.scatter(num_nodes, lep_comp_time, color='r', label="LEP Algorithm")
+    plt.title("EP vs LEP Computation Time")
     plt.xlabel('Number of Nodes')
     plt.ylabel('Computation Time')
+    plt.legend(loc="upper left")
     plt.show()
 
 def graphWithColoredPartEl(adj_mat, ep):
@@ -151,25 +164,17 @@ def getLocalEquitablePartitionsFromGraph(ep, G, verbose = False):
 
     # this list sorts the partitions by their internal cohesion groups, while 
     #   preserving the indices to determine which parititon elements are together
-    #   (sorting is O(n log n), whereas finding groupings without sorting is O(n^2), worst case)
-    lep_list = sorted(enumerate(int_cohesion_list), key=lambda x: x[1])
+    lep_list = enumerate(int_cohesion_list)
+    lep_dict = dict()
+    for (node, part_el) in lep_list:
+        if part_el not in lep_dict:
+            lep_dict.update({part_el: set()})
+        lep_dict.get(part_el).add(node)
 
     if verbose:
-        printWithLabel("SORTED PARTITION ELEMENT GROUPINGS", '#', lep_list)
-    
-    leps = []
+        printWithLabel("SORTED PARTITION ELEMENT GROUPINGS", '#', lep_dict)
 
-    # combine lep_list elements into their proper groupings
-    i = 0
-    while i < len(lep_list):
-        j = i + 1
-        while j < len(lep_list) and lep_list[i][1] == lep_list[j][1]:
-            j += 1
-        # add each partition element number to an lep set
-        leps.append(set([item[0] for item in lep_list[i:j]]))
-        i = j
-    
-    return leps
+    return lep_dict.values()
 
 def codeTest(ep, G, print_subgraphs = False, verbose = False):
     """This function finds the local equitable partitions of a graph.
@@ -249,18 +254,18 @@ def getDogbone():
                      [1, 1, 0, 0, 0, 0, 0, 0, 1, 0]])# 9
 
 def getFacebookGraph():
-    NUM_NODES = 4039
+    # NUM_NODES = 4039
 
-    edges_file = open(r"facebook_combined.txt", 'r')
-    G = nx.Graph()
-    G.add_nodes_from([i for i in range(NUM_NODES)])
-    edge_list = list()
-    for line in edges_file.readlines():
-        edge_list.append(tuple([int(x) for x in line.split(' ')]))
+    # edges_file = open(r"facebook_combined.txt", 'r')
+    # G = nx.Graph()
+    # G.add_nodes_from([i for i in range(NUM_NODES)])
+    # edge_list = list()
+    # for line in edges_file.readlines():
+    #     edge_list.append(tuple([int(x) for x in line.split(' ')]))
 
-    G.add_edges_from(edge_list)
+    # G.add_edges_from(edge_list)
 
-    return G
+    return nx.read_edgelist("facebook_combined.txt", nodetype=int)
 
 # OLD CODE:
 
