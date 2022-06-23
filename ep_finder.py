@@ -361,7 +361,7 @@ def initialize(G):
    
     # initialize ColorClass list
         # this creates n ColorClass objects for each of the n nodes. 
-        # Its not the most efficient since the coarsest ep will not be trivial
+        # It's not the most efficient since the coarsest ep will generally not be trivial
     C = [ColorClass() for c in range(num_nodes)]
     
     # add all nodes to ColorClass 0
