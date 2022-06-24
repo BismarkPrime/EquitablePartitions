@@ -9,6 +9,7 @@ import lep_finder
 import graphs
 
 # TODO: update naming to match paper
+# TODO: add LEP verification tests
 
 # test code
 def test():
