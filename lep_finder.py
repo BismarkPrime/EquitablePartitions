@@ -4,17 +4,20 @@ import matplotlib.pyplot as plt
 import time
 from functools import reduce
 import sys
+import math
 
 import ep_finder
 
 # TODO: update naming to match paper
 
-def getEquitablePartitions(G, timed = True):
+def getEquitablePartitions(G, timed = True, progress_bars = True):
     """Finds the coarsest equitable partition and local equitable partitions of a graph.
    
     ARGUMENTS:
-        G: the NetworkX graph
-        timed (opt): whether to also return the time taken to compute the EP and LEPs
+        G : NetworkX Graph
+            The graph to analyze
+        timed : boolean, optional
+            Whether to also return the time taken to compute the EP and LEPs
     
     RETURNS:
         The equitable partition (dict; int -> set), local equitable partition (list of sets
@@ -25,18 +28,20 @@ def getEquitablePartitions(G, timed = True):
     ep, N = ep_finder.equitablePartition(C, N)
     coarsest = time.time() - start_time
     start_time = time.time()
-    leps = getLocalEquitablePartitions(ep, G)
+    leps = getLocalEquitablePartitions(G, ep, progress_bar=progress_bars)
     local = time.time() - start_time
     if timed:
         return ep, leps, coarsest + local
     return ep, leps
 
-def plotEquitablePartition(G, pi):
+def plotEquitablePartition(G, pi, pos_dict = None):
     """Plots the equitable partition of a graph, with each element in its own color.
    
     ARGUMENTS:
-        G: the NetworkX graph
-        pi: the equitable partition of the graph, as returned by ep_finder
+        G : NetworkX Graph
+            The graph to be plotted
+        pi : dict
+            The equitable partition of the graph, as returned by ep_finder
     """
     # stores the color for each node
     color_list = [0 for _ in range(G.number_of_nodes())]
@@ -48,17 +53,19 @@ def plotEquitablePartition(G, pi):
         for vertex in V_i:
             color_list[vertex] = c
     
-    nx.draw_networkx(G, node_color=color_list)
+    nx.draw_networkx(G, pos=pos_dict, node_color=color_list)
     plt.show()
 
 def getLocalEquitablePartitions(G, ep, progress_bar = True):
-    """This function finds the local equitable partitions of a graph.
+    """Finds the local equitable partitions of a graph.
    
     ARGUMENTS:
-        G: the NetworkX graph
-        ep: the equitable partition of the graph, as returned by ep_finder
-        progress_bar (opt): whether to show realtime progress bar
-            (enabled by default)
+        G : NetworkX Graph
+            The graph to analyzed
+        ep : dict
+            The equitable partition of the graph, as returned by ep_finder
+        progress_bar : boolean
+            whether to show realtime progress bar (enabled by default)
     
     RETURNS:
         A list of sets, with each set containing the partition elements that can be
@@ -91,15 +98,15 @@ def getLocalEquitablePartitions(G, ep, progress_bar = True):
 
     # the following loop takes about 76 percent of the LEP algorithm's runtime, so we should update the progress
     #   bar 76 times during the 
-    num_edges_per_percent = G.number_of_edges() // 76
+    num_edges_per_percent = G.number_of_edges() / 76
     edge_num = 0
 
     # populate "top right" half (i.e., i < j in key (i, j)) of edge_partition (bottom half is redundant for undirected graphs)
     for (i, j) in G.edges:
         edge_num += 1
         if progress_bar and num_edges_per_percent != 0 \
-                and edge_num % num_edges_per_percent == 0:
-            updateLoadingBar(progress + edge_num // num_edges_per_percent)
+                and edge_num % math.ceil(num_edges_per_percent) == 0:
+            updateLoadingBar(progress + edge_num / num_edges_per_percent)
         part_i = partition_dict[i]
         part_j = partition_dict[j]
         key = (part_i, part_j) if part_i < part_j else (part_j, part_i)
@@ -121,14 +128,14 @@ def getLocalEquitablePartitions(G, ep, progress_bar = True):
     # (we need only check the top right half of the matrix, since it is symmetric)
 
     edge_partition_num = 0
-    edge_partition_el_per_percent = len(edge_partition) // 18
+    edge_partition_el_per_percent = len(edge_partition) / 18
 
     # i and j are indices of the two partition elements in question
     for ((i, j), edge_set) in edge_partition.items():
         edge_partition_num += 1
         if progress_bar and edge_partition_el_per_percent \
-                and edge_partition_num % edge_partition_el_per_percent == 0:
-            updateLoadingBar(progress + edge_partition_num // edge_partition_el_per_percent)
+                and edge_partition_num % math.ceil(edge_partition_el_per_percent) == 0:
+            updateLoadingBar(progress + edge_partition_num / edge_partition_el_per_percent)
         num_edges = len(edge_set)
         total_possible_edges = len(ep[i]) * len(ep[j])
         # if two partition elements are not externally consistent with one another
@@ -202,13 +209,13 @@ def printStats(G):
     dist_template = "{} - ({}, {}): {}"
     distribution = dist_template.format("DATA", "MIN", "MAX", "AVG")
     # calculate some basic stats about non-trivial parts
-    ep_distribution = dist_template.format("\nEP", *getEPStats(f_ep))
-    lep_distribution = dist_template.format("\nLEP", *getEPStats(f_leps))
+    ep_distribution = dist_template.format("\nEP", *__getEPStats(f_ep))
+    lep_distribution = dist_template.format("\nLEP", *__getEPStats(f_leps))
     printWithLabel("GENERAL COMPUTATION", '=', general + '\n' + computational)
     printWithLabel("DISTRIBUTIONS", '*', distribution + ep_distribution + lep_distribution)
     printWithLabel("PERCENT NON-TRIVIAL", '#', "{} %".format(nt_percent))
 
-def getEPStats(set_list):
+def __getEPStats(set_list):
     minSize = lambda min, curr: min if min < len(curr) else len(curr)
     maxSize = lambda max, curr: max if max > len(curr) else len(curr)
     sumSize = lambda part_sum, curr: part_sum + len(curr)
@@ -221,4 +228,5 @@ def printWithLabel(label, delim, item):
     print("{}\n{}\n{}\n".format(label, delim * len(label), item))
 
 def updateLoadingBar(percent):
+    percent = int(percent)
     print("\r [{0}] {1}%".format('#' * percent + ' ' * (100 - percent), percent), end='')

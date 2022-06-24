@@ -10,6 +10,82 @@ import graphs
 
 # TODO: update naming to match paper
 
+# test code
+def test():
+    G = nx.random_geometric_graph(40, .15)
+    pi, leps = lep_finder.getEquitablePartitions(G, False, False)
+    lep_finder.plotEquitablePartition(G, pi, nx.get_node_attributes(G, "pos"))
+
+# generates random geometric graphs until it finds ep_finder problems
+def findBadEPs():
+    i = 0
+    while (True):
+        G = nx.random_geometric_graph(40, .15, seed=i)
+        if not validEpResults(G):
+            print("Current seed: " + i)
+            print("Press <Enter> to continue...")
+            input()
+        i += 1
+        print("\r{}".format(i), end='')
+
+def validEpResults(G):
+    pi, leps = lep_finder.getEquitablePartitions(G, False, False)
+    if not isPartition(pi, G):
+        printWithLabel("PI IS NOT A PARTITION!!!", '=', pi)
+        return False
+    if not isEquitable(pi, G):
+        print("PI IS NOT EQUITABLE!!!")
+        pos_dict = {}
+        for node in G.nodes:
+            pos_dict.update({ node: node.pos })
+        lep_finder.plotEquitablePartition(G, pi)
+        return False
+    return True
+
+def isPartition(pi, G):
+    vertex_count = np.ones(G.number_of_nodes())
+    # verify that each vertex shows up exactly once in pi
+    for V_i in pi.values():
+        for vertex in V_i:
+            vertex_count[vertex] -= 1
+    
+    return not np.any(vertex_count)
+
+def isEquitable(pi, G):
+    # create table for fast node-to-partition lookups
+    partition_dict = np.empty(G.number_of_nodes(), int)
+    for (element, nodes) in pi.items():
+        for node in nodes:
+            partition_dict[node] = element
+    
+    for V_i in pi.values():
+        if len(V_i) > 1:
+            # dict of partition_element -> number of connections
+            rule = {}
+            for i, vertex in enumerate(V_i):
+                # construct rule
+                if i == 0:
+                    rule = getPartitionNeighbors(vertex, G, partition_dict)
+                # test other vertices against the rule
+                else:
+                    conns = getPartitionNeighbors(vertex, G, partition_dict)
+                    if conns != rule:
+                        return False
+    return True
+
+def getPartitionNeighbors(vertex, G, partition_dict):
+    conns = {}
+    for neighbor in G.neighbors(vertex):
+        part_el = partition_dict[neighbor]
+        if part_el not in conns:
+            conns.update({ part_el: 0 })
+        conns.update({ part_el: conns[part_el] + 1 })
+    return conns
+
+# FIXME: bad function name
+def areLEPs(leps, G, pi):
+    return True
+
 # OLD CODE:
 
 # duplicated here for usability (also found in lep_finder)
