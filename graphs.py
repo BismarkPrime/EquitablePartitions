@@ -1,6 +1,10 @@
 import numpy as np
 import networkx as nx
 
+def relabel(G):
+    mapping = {old_label: new_label for new_label, old_label in enumerate(G.nodes())}
+    return nx.relabel_nodes(G, mapping)
+
 def getFacebookGraph():
     # NUM_NODES = 4039
 

@@ -11,6 +11,20 @@ import graphs
 # TODO: update naming to match paper
 # TODO: add LEP verification tests
 
+def hasAllNodesOnce(G, start, end):
+    for i in range(start, end):
+        if not G.has_node(i):
+            print("Missing node {}".format(i))
+            return False
+    return True
+    
+def graphIsUndirected(G):
+    for (i, j) in G.edges:
+        if not (j, i) in G.edges:
+            print("Missing edge ({}, {})".format(j, i))
+            return False
+    return True
+
 # test code
 def test():
     G = nx.random_geometric_graph(40, .15)
@@ -71,6 +85,9 @@ def isEquitable(pi, G):
                 else:
                     conns = getPartitionNeighbors(vertex, G, partition_dict)
                     if conns != rule:
+                        print(V_i)
+                        print("last call{}getPartitionNeighbors({}, {}, part)".format('-'*30, vertex, G))
+                        print("RULE: {}\nCONNS: {}".format(rule, conns))
                         return False
     return True
 
@@ -85,6 +102,7 @@ def getPartitionNeighbors(vertex, G, partition_dict):
 
 # FIXME: bad function name
 def areLEPs(leps, G, pi):
+    
     return True
 
 # OLD CODE:
