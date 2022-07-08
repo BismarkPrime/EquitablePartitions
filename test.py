@@ -25,6 +25,12 @@ def graphIsUndirected(G):
             return False
     return True
 
+def plotIfInvalid(G):
+    ep, leps, time = lep_finder.getEquitablePartitions(G)
+    if not isPartition(ep, G) or not isEquitable(ep, G):
+        print(ep)
+        lep_finder.plotEquitablePartition(G, ep)
+
 # test code
 def test():
     G = nx.random_geometric_graph(40, .15)
@@ -41,7 +47,7 @@ def findBadEPs():
             print("Press <Enter> to continue...")
             input()
         i += 1
-        print("\r{}".format(i), end='')
+        # print("\r{}".format(i), end='')
 
 def validEpResults(G):
     pi, leps = lep_finder.getEquitablePartitions(G, False, False)
@@ -104,6 +110,25 @@ def getPartitionNeighbors(vertex, G, partition_dict):
 def areLEPs(leps, G, pi):
     
     return True
+
+def iterationsTest():
+    num_nodes = list()
+    num_iters = list()
+    for i in range(2000, 50000, 2000):
+        num_nodes.append(i)
+        G = nx.random_internet_as_graph(i)
+        # func = lambda: ep_finder.getIters(*ep_finder.initialize(G))
+        # t = Timer(func)
+        # computation_time.append(t.timeit(1))
+        iters = ep_finder.getIters(*ep_finder.initialize(G))
+        num_iters.append(iters)
+    
+    plt.scatter(num_nodes, num_iters, color='b', label="LEP Algorithm")
+    plt.title("Input Size vs. Iterations Computation Time")
+    plt.xlabel('Number of Nodes')
+    plt.ylabel('Number of Iterations')
+    plt.legend(loc="upper left")
+    plt.show()
 
 # OLD CODE:
 

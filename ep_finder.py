@@ -9,6 +9,7 @@ by Bastert (http://match.pmf.kg.ac.rs/electronic_versions/Match40/match40_265-27
 """
 
 from itertools import chain, combinations, groupby
+import math
 import operator
 
 class LinkedListNode:
@@ -303,7 +304,7 @@ class ColorClass(LinkedList):
             else:
                 visited.add(v.temp_f)
                 b = v.temp_f
-                # set current_p to the smallest number of connections that a node in C[b] has with this color class
+                # set current_p to the smallest number of connections that a node in C[b] has with this color class (in preparation for next loop, below)
                 if C[b].hit < C[b].size: # if not all nodes in C[b] neighbor a node in this color class, then the min number of connections to this color class is zero
                     C[b].current_p = 0
                 else:
@@ -426,9 +427,12 @@ def recolor(C, L):
         C[v.temp_f].append(v)
 
     # make sure largest new color retains old color label
+        # i think this is just for reducing the complexity (because computeStructureSet will iterate through new colors; more efficient to iterate over fewer vertices)
     for c in {v.f for v in L}:
-        d = max([(C[v.temp_f].size, v.temp_f) for v in L if v.f == c])[1] # max index of new colorclasses from same previous colorclass
+        d = max([(C[v.temp_f].size, v.temp_f) for v in L if v.f == c])[1] # index of largest new colorclasses from same previous colorclass
         # if color d has more nodes than the original, switch their coloring
+            # WRONG: equally (i think), if c != d (since d has max size, then if c != d then C[c].size < C[d].size)
+            #   ...because if temp_f is different than f, then v.temp_f might not include c, so d not guaranteed to be max until compared with c
         if C[c].size < C[d].size:
             C[c].relabel(d)
             C[d].relabel(c)
@@ -441,7 +445,7 @@ def recolor(C, L):
     return C
 
 
-def equitablePartition(C, N):
+def equitablePartition(C, N, progress_bar = True):
     """
     Finds the coarsest equitable partition of a network
     
@@ -460,17 +464,25 @@ def equitablePartition(C, N):
          Dictionary of lists where each list represents nodes in the same partition 
     
     """
-    # print('hi')
-    import pdb; pdb.set_trace()
+
+    # import pdb; pdb.set_trace()
+
+    progress = 0
+    if progress_bar:
+        print("Finding Coarsest EP...")
 
     new_colors = {0} # notice all nodes are in the same color class
     n_colors = 0
+    iters = 0
 
     while True:
+        iters += 1
         L = set() # nodes with new colors
         temp_new_colors = set() # indices of nodes with new colors
 
-        for c in new_colors:
+        iters_per_percent = len(new_colors) / 25
+
+        for i, c in enumerate(new_colors):
             C, N = C[c].computeStructureSet(C, N) # has to do with counting the number of neighbors of each vertex and their respective colors
 
             args = (C, L, n_colors, temp_new_colors)
@@ -479,6 +491,61 @@ def equitablePartition(C, N):
 
             for v in C[c].structure_set:
                 v.structure_value = 0
+            
+            if progress_bar and iters_per_percent != 0 \
+                    and i % math.ceil(iters_per_percent) == 0:
+                updateLoadingBar(progress + i / iters_per_percent)
+        
+        progress += 25
+
+        C = recolor(C, L)
+        new_colors = temp_new_colors
+
+        # break condition
+        if new_colors == set():
+            break
+
+    # put equitable partition into dictionary form {color: nodes}
+    ep = {color: C[color].nodes() for color in range(len(C)) if C[color].size > 0}
+
+    progress = 100
+    updateLoadingBar(progress)
+    print()
+
+    return ep, N
+
+def getIters(C, N, progress_bar = True):
+    progress = 0
+    if progress_bar:
+        print("Finding Coarsest EP...")
+
+
+    new_colors = {0} # notice all nodes are in the same color class
+    n_colors = 0
+    iters = 0
+
+    while True:
+        iters += 1
+        L = set() # nodes with new colors
+        temp_new_colors = set() # indices of nodes with new colors
+
+        iters_per_percent = len(new_colors) / 25
+
+        for i, c in enumerate(new_colors):
+            C, N = C[c].computeStructureSet(C, N) # has to do with counting the number of neighbors of each vertex and their respective colors
+
+            args = (C, L, n_colors, temp_new_colors)
+            args = C[c].splitColor(*args)
+            C, L, n_colors, temp_new_colors = args
+
+            for v in C[c].structure_set:
+                v.structure_value = 0
+            
+            if progress_bar and iters_per_percent != 0 \
+                    and i % math.ceil(iters_per_percent) == 0:
+                updateLoadingBar(progress + i / iters_per_percent)
+        
+        progress += 25
 
         C = recolor(C, args[1])
         new_colors = temp_new_colors
@@ -489,6 +556,12 @@ def equitablePartition(C, N):
 
     # put equitable partition into dictionary form {color: nodes}
     ep = {color: C[color].nodes() for color in range(len(C)) if C[color].size > 0}
-    
-    return ep, N
 
+    progress = 100
+    updateLoadingBar(progress)
+
+    return iters
+
+def updateLoadingBar(percent):
+    percent = min(100, int(percent))
+    print("\r [{0}] {1}%".format('#' * percent + ' ' * (100 - percent), percent), end='')

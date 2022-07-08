@@ -99,11 +99,9 @@ def getLocalEquitablePartitions(G, ep, progress_bar = True):
     # the following loop takes about 76 percent of the LEP algorithm's runtime, so we should update the progress
     #   bar 76 times during the 
     num_edges_per_percent = G.number_of_edges() / 76
-    edge_num = 0
 
     # populate "top right" half (i.e., i < j in key (i, j)) of edge_partition (bottom half is redundant for undirected graphs)
-    for (i, j) in G.edges:
-        edge_num += 1
+    for edge_num, (i, j) in enumerate(G.edges):
         if progress_bar and num_edges_per_percent != 0 \
                 and edge_num % math.ceil(num_edges_per_percent) == 0:
             updateLoadingBar(progress + edge_num / num_edges_per_percent)
