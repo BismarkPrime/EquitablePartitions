@@ -261,9 +261,16 @@ class ColorClass(LinkedList):
         Space: Potentially up to number of edges, but never worse than all nodes in the graph
 
         """
+        # JOSEPH NOTES:
+            # .hit is how many nodes see the current color class. period
+            # structure_value - how many connections the current node has 
+            # to the current color class.
+            # structure_set - set of nodes outside our partition element that connect
+            # to our color class.
         # reset structure_set
         self.structure_set = list()
-
+        # All the nodes in a color class are stored as a linked list
+        # thus self.head returns the first node in the color class
         w = self.head
         while True:
             # loop over each neighboring node `v` of `w` (i.e., there exists an edge v <-- w)
@@ -294,6 +301,10 @@ class ColorClass(LinkedList):
         Space: linear with number of neighboring colorclasses, max neighboring nodes
 
         """
+        #JOSEPH NOTES:
+        #   current_p is the minimum number of connections to the color class that we're considering
+        #   this could be 0 or not...
+        
         # sort structure set by structure values, ascending
         self.structure_set.sort(key=operator.attrgetter('structure_value')) # sort neighbors by structure_value
 
@@ -312,7 +323,7 @@ class ColorClass(LinkedList):
 
                 # current_color gets set to the temp_f value of the node in C[b] with the smallest number of connections to this color class
                 C[b].current_color = b # current color is no longer none or previous value
-                C[b].hit = 0
+                C[b].hit = 0 # resetting the hit value for the next iteration
 
         for v in self.structure_set: # iterate through all vertices that neighbor nodes in this color class
             b = v.temp_f
@@ -325,6 +336,7 @@ class ColorClass(LinkedList):
             if C[b].current_p != v.structure_value: # if not all nodes in C[b] neighbor a node in this color class
                 C[b].current_p = v.structure_value  # set current_p to the smallest number of connections that a node in C[b] has with this color class (gonna happen here or in previous loop)
                 n_colors += 1                       # add new color
+                # current_color better named (split_off_off, this is what they will be assigned when split)
                 C[b].current_color = n_colors
                 new_colors.add(n_colors)            # track new colors
 
@@ -333,7 +345,7 @@ class ColorClass(LinkedList):
             #   with equal structure_value will be given the same temp_f value). The only nodes that will retain their original temp_f value will be the nodes from 
             #   each C[b] with the same minimum structure_value
             if v.temp_f != C[b].current_color:          # if color number of C[b] changed,
-                                                        #   track which nodes were in C[b] and and move them to the new color class
+                # can call L nodes_to_be_updated        #   track which nodes were in C[b] and and move them to the new color class
                 L.add(v)                                # add it to the set of nodes with new (pseudo?) colors
                 # change temp_f (pseudo color) of v
                 C[v.temp_f].size -= 1                   # decrement the size of the color class that v used to be in
@@ -428,7 +440,7 @@ def recolor(C, L):
 
     # make sure largest new color retains old color label
         # i think this is just for reducing the complexity (because computeStructureSet will iterate through new colors; more efficient to iterate over fewer vertices)
-    for c in {v.f for v in L}:
+    for c in {v.f for v in L}: # this for loop is so we don't repeat
         d = max([(C[v.temp_f].size, v.temp_f) for v in L if v.f == c])[1] # index of largest new colorclasses from same previous colorclass
         # if color d has more nodes than the original, switch their coloring
             # WRONG: equally (i think), if c != d (since d has max size, then if c != d then C[c].size < C[d].size)
@@ -438,7 +450,7 @@ def recolor(C, L):
             C[d].relabel(c)
             C[c], C[d] = C[d], C[c]
 
-    # set f = temp_f
+    # set f = temp_f, this is a reset for the next iteration
     for v in L:
         v.f = v.temp_f
 
@@ -477,7 +489,7 @@ def equitablePartition(C, N, progress_bar = True):
 
     while True:
         iters += 1
-        L = set() # nodes with new colors
+        L = set() # nodes with new colors (possible new name: nodes_updated)
         temp_new_colors = set() # indices of nodes with new colors
 
         iters_per_percent = len(new_colors) / 25
@@ -509,8 +521,9 @@ def equitablePartition(C, N, progress_bar = True):
     ep = {color: C[color].nodes() for color in range(len(C)) if C[color].size > 0}
 
     progress = 100
-    updateLoadingBar(progress)
-    print()
+    if progress_bar:
+        updateLoadingBar(progress)
+        print()
 
     return ep, N
 

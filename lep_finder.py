@@ -25,7 +25,7 @@ def getEquitablePartitions(G, timed = True, progress_bars = True):
     """
     start_time = time.time()
     C, N = ep_finder.initialize(G)
-    ep, N = ep_finder.equitablePartition(C, N)
+    ep, N = ep_finder.equitablePartition(C, N,progress_bar=progress_bars)
     coarsest = time.time() - start_time
     start_time = time.time()
     leps = getLocalEquitablePartitions(G, ep, progress_bar=progress_bars)
