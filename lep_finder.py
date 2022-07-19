@@ -143,7 +143,7 @@ def getLocalEquitablePartitions(G, ep, progress_bar = True):
     for (index, V) in ep.items():    
         common_neighbors = set(rev_g.neighbors(V[0]))
         for v in V:
-            common_neighbors.intersection_update(rev_g.neighbors(node))
+            common_neighbors.intersection_update(set(rev_g.neighbors(v)))
         for v in V:
             for unique_neighbor in set(rev_g.neighbors(v)).difference(common_neighbors):
                 i = index
