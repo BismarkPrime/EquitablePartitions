@@ -509,8 +509,9 @@ def equitablePartition(C, N, progress_bar = True):
     ep = {color: C[color].nodes() for color in range(len(C)) if C[color].size > 0}
 
     progress = 100
-    updateLoadingBar(progress)
-    print()
+    if progress_bar:
+        updateLoadingBar(progress)
+        print()
 
     return ep, N
 

@@ -33,6 +33,15 @@ def plotIfInvalid(G):
 
 # test code
 def test():
+    while True:
+        G = nx.gnp_random_graph(10, .15, directed=True)
+        pi, leps = lep_finder.getEquitablePartitions(G, False, False)
+        if len(leps) != len(pi):
+            print(pi)
+            print(leps)
+            lep_finder.plotEquitablePartition(G, pi)
+            input()
+
     G = nx.random_geometric_graph(40, .15)
     pi, leps = lep_finder.getEquitablePartitions(G, False, False)
     lep_finder.plotEquitablePartition(G, pi, nx.get_node_attributes(G, "pos"))
