@@ -85,8 +85,6 @@ def getLocalEquitablePartitions(G, ep, progress_bar = True):
         print("FINDING LEPS...")
         updateLoadingBar(progress)
 
-    # NOTE: perhaps using N (list of nodes and their neighbors) could more efficiently create edge_partition?
-
     # start_time = time.time()
     # array that maps nodes (indices) to their partition element
     partition_dict = np.empty(G.number_of_nodes(), int)
@@ -99,48 +97,23 @@ def getLocalEquitablePartitions(G, ep, progress_bar = True):
     if progress_bar:
         updateLoadingBar(progress)
     
-    # "2d array" mapping partition elements to the edges connecting them; i.e.,
-    #   edge_partition[0][3] should be a set of edges connecting partition elements
-    #   0 and 3; implementation using dictionary with (i, j) pair key to reduce temporal complexity
-    # edge_partition = {}
-
-    # # the following loop takes about 76 percent of the LEP algorithm's runtime, so we should update the progress
-    # #   bar 76 times during the 
-    # num_edges_per_percent = G.number_of_edges() / 76
-
-    # # populate edge_partition
-    # for edge_num, (i, j) in enumerate(G.edges):
-    #     if progress_bar and num_edges_per_percent != 0 \
-    #             and edge_num % math.ceil(num_edges_per_percent) == 0:
-    #         updateLoadingBar(progress + edge_num / num_edges_per_percent)
-    #     part_i = partition_dict[i]
-    #     part_j = partition_dict[j]
-    #     if G.is_directed():
-    #         key = (part_i, part_j)
-    #     # in the undirected case, fill the "top right" half (i.e., i < j in key (i, j)) of edge_partition
-    #     #   (bottom half is redundant for undirected graphs)
-    #     else:
-    #         key = (part_i, part_j) if part_i < part_j else (part_j, part_i)
-    #     if key not in edge_partition:
-    #         edge_partition.update({key: set()})
-    #     edge_partition[key].add((i, j))
-    
-    progress = 78
     if progress_bar:
         updateLoadingBar(progress)
 
     # keeps track of which partition elements are stuck together by internal cohesion
     #   i.e., if the values at two indices are the same, the partition elements at those 
     #   two indices are stuck together in the adjacency matrix (AKA they are not externally
-    #   consistent AKA their sub-adjacency matrix is not all 1s or all 0s)
+    #   consistent)
     int_cohesion_list = list(ep.keys())
 
-    # edge_partition_num = 0
-    # edge_partition_el_per_percent = len(edge_partition) / 18
+    edge_partition_num = 0
+    edge_partition_el_per_percent = len(ep) / 94
 
-    # rev_g = G.reverse()
+    for (index, V) in ep.items():
+        if progress_bar and edge_partition_el_per_percent \
+                and edge_partition_num % math.ceil(edge_partition_el_per_percent) == 0:
+            updateLoadingBar(progress + edge_partition_num / edge_partition_el_per_percent)
 
-    for (index, V) in ep.items():    
         common_neighbors = set(rev_g.neighbors(V[0]))
         for v in V:
             common_neighbors.intersection_update(set(rev_g.neighbors(v)))
@@ -158,28 +131,6 @@ def getLocalEquitablePartitions(G, ep, progress_bar = True):
                     next = int_cohesion_list[curr]
                 # one more update needed once we have reached the leftmost partition element (when next == curr)
                 int_cohesion_list[curr] = partition_element
-
-    # # i and j are indices of the two partition elements in question
-    # for ((i, j), edge_set) in edge_partition.items():
-    #     edge_partition_num += 1
-    #     if progress_bar and edge_partition_el_per_percent \
-    #             and edge_partition_num % math.ceil(edge_partition_el_per_percent) == 0:
-    #         updateLoadingBar(progress + edge_partition_num / edge_partition_el_per_percent)
-    #     num_edges = len(edge_set)
-    #     total_possible_edges = len(ep[i]) * len(ep[j])
-    #     # if two partition elements are not externally consistent with one another
-    #     #    (e.g., if they are internally cohesive)
-    #     if num_edges != total_possible_edges:
-    #         partition_element = min(int_cohesion_list[i], int_cohesion_list[j])
-    #         curr = j if int_cohesion_list[i] < int_cohesion_list[j] else i
-    #         # update back pointers RTL
-    #         next = int_cohesion_list[curr]
-    #         while next != curr:
-    #             int_cohesion_list[curr] = partition_element
-    #             curr = next
-    #             next = int_cohesion_list[curr]
-    #         # one more update needed once we have reached the leftmost partition element (when next == curr)
-    #         int_cohesion_list[curr] = partition_element
     
     progress = 96
     if progress_bar:
