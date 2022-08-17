@@ -6,6 +6,7 @@ from functools import reduce
 import sys
 import math
 from ep_finder import Node
+from alive_progress import alive_bar
 
 import ep_finder
 
@@ -29,7 +30,8 @@ def getEquitablePartitions(G, timed = True, progress_bars = True):
     ep, N = ep_finder.equitablePartition(C, N, progress_bar=progress_bars)
     coarsest = time.time() - start_time
     start_time = time.time()
-    leps = getLocalEquitablePartitions(G, ep, progress_bar=progress_bars)
+    N_G = initialize(G)
+    leps = getLocalEquitablePartitions(N_G, ep, progress_bar=progress_bars)
     local = time.time() - start_time
     if timed:
         return ep, leps, coarsest + local
@@ -57,109 +59,23 @@ def plotEquitablePartition(G, pi, pos_dict = None):
     nx.draw_networkx(G, pos=pos_dict, node_color=color_list)
     plt.show()
 
-# TODO: verify correctness (at least run on a few more graphs)
-# consider initializing LEP finder as well to make algorithm implementation independent of NetworkX
-# verify time complexity (again, because algorithm has been changed)
-def getLocalEquitablePartitions(G, ep, progress_bar = True):
-    """Finds the local equitable partitions of a graph.
+def initialize(G):
+    """Initializes the inverted neighbor dictionary required to compute leps.
    
     ARGUMENTS:
         G : NetworkX Graph
             The graph to analyzed
-        ep : dict
-            The equitable partition of the graph, as returned by ep_finder
-        progress_bar : boolean
-            whether to show realtime progress bar (enabled by default)
     
     RETURNS:
-        A list of sets, with each set containing the partition elements that can be
-            grouped together in the same local equitable partition
+        A dictionary with nodes as keys and a set of their in-edge neighbors as values.
     """
 
-    rev_g = G.reverse() if G.is_directed() else G
+    g_rev = G.reverse() if G.is_directed() else G
 
-    N = [Node(node, 0, list(rev_g.neighbors(node))) for node in G.nodes()]
-
-    progress = 0
-    if progress_bar:
-        print("FINDING LEPS...")
-        updateLoadingBar(progress)
-
-    # start_time = time.time()
-    # array that maps nodes (indices) to their partition element
-    partition_dict = np.empty(G.number_of_nodes(), int)
-    for (element, nodes) in ep.items():
-        for node in nodes:
-            partition_dict[node] = element
-
-    # the preceding portion of the code generally takes about 2% of the total LEP runtime
-    progress = 2
-    if progress_bar:
-        updateLoadingBar(progress)
-    
-    if progress_bar:
-        updateLoadingBar(progress)
-
-    # keeps track of which partition elements are stuck together by internal cohesion
-    #   i.e., if the values at two indices are the same, the partition elements at those 
-    #   two indices are stuck together in the adjacency matrix (AKA they are not externally
-    #   consistent)
-    int_cohesion_list = list(ep.keys())
-
-    edge_partition_num = 0
-    edge_partition_el_per_percent = len(ep) / 94
-
-    for (index, V) in ep.items():
-        if progress_bar and edge_partition_el_per_percent \
-                and edge_partition_num % math.ceil(edge_partition_el_per_percent) == 0:
-            updateLoadingBar(progress + edge_partition_num / edge_partition_el_per_percent)
-
-        common_neighbors = set(rev_g.neighbors(V[0]))
-        for v in V:
-            common_neighbors.intersection_update(set(rev_g.neighbors(v)))
-        for v in V:
-            for unique_neighbor in set(rev_g.neighbors(v)).difference(common_neighbors):
-                i = index
-                j = partition_dict[unique_neighbor]
-                partition_element = min(int_cohesion_list[i], int_cohesion_list[j])
-                curr = j if int_cohesion_list[i] < int_cohesion_list[j] else i
-                # update back pointers RTL
-                next = int_cohesion_list[curr]
-                while next != curr:
-                    int_cohesion_list[curr] = partition_element
-                    curr = next
-                    next = int_cohesion_list[curr]
-                # one more update needed once we have reached the leftmost partition element (when next == curr)
-                int_cohesion_list[curr] = partition_element
-    
-    progress = 96
-    if progress_bar:
-        updateLoadingBar(progress)
-
-    # consolidate pointers to make the implicit tree structure in internalCohesionList one level deep at most
-    #   (in other words, update back pointers LTR)
-    for i in range(len(int_cohesion_list)):
-        int_cohesion_list[i] = int_cohesion_list[int_cohesion_list[i]]
-    
-    progress = 98
-    if progress_bar:
-        updateLoadingBar(progress)
-
-    # this list sorts the partitions by their internal cohesion groups, while 
-    #   preserving the indices to determine which parititon elements are together
-    lep_list = enumerate(int_cohesion_list)
-    lep_dict = dict()
-    for (node, part_el) in lep_list:
-        if part_el not in lep_dict:
-            lep_dict.update({part_el: set()})
-        lep_dict.get(part_el).add(node)
-    
-    progress = 100
-    if progress_bar:
-        updateLoadingBar(progress)
-        print()
-
-    return lep_dict.values()
+    # NOTE: N stores the in-edge neighbors, i.e. N[v] returns all nodes w with an edge w -> v.
+    #    Thus, it is different than just calling G.neighbors(v); (hence, we use G.reverse())
+    N = { node:set(g_rev.neighbors(node)) for node in G.nodes() }
+    return N
 
 def printStats(G):
     # get coarsest EP and list of local EPs
@@ -167,7 +83,7 @@ def printStats(G):
     # keep non-trivial parts of EP and LEPs
     f_ep = list(filter(lambda i: len(i) != 1, ep.values()))
     # here, non-trivial just means that there are multiple nodes in the LEP
-    f_leps = list(filter(lambda i: len(i) != 1 or len(ep[list(i)[0]]) != 1, leps))
+    f_leps = list(filter(lambda i: len(i) != 1 or len(ep[list(i)[0]]) != 1, leps.values()))
     # calculate how much is non-trivial
     partitionSize = lambda part_el: len(ep[part_el])
     # calculate number of non-trivial nodes
@@ -207,6 +123,92 @@ def __getEPStats(set_list):
 def printWithLabel(label, delim, item):
     print("{}\n{}\n{}\n".format(label, delim * len(label), item))
 
-def updateLoadingBar(percent):
-    percent = int(percent)
-    print("\r [{0}] {1}%".format('#' * percent + ' ' * (100 - percent), percent), end='')
+def getLocalEquitablePartitions(N, ep, progress_bar = True):
+    """Finds the local equitable partitions of a graph.
+   
+    ARGUMENTS:
+        N : dict
+            A dictionary containing nodes as keys with their in-edge neighbors as values
+        ep : dict
+            The equitable partition of the graph, as returned by ep_finder
+        progress_bar : boolean
+            whether to show realtime progress bar (enabled by default)
+    
+    RETURNS:
+        A list of sets, with each set containing the partition elements that can be
+            grouped together in the same local equitable partition
+    """
+    retval = None
+    # if progress_bar:
+    #     title = "COMPUTING LEPS"
+    #     print("{0}\n{1}".format(title, '=' * len(title)))
+    with alive_bar(3 * len(ep) + 1, title="COMPUTING LEPS\t", disable=not progress_bar) as bar:
+        for i in __computeLocalEquitablePartitions(N, ep):
+            bar()
+            retval = i
+    return retval
+
+def __computeLocalEquitablePartitions(N, pi):
+    """Finds the local equitable partitions of a graph.
+   
+    ARGUMENTS:
+        N : dict
+            A dictionary containing nodes as keys with their in-edge neighbors as values
+        pi : dict
+            The equitable partition of the graph, as returned by ep_finder
+    
+    RETURNS:
+        A list of sets, with each set containing the partition elements that can be
+            grouped together in the same local equitable partition
+    """
+
+    # array that maps nodes (indices) to their partition element
+    partition_dict = np.empty(len(N), int)
+    for (element, nodes) in pi.items():
+        for node in nodes:
+            partition_dict[node] = element
+        yield
+
+    # keeps track of which partition elements are stuck together by internal cohesion,
+    #   with partition element index as key and internally cohesive elements as values
+    lep_network = dict()
+
+    for (index, V) in pi.items():
+        common_neighbors = set(N[V[0]])
+        for v in V:
+            common_neighbors.intersection_update(set(N[v]))
+        yield
+        for v in V:
+            for unique_neighbor in set(N[v]).difference(common_neighbors):
+                __link(index, partition_dict[unique_neighbor], lep_network)
+        yield
+
+    leps = __extractSCCs(lep_network, len(pi))
+    yield leps
+
+def __link(i, j, edge_dict):
+    if i not in edge_dict:
+        edge_dict.update({i: set()})
+    edge_dict.get(i).add(j)
+
+    if j not in edge_dict:
+        edge_dict.update({j: set()})
+    edge_dict.get(j).add(i)
+
+def __extractSCCs(edge_dict, num_nodes):
+    visited = set()
+    scc_list = []
+    for i in range(num_nodes):
+        if i not in visited:
+            scc = set()
+            scc.add(i)
+            visited.add(i)
+            if i in edge_dict:
+                neighbors = edge_dict.get(i)
+                while len(neighbors) > 0:
+                    j = neighbors.pop()
+                    scc.add(j)
+                    visited.add(j)
+                    neighbors.update(edge_dict.get(j).difference(scc))
+            scc_list.append(scc)
+    return scc_list

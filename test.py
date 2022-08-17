@@ -36,7 +36,7 @@ def plotIfInvalid(G):
 def test():
     while True:
         G = nx.gnp_random_graph(10, .15, directed=True)
-        pi, leps = lep_finder.getEquitablePartitions(G, False, False)
+        pi, leps = lep_finder.getEquitablePartitions(G, timed=False, progress_bars=False)
         if len(leps) != len(pi):
             print(pi)
             print(leps)
@@ -51,13 +51,13 @@ def test():
 def findBadEPs():
     i = 0
     while (True):
-        G = nx.random_geometric_graph(40, .15, seed=i)
+        G = nx.gnp_random_graph(400, .01, seed=i, directed=True)
         if not validEpResults(G):
             print("Current seed: " + i)
             print("Press <Enter> to continue...")
             input()
         i += 1
-        # print("\r{}".format(i), end='')
+        print("\r{}".format(i), end='')
 
 def validEpResults(G):
     pi, leps = lep_finder.getEquitablePartitions(G, False, False)
@@ -494,6 +494,218 @@ def getLocalEquitablePartitions(G, ep, progress_bar = True):
         print()
 
     return lep_dict.values()
+    
 
 def updateLoadingBar(progress):
     pass
+
+def compute():
+    # a = 0
+    # for i in range(10000):
+    #     a += 1
+    #     yield i
+    # # print(a)
+    # yield -3
+    yield 1
+    yield 2
+    yield 3
+
+def yieldTest():
+    for _ in range(3):
+        for i in compute():
+            print('{0}'.format(i), end=' ')
+    print(compute())
+
+               
+
+def updateCohesionGroups(i, int_cohesion_list):
+    # find current root of tree of which i is a leaf
+    curr = i
+    next = int_cohesion_list[curr]
+    node_stack = []
+    while curr != next:
+        node_stack.append(next)
+        curr = next
+        next = int_cohesion_list[curr]
+    # now curr is the root/tail of the linked list
+    while node_stack.count() > 0:
+        int_cohesion_list[node_stack.pop()] = curr
+    int_cohesion_list[i] = curr
+            
+
+
+def __computeLocalEquitablePartitions_old(N, pi):
+    """Finds the local equitable partitions of a graph.
+   
+    ARGUMENTS:
+        N : dict
+            A dictionary containing nodes as keys with their in-edge neighbors as values
+        pi : dict
+            The equitable partition of the graph, as returned by ep_finder
+    
+    RETURNS:
+        A list of sets, with each set containing the partition elements that can be
+            grouped together in the same local equitable partition
+    """
+
+    # array that maps nodes (indices) to their partition element
+    partition_dict = np.empty(len(N), int)
+    for (element, nodes) in pi.items():
+        for node in nodes:
+            partition_dict[node] = element
+        yield
+
+    # keeps track of which partition elements are stuck together by internal cohesion
+    #   i.e., if the values at two indices are the same, the partition elements at those 
+    #   two indices are stuck together in the adjacency matrix (AKA they are not externally
+    #   consistent)
+    int_cohesion_list = list(pi.keys())
+
+    for (index, V) in pi.items():
+        common_neighbors = set(N[V[0]])
+        for v in V:
+            common_neighbors.intersection_update(set(N[v]))
+        yield
+        for v in V:
+            for unique_neighbor in set(N[v]).difference(common_neighbors):
+                i = index
+                j = partition_dict[unique_neighbor]
+                # updates int_cohesion_list so that i and j point directly to the root of the tree,
+                #   thereby preventing the possibility of rightward-pointing links
+                #   (rightward links are possible if i or j are out of date)
+                # updateCohesionGroups(i, int_cohesion_list)
+                # updateCohesionGroups(j, int_cohesion_list)
+                # only coalesce cohesion groups if they are different
+                if int_cohesion_list[i] != int_cohesion_list[j]:
+                    # partition_element = min(int_cohesion_list[i], int_cohesion_list[j])
+                    # curr = j if int_cohesion_list[i] < int_cohesion_list[j] else i
+                    cohesion_group = int_cohesion_list[i] # cohesion_group = i would also work, but may be less efficient
+                    curr = j
+                    # update back pointers RTL
+                    next = int_cohesion_list[curr]
+                    while next != curr:
+                        int_cohesion_list[curr] = cohesion_group
+                        curr = next
+                        next = int_cohesion_list[curr]
+                    # one more update needed once we have reached the leftmost partition element (when next == curr)
+                    int_cohesion_list[curr] = cohesion_group
+        yield
+
+    # consolidate pointers to make the implicit tree structure in internalCohesionList one level deep at most
+    #   (in other words, update back pointers LTR)
+    for i in range(len(int_cohesion_list)):
+        int_cohesion_list[i] = int_cohesion_list[int_cohesion_list[i]]
+
+    # this list sorts the partitions by their internal cohesion groups, while 
+    #   preserving the indices to determine which parititon elements are together
+    lep_list = enumerate(int_cohesion_list)
+    lep_dict = dict()
+    for (node, part_el) in lep_list:
+        # add len(N) to key value so as to avoid clashing keys when relabeling (below)
+        if part_el not in lep_dict:
+            lep_dict.update({part_el + len(N): set()})
+        lep_dict.get(part_el + len(N)).add(node)
+        yield
+
+    # for convenience, relabel keys to integers [0, len(int_cohesion_list) - 1]
+    for (index, key) in enumerate(lep_dict.keys()):
+        lep_dict[index] = lep_dict.pop(key)
+
+    yield lep_dict
+
+# TODO: verify correctness (at least run on a few more graphs)
+# consider initializing LEP finder as well to make algorithm implementation independent of NetworkX
+# verify time complexity (again, because algorithm has been changed)
+def getLocalEquitablePartitions(N, ep, progress_bar = True):
+    """Finds the local equitable partitions of a graph.
+   
+    ARGUMENTS:
+        N : dict
+            A dictionary containing nodes as keys with their in-edge neighbors as values
+        ep : dict
+            The equitable partition of the graph, as returned by ep_finder
+        progress_bar : boolean
+            whether to show realtime progress bar (enabled by default)
+    
+    RETURNS:
+        A list of sets, with each set containing the partition elements that can be
+            grouped together in the same local equitable partition
+    """
+
+    progress = 0
+    if progress_bar:
+        print("FINDING LEPS...")
+        updateLoadingBar(progress)
+
+
+    # array that maps nodes (indices) to their partition element
+    partition_dict = np.empty(len(N), int)
+    for (element, nodes) in ep.items():
+        for node in nodes:
+            partition_dict[node] = element
+
+    # the preceding portion of the code generally takes about 2% of the total LEP runtime
+    progress = 2
+    if progress_bar:
+        updateLoadingBar(progress)
+
+    # keeps track of which partition elements are stuck together by internal cohesion
+    #   i.e., if the values at two indices are the same, the partition elements at those 
+    #   two indices are stuck together in the adjacency matrix (AKA they are not externally
+    #   consistent)
+    int_cohesion_list = list(ep.keys())
+
+    edge_partition_num = 0
+    edge_partition_el_per_percent = len(ep) / 94
+
+    for (index, V) in ep.items():
+        if progress_bar and edge_partition_el_per_percent \
+                and edge_partition_num % math.ceil(edge_partition_el_per_percent) == 0:
+            updateLoadingBar(progress + edge_partition_num / edge_partition_el_per_percent)
+
+        common_neighbors = set(N[V[0]])
+        for v in V:
+            common_neighbors.intersection_update(set(N[v]))
+        for v in V:
+            for unique_neighbor in set(N[v]).difference(common_neighbors):
+                i = index
+                j = partition_dict[unique_neighbor]
+                partition_element = min(int_cohesion_list[i], int_cohesion_list[j])
+                curr = j if int_cohesion_list[i] < int_cohesion_list[j] else i
+                # update back pointers RTL
+                next = int_cohesion_list[curr]
+                while next != curr:
+                    int_cohesion_list[curr] = partition_element
+                    curr = next
+                    next = int_cohesion_list[curr]
+                # one more update needed once we have reached the leftmost partition element (when next == curr)
+                int_cohesion_list[curr] = partition_element
+    
+    progress = 96
+    if progress_bar:
+        updateLoadingBar(progress)
+
+    # consolidate pointers to make the implicit tree structure in internalCohesionList one level deep at most
+    #   (in other words, update back pointers LTR)
+    for i in range(len(int_cohesion_list)):
+        int_cohesion_list[i] = int_cohesion_list[int_cohesion_list[i]]
+    
+    progress = 98
+    if progress_bar:
+        updateLoadingBar(progress)
+
+    # this list sorts the partitions by their internal cohesion groups, while 
+    #   preserving the indices to determine which parititon elements are together
+    lep_list = enumerate(int_cohesion_list)
+    lep_dict = dict()
+    for (node, part_el) in lep_list:
+        if part_el not in lep_dict:
+            lep_dict.update({part_el: set()})
+        lep_dict.get(part_el).add(node)
+    
+    progress = 100
+    if progress_bar:
+        updateLoadingBar(progress)
+        print()
+
+    return lep_dict
