@@ -1,3 +1,8 @@
+#Joseph ignores to ignore
+gplus_combined.txt.gz
+soc-redditHyperlinks-body.tsv
+Data/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

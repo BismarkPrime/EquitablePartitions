@@ -85,7 +85,7 @@ def __computeLocalEquitablePartitions(N, pi):
         yield
 
     leps = __extractConnectedComponents(lep_network, len(pi))
-    yield leps
+    yield leps.values()
 
 def __link(i, j, edge_dict):
     if i not in edge_dict:
