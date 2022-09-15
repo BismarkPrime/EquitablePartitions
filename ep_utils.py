@@ -5,7 +5,7 @@ import time
 from functools import reduce
 import sys
 
-import ep_finder
+import ep_finder, lep_finder
 
 # TODO: update naming to match paper
 
@@ -27,8 +27,8 @@ def getEquitablePartitions(G, timed = True, progress_bars = True):
     ep, N = ep_finder.equitablePartition(C, N, progress_bar=progress_bars)
     coarsest = time.time() - start_time
     start_time = time.time()
-    N_G = initialize(G)
-    leps = getLocalEquitablePartitions(N_G, ep, progress_bar=progress_bars)
+    N_G = lep_finder.initialize(G)
+    leps = lep_finder.getLocalEquitablePartitions(N_G, ep, progress_bar=progress_bars)
     local = time.time() - start_time
     if timed:
         return ep, leps, coarsest + local

@@ -65,7 +65,7 @@ def GetLocalSpec(G,ep_dict,lep_list):
         
     return spec_dict, orig_spec
 
-def NontrivialityData(G,ep_dict,lep_list, return_vals=False,plot=True,show_progress=True):
+def NontrivialityData(G,ep_dict,lep_list, return_vals=False,plot=True,show_progress=True,verbose=False):
     """
     Gets the percentage of nodes in nontrivial eps and creates and returns a dictionary 
     with only the non-trivial partition elements leftover.
@@ -136,16 +136,21 @@ def NontrivialityData(G,ep_dict,lep_list, return_vals=False,plot=True,show_progr
             totalNontrivNodes+=len(ep_dict[partEl])
         if lep_size!=2:
             lep_hist_list.append(lep_size)
-    if plot:
-        pairs_perc = 1  # set as 1 since no nontrivial nodes mean
-                        # there will be no nontrivial partition elements
+    
+    if verbose:
         if totalNontrivNodes==0:
+            print("executed here!!!")
             print("There were no nontrivial nodes...")
         else:
             pairs_perc = (2*pairs)/totalNontrivNodes
             print(f"Total percentage on nontrivial nodes: {totalNontrivNodes/len(G)}")
             print(f"Total pairs in partition elements: {pairs}")
             print(f"Percentage of nontrivial nodes in pairs: {pairs_perc}")
+
+    if plot:
+        pairs_perc = 1  # set as 1 since no nontrivial nodes mean
+                        # there will be no nontrivial partition elements
+        
         if pairs_perc==1:
             print("No nontrivial partition elements that aren't pairs, histograms blank")
         else:
