@@ -100,14 +100,15 @@ def NontrivialityData(G,ep_dict,lep_list, return_vals=False,plot=True,show_progr
     for key,value in ep_dict.items():
         if show_progress:
             clear_output(wait=True)
-            print(f"Nontrivial ep progress:{key}/{totalPartEl}")
+            print(f"\rNontrivial ep progress:{key}/{totalPartEl}", end="")
         if len(value) == 2:
             nontrivEp_dict[key]=value
             pairs+=1
         elif len(value)!=1 and len(value)>2:
             nontrivEp_dict[key]=value
             hist_list.append(len(value))
-            
+    if show_progress:
+        print()
     # this works for getting only the lep's that have lifting eigenvalues.
     if show_progress:
         print("Filtering leps to match...")
@@ -116,12 +117,13 @@ def NontrivialityData(G,ep_dict,lep_list, return_vals=False,plot=True,show_progr
     for i,lep in enumerate(list(lep_list)):
         if show_progress:
             clear_output(wait=True)
-            print(f"Filtering leps progress: {i}/{total_in_leps}")
+            print(f"\rFiltering leps progress: {i}/{total_in_leps}", end="")
         for element in lep:
             if element in nontrivEp_dict.keys():
                 nontrivLep_list.append(lep)
                 break
-    
+    if show_progress:
+        print()
     # total nodes in nontrivial Leps
     if show_progress:
         print("getting total nontrivial nodes:")
@@ -130,13 +132,15 @@ def NontrivialityData(G,ep_dict,lep_list, return_vals=False,plot=True,show_progr
         lep_size=0
         if show_progress:
             clear_output(wait=True)
-            print(f"Nontrivial nodes progress:{i}/{len(nontrivLep_list)}")
+            print(f"\rNontrivial nodes progress:{i}/{len(nontrivLep_list)}", end="")
         for partEl in ntLEP:
             lep_size+=len(ep_dict[partEl])
             totalNontrivNodes+=len(ep_dict[partEl])
         if lep_size!=2:
             lep_hist_list.append(lep_size)
     
+    if show_progress:
+        print()
     if verbose:
         if totalNontrivNodes==0:
             print("executed here!!!")
@@ -148,36 +152,40 @@ def NontrivialityData(G,ep_dict,lep_list, return_vals=False,plot=True,show_progr
             print(f"Percentage of nontrivial nodes in pairs: {pairs_perc}")
 
     if plot:
-        pairs_perc = 1  # set as 1 since no nontrivial nodes mean
+        #pairs_perc = 1  # set as 1 since no nontrivial nodes mean
                         # there will be no nontrivial partition elements
         
-        if pairs_perc==1:
-            print("No nontrivial partition elements that aren't pairs, histograms blank")
-        else:
+        #if pairs_perc==1:
+         #   print("No nontrivial partition elements that aren't pairs, histograms blank")
+        #else:
             # get necessary data for bar graph
-            ep_elements=list(set(hist_list))
-            lep_elements = list(set(lep_hist_list))
-            ep_presence=[]
-            lep_presence=[]
-            for size in ep_elements:
-                ep_presence.append(hist_list.count(size))
-            for size in lep_elements:
-                lep_presence.append(lep_hist_list.count(size))
-            # make bar graphs  
-            plt.subplot(121)
-            plt.bar(ep_elements,ep_presence,edgecolor='black')
-            plt.xticks(np.arange(len(ep_elements)),ep_elements)
-            plt.title("size of nontrivial EP elements")
-            plt.ylabel("% of nontriv nodes in this size")
-            
-            plt.subplot(122)
-            plt.bar(lep_elements,lep_presence,edgecolor='black')
-            plt.title("size of nontrivial LEP elements")
-            plt.xticks(np.arange(len(lep_elements)),lep_elements)
-            plt.ylabel("% of nontriv nodes in this size")
-            
-            plt.tight_layout()
-            plt.show()
+        ep_elements=list(set(hist_list))
+        lep_elements = list(set(lep_hist_list))
+        ep_presence=[]
+        lep_presence=[]
+        for size in ep_elements:
+            ep_presence.append(hist_list.count(size))
+        for size in lep_elements:
+            lep_presence.append(lep_hist_list.count(size))
+        # make bar graphs  
+        plt.subplot(121)
+        #bins, counts = np.histogram(ep_elements)
+        #plt.stairs(bins,counts,fill=True)
+        plt.bar(ep_elements,ep_presence,edgecolor='black')
+        #plt.xticks(np.arange(len(ep_elements)),ep_elements)
+        plt.title("size of nontrivial EP elements")
+        plt.ylabel("% of nontriv nodes in this size")
+        
+        plt.subplot(122)
+        #bins, counts = np.histogram(lep_elements)
+        #plt.stairs(bins, counts,fill=True)
+        plt.bar(lep_elements,lep_presence,edgecolor='black')
+        plt.title("size of nontrivial LEP elements")
+        #plt.xticks(np.arange(len(lep_elements)),lep_elements)
+        plt.ylabel("% of nontriv nodes in this size")
+        
+        plt.tight_layout()
+        plt.show()
             
     if return_vals:
         return nontrivEp_dict, nontrivLep_list,hist_list,totalNontrivNodes/len(G)

@@ -2,6 +2,7 @@
 gplus_combined.txt.gz
 soc-redditHyperlinks-body.tsv
 Data/
+.DS_Store
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
