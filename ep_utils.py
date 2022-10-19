@@ -34,6 +34,28 @@ def getEquitablePartitions(G, timed = True, progress_bars = True):
         return ep, leps, coarsest + local
     return ep, leps
 
+def getEquitablePartitionsFromFile(file_path, num_nodes=None, delim=',', comments='#', directed=False, progress_bars = True):
+    """Finds the coarsest equitable partition and local equitable partitions of a graph.
+   
+    ARGUMENTS:
+        file_path : the path to the file storing edge data of the graph to be analyzed
+        num_nodes : the total number of nodes; only necessary if the file at file_path
+            does not contain all nodes (i.e., if there are nodes with no edges between them)
+        delim : the delimiter between source and destination nodes for each edge in the
+            file at file_path; uses ',' by default
+        comments : a character used to denote a comment, or line to ignore; uses '#' by default
+        directed : a boolean indicating whether the graph is directed or not; uses False by default
+    
+    RETURNS:
+        The equitable partition (dict; int -> set), local equitable partition (list of sets
+            of partition elements grouped together), and computation time (when applicable)
+    """
+    C, N = ep_finder.initFromFile(file_path, num_nodes=num_nodes, delim=delim, comments=comments, directed=directed)
+    ep, N = ep_finder.equitablePartition(C, N, progress_bar=progress_bars)
+    N_G = lep_finder.initFromFile(file_path, num_nodes=num_nodes, delim=delim, comments=comments, directed=directed)
+    leps = lep_finder.getLocalEquitablePartitions(N_G, ep, progress_bar=progress_bars)
+    return ep, leps
+
 def plotEquitablePartition(G, pi, pos_dict = None):
     """Plots the equitable partition of a graph, with each element in its own color.
    
@@ -42,6 +64,9 @@ def plotEquitablePartition(G, pi, pos_dict = None):
             The graph to be plotted
         pi : dict
             The equitable partition of the graph, as returned by ep_finder
+        pos_dict : dict (optional)
+            A dictionary mapping nodes to their x,y coordinates. Only used when a such
+            values are available and meaningful (such as a random geometric graph).
     """
     # stores the color for each node
     color_list = [0 for _ in range(G.number_of_nodes())]
@@ -62,7 +87,7 @@ def printStats(G):
     # keep non-trivial parts of EP and LEPs
     f_ep = list(filter(lambda i: len(i) != 1, ep.values()))
     # here, non-trivial just means that there are multiple nodes in the LEP
-    f_leps = list(filter(lambda i: len(i) != 1 or len(ep[list(i)[0]]) != 1, leps.values()))
+    f_leps = list(filter(lambda i: len(i) != 1 or len(ep[list(i)[0]]) != 1, leps))
     # calculate how much is non-trivial
     partitionSize = lambda part_el: len(ep[part_el])
     # calculate number of non-trivial nodes

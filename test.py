@@ -8,6 +8,7 @@ import random
 import ep_finder
 import lep_finder
 import graphs
+import ep_utils
 
 # TODO: update naming to match paper
 # TODO: add LEP verification tests
@@ -51,25 +52,27 @@ def test():
 def findBadEPs():
     i = 0
     while (True):
-        G = nx.gnp_random_graph(400, .01, seed=i, directed=True)
+        G = nx.gnp_random_graph(20, .14, seed=i, directed=False)
+        graphs.randomRelabel(G)
         if not validEpResults(G):
-            print("Current seed: " + i)
+            print("Current seed: {}".format(i))
             print("Press <Enter> to continue...")
             input()
         i += 1
         print("\r{}".format(i), end='')
 
 def validEpResults(G):
-    pi, leps = lep_finder.getEquitablePartitions(G, False, False)
+    pi, leps = ep_utils.getEquitablePartitions(G, False, False)
     if not isPartition(pi, G):
         printWithLabel("PI IS NOT A PARTITION!!!", '=', pi)
         return False
     if not isEquitable(pi, G):
         print("PI IS NOT EQUITABLE!!!")
-        pos_dict = {}
-        for node in G.nodes:
-            pos_dict.update({ node: node.pos })
-        lep_finder.plotEquitablePartition(G, pi)
+        # pos_dict = {}
+        # for node in G.nodes:
+        #     pos_dict.update({ node: node.pos })
+        print(pi)
+        ep_utils.plotEquitablePartition(G, pi)
         return False
     return True
 
@@ -107,9 +110,10 @@ def isEquitable(pi, G):
                         return False
     return True
 
+# specifically, we are getting the in-edge neighbors
 def getPartitionNeighbors(vertex, G, partition_dict):
     conns = {}
-    for neighbor in G.neighbors(vertex):
+    for neighbor in (G.reverse() if G.is_directed() else G).neighbors(vertex):
         part_el = partition_dict[neighbor]
         if part_el not in conns:
             conns.update({ part_el: 0 })
@@ -709,3 +713,33 @@ def getLocalEquitablePartitions(N, ep, progress_bar = True):
         print()
 
     return lep_dict
+
+
+
+
+
+
+REV_LABEL_ATTR = 'relabel_reverse_mapping'
+
+def reverseRelabel(G, ep_dict=None, lep_list=None):
+    
+    if hasattr(G, REV_LABEL_ATTR):
+        unmapping = getattr(G, REV_LABEL_ATTR)
+        nx.relabel_nodes(G, unmapping, copy=False)
+        if ep_dict is not None:
+            for i in ep_dict.keys():
+                ep_dict[i] = {unmapping[node] for node in ep_dict[i]}
+        if lep_list is not None:
+            for i in range(len(lep_list)):
+                lep_list[i] = {unmapping[node] for node in lep_list[i]}
+        
+    else:
+        raise Exception("Graph must be relabeled before being reverseRelabeled")
+    
+
+def relabel(G):
+    # unmapping = {index: label for index, label in enumerate(G.nodes())}
+    # setattr(G, "relabel_reverse_mapping", unmapping)
+    # if mapping is None:
+    mapping = {old_label: new_label for new_label, old_label in enumerate(G.nodes())}
+    nx.relabel_nodes(G, mapping, copy=False)

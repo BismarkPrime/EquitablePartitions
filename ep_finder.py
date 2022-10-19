@@ -403,7 +403,7 @@ def initialize(G):
     num_nodes = G.number_of_nodes()
     
     # initialize Node list -- all start with ColorClass index of 0
-    N = [Node(node, 0, list(G.neighbors(node))) for node in G.nodes()]
+    N = {node: Node(node, 0, list(G.neighbors(node))) for node in G.nodes()}
    
     # initialize ColorClass list
         # this creates n ColorClass objects for each of the n nodes. 
@@ -411,7 +411,73 @@ def initialize(G):
     C = [ColorClass() for c in range(num_nodes)]
     
     # add all nodes to ColorClass 0
-    for n in N:
+    for n in N.values():
+        C[0].append(n)
+
+    C[0].size = num_nodes # set ColorClass 0 size attribute
+
+    return C, N
+
+
+def initFromFile(file_path, num_nodes=None, delim=',', comments='#', directed=False):
+    """
+    Initializes the Node and ColorClass objects necessary for equitablePartition.
+
+    Parameters
+    ----------
+    file_path : the path to the file storing edge data of the graph to be analyzed
+    num_nodes : the total number of nodes; only necessary if the file at file_path
+        does not contain all nodes (i.e., if there are nodes with no edges between them)
+    delim : the delimiter between source and destination nodes for each edge in the
+        file at file_path; uses ',' by default
+    comments : a character used to denote a comment, or line to ignore; uses '#' by default
+    directed : a boolean indicating whether the graph is directed or not; uses False by default
+
+    Returns
+    -------
+    C : list(ColorClass)
+        List containing ColorClass objects for finding the coarsest equitable
+        partition of `G`.
+
+        NOTE: Current implementation creates one ColorClass object per node in
+        `G`; all but the first ColorClass objects are placeholders for *possible*
+        future color classes. In future, the algorithm should be reworked to add
+        ColorClass objects to the list as needed to reduce spatial complexity.
+
+    N : list(Node)
+        List of Node objects representing the nodes of `G`.
+    """
+    # # initialize ColorClass list
+    # C = [ColorClass() for c in range(num_nodes)]
+    
+    # # initialize Node list -- all start with ColorClass index of 0
+    # N = {node: Node(node, 0, []) for node in range(num_nodes)}
+    N = dict()
+    
+    with open(file_path, 'r') as f:
+        for line in f:
+            if line[0] != comments:
+                line = line.strip().split(delim)
+                src = int(line[0])
+                dest = int(line[1])
+                if src not in N:
+                    N[src] = Node(src, 0, [])
+                N[src].neighbors.append(dest)
+                if dest not in N:
+                    N[dest] = Node(dest, 0, [])
+                if not directed:
+                    N[dest].neighbors.append(src)
+    
+    if num_nodes is not None:
+        for node in range(num_nodes):
+            if node not in N:
+                N[node] = Node(node, 0, [])
+    num_nodes = len(N)
+
+    C = [ColorClass() for c in range(num_nodes)]
+
+    # add all nodes to ColorClass 0
+    for n in N.values():
         C[0].append(n)
 
     C[0].size = num_nodes # set ColorClass 0 size attribute
@@ -526,54 +592,6 @@ def equitablePartition(C, N, progress_bar = True):
         print()
 
     return ep, N
-
-def getIters(C, N, progress_bar = True):
-    progress = 0
-    if progress_bar:
-        print("Finding Coarsest EP...")
-
-
-    new_colors = {0} # notice all nodes are in the same color class
-    n_colors = 0
-    iters = 0
-
-    while True:
-        iters += 1
-        L = set() # nodes with new colors
-        temp_new_colors = set() # indices of nodes with new colors
-
-        iters_per_percent = len(new_colors) / 25
-
-        for i, c in enumerate(new_colors):
-            C, N = C[c].computeStructureSet(C, N) # has to do with counting the number of neighbors of each vertex and their respective colors
-
-            args = (C, L, n_colors, temp_new_colors)
-            args = C[c].splitColor(*args)
-            C, L, n_colors, temp_new_colors = args
-
-            for v in C[c].structure_set:
-                v.structure_value = 0
-            
-            if progress_bar and iters_per_percent != 0 \
-                    and i % math.ceil(iters_per_percent) == 0:
-                updateLoadingBar(progress + i / iters_per_percent)
-        
-        progress += 25
-
-        C = recolor(C, args[1])
-        new_colors = temp_new_colors
-
-        # break condition
-        if new_colors == set():
-            break
-
-    # put equitable partition into dictionary form {color: nodes}
-    ep = {color: C[color].nodes() for color in range(len(C)) if C[color].size > 0}
-
-    progress = 100
-    updateLoadingBar(progress)
-
-    return iters
 
 def updateLoadingBar(percent):
     percent = min(100, int(percent))

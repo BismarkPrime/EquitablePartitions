@@ -5,6 +5,7 @@ from alive_progress import alive_bar
 
 # POTENTIAL OPTIMIZATIONS:
 #   Using Disjoint Set data structures to store partitions
+#   Initialize using csv files
 
 def initialize(G):
     """Initializes the inverted neighbor dictionary required to compute leps.
@@ -22,6 +23,45 @@ def initialize(G):
     # NOTE: N stores the in-edge neighbors, i.e. N[v] returns all nodes w with an edge w -> v.
     #    Thus, it is different than just calling G.neighbors(v); (hence, we use G.reverse())
     N = { node:set(g_rev.neighbors(node)) for node in G.nodes() }
+    return N
+
+def initFromFile(file_path, num_nodes=None, delim=',', comments='#', directed=False):
+    """Initializes the inverted neighbor dictionary required to compute leps.
+   
+    ARGUMENTS:
+        file_path : the path to the file storing edge data of the graph to be analyzed
+        num_nodes : the total number of nodes; only necessary if the file at file_path
+            does not contain all nodes (i.e., if there are nodes with no edges between them)
+        delim : the delimiter between source and destination nodes for each edge in the
+            file at file_path; uses ',' by default
+        comments : a character used to denote a comment, or line to ignore; uses '#' by default
+        directed : whether the graph is directed; uses False by default
+
+    
+    RETURNS:
+        A dictionary with nodes as keys and a set of their in-edge neighbors as values.
+    """
+    N = dict()
+    with open(file_path, 'r') as f:
+        for line in f:
+            if line[0] != comments:
+                # NOTE: we assume that the file is formatted as follows:
+                #   source_node, destination_node
+                (src, dest) = line.split(delim)
+                src = int(src)
+                dest = int(dest)
+                if dest not in N:
+                    N.update({dest: set()})
+                N.get(dest).add(src)
+                if src not in N:
+                    N.update({src: set()})
+                if not directed:
+                    N.get(src).add(dest)
+    # if there are nodes with no edges between them, we need to add them to N
+    if num_nodes is not None:
+        for i in range(num_nodes):
+            if i not in N:
+                N.update({i: set()})
     return N
 
 def getLocalEquitablePartitions(N, ep, progress_bar = True):
