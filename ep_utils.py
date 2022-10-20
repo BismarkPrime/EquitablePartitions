@@ -34,7 +34,7 @@ def getEquitablePartitions(G, timed = True, progress_bars = True):
         return ep, leps, coarsest + local
     return ep, leps
 
-def getEquitablePartitionsFromFile(file_path, num_nodes=None, delim=',', comments='#', directed=False, progress_bars = True):
+def getEquitablePartitionsFromFile(file_path, num_nodes=None, delim=',', comments='#', directed=False, progress_bars=True):
     """Finds the coarsest equitable partition and local equitable partitions of a graph.
    
     ARGUMENTS:

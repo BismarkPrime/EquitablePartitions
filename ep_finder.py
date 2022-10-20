@@ -575,30 +575,30 @@ def equitablePartition(C, N, progress_bar = True):
 
             for v in C[c].structure_set:
                 v.structure_value = 0
-            
-            if progress_bar and iters_per_percent != 0 \
-                    and i % math.ceil(iters_per_percent) == 0:
-                updateLoadingBar(progress + i / iters_per_percent)
-        
-        progress += 25
 
         C = recolor(C, L)
         new_colors = temp_new_colors
 
+        progress += 1
+        if progress_bar:
+            updateProgress(progress)
+
         # break condition
         if new_colors == set():
             break
+        
 
     # put equitable partition into dictionary form {color: nodes}
     ep = {color: C[color].nodes() for color in range(len(C)) if C[color].size > 0}
 
-    progress = 100
     if progress_bar:
-        updateLoadingBar(progress)
-        print()
+        updateProgress(progress, finished=True)
 
     return ep, N
 
-def updateLoadingBar(percent):
-    percent = min(100, int(percent))
-    print("\r [{0}] {1}%".format('#' * percent + ' ' * (100 - percent), percent), end='')
+def updateProgress(iterations, finished=False):
+    print("\r{} iterations completed.".format(iterations), end='')
+    if finished:
+        print(" EP algorithm complete!")
+    # percent = min(100, int(percent))
+    # print("\r [{0}] {1}%".format('#' * percent + ' ' * (100 - percent), percent), end='')

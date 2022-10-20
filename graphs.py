@@ -205,13 +205,13 @@ def NontrivialityData(G,ep_dict,lep_list, return_vals=False,plot=True,show_progr
 
 def relabel(G):
     mapping = {old_label: new_label for new_label, old_label in enumerate(G.nodes())}
-    nx.relabel_nodes(G, mapping, copy=False)
+    return nx.relabel_nodes(G, mapping)#, copy=False)
 
 def randomRelabel(G):
     new_labels = list(range(G.number_of_nodes()))
     random.shuffle(new_labels)
     mapping = {old_label: new_labels[i] for i, old_label in enumerate(G.nodes())}
-    nx.relabel_nodes(G, mapping, copy=False)
+    return nx.relabel_nodes(G, mapping)#, copy=False)
 
 def getFacebookGraph():
     # NUM_NODES = 4039
