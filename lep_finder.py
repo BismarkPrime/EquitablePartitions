@@ -104,7 +104,7 @@ def __computeLocalEquitablePartitions(N, pi):
     """
 
     # array that maps nodes (indices) to their partition element
-    partition_dict = np.empty(len(N), int)
+    partition_dict = dict() #np.empty(len(N), int)
     for (element, nodes) in pi.items():
         for node in nodes:
             partition_dict[node] = element

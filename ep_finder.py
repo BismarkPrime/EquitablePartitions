@@ -63,7 +63,9 @@ class Node(LinkedListNode):
 
     # magic methods
     def __hash__(self):
-        return self.label
+        if type(self.label) == int:
+            return self.label
+        return self.label.__hash__()
 
     def __str__(self):
         return str(self.label)
@@ -346,7 +348,11 @@ class ColorClass(LinkedList):
             #   each C[b] with the same minimum structure_value
             if v.temp_f != C[b].current_color:          # if color number of C[b] changed,
                 # can call L nodes_to_be_updated        #   track which nodes were in C[b] and and move them to the new color class
-                L.add(v)                                # add it to the set of nodes with new (pseudo?) colors
+                try:
+                    L.add(v)                                # add it to the set of nodes with new (pseudo?) colors
+                except:
+                    print("v = {} with type {}".format(v, type(v)))
+                    L.add(v)
                 # change temp_f (pseudo color) of v
                 C[v.temp_f].size -= 1                   # decrement the size of the color class that v used to be in
                 v.temp_f = C[b].current_color
