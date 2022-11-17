@@ -28,7 +28,7 @@ def graphIsUndirected(G):
     return True
 
 def plotIfInvalid(G):
-    ep, leps, time = lep_finder.getEquitablePartitions(G)
+    ep, leps = lep_finder.getEquitablePartitions(G)
     if not isPartition(ep, G) or not isEquitable(ep, G):
         print(ep)
         lep_finder.plotEquitablePartition(G, ep)
@@ -37,7 +37,7 @@ def plotIfInvalid(G):
 def test():
     while True:
         G = nx.gnp_random_graph(10, .15, directed=True)
-        pi, leps = lep_finder.getEquitablePartitions(G, timed=False, progress_bars=False)
+        pi, leps = lep_finder.getEquitablePartitions(G, progress_bars=False)
         if len(leps) != len(pi):
             print(pi)
             print(leps)

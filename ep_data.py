@@ -50,7 +50,7 @@ class EPData:
             self.__dict__.update(pickle.load(f).__dict__)
         self.plt_num = 0
 
-    def loadFromGraph(self, G: nx.Graph | nx.DiGraph, progress_bars: bool=True, rev=False) -> None:
+    def loadFromNetworkX(self, G: nx.Graph | nx.DiGraph, progress_bars: bool=True, rev=False) -> None:
         self.ep, self.leps, self.G = ep_utils.getEquitablePartitions(G, progress_bars=progress_bars, ret_adj_dict=True, rev=rev)
         self.directed = G.is_directed()
         self.num_nodes = len(self.G)
@@ -59,6 +59,38 @@ class EPData:
             self.num_edges //= 2
 
         self.plt_num = 0
+
+    def plotEquitablePartition(self, ax: Axes=None, pos_dict: dict=None, show: bool=True) -> Tuple[Figure, Axes]:
+        """Plots the equitable partition of a graph, with each element in its own color.
+    
+        ARGUMENTS:
+            G : NetworkX Graph
+                The graph to be plotted
+            pi : dict
+                The equitable partition of the graph, as returned by ep_finder
+            pos_dict : dict (optional)
+                A dictionary mapping nodes to their x,y coordinates. Only used when a such
+                values are available and meaningful (such as a random geometric graph).
+        """
+        
+        if ax is None:
+            f, ax = plt.subplots(layout='constrained')
+        else:
+            f = ax.figure(layout='constrained')
+        # stores the color for each node
+        color_list = [0 for _ in range(self.num_nodes)]
+        # iterator over equidistant colors on the color spectrum
+        color = iter(plt.cm.rainbow(np.linspace(0, 1, len(self.ep))))
+        # assign all vertices in the same partition element to the same color
+        for V_i in self.ep.values():
+            c = next(color)
+            for vertex in V_i:
+                color_list[vertex] = c
+        
+        nx.draw_networkx(self.getNetworkX(), pos=pos_dict, node_color=color_list)
+        if show:
+            f.show()
+        return f, ax
 
     def plotHistogram(self, weighted: bool=False, xscale: str='linear', yscale: str='linear', ax: Axes=None, show: bool=True) -> Tuple[Figure, Axes, List]:
         
