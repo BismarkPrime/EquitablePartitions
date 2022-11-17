@@ -25,7 +25,7 @@ def initialize(G):
     N = { node:set(g_rev.neighbors(node)) for node in G.nodes() }
     return N
 
-def initFromFile(file_path, num_nodes=None, delim=',', comments='#', directed=False):
+def initFromFile(file_path, num_nodes=None, delim=',', comments='#', directed=False, rev=False):
     """Initializes the inverted neighbor dictionary required to compute leps.
    
     ARGUMENTS:
@@ -47,7 +47,10 @@ def initFromFile(file_path, num_nodes=None, delim=',', comments='#', directed=Fa
             if line[0] != comments:
                 # NOTE: we assume that the file is formatted as follows:
                 #   source_node, destination_node
-                (src, dest) = line.split(delim)
+                if rev:
+                    (dest, src) = line.split(delim)
+                else:
+                    (src, dest) = line.split(delim)
                 src = int(src)
                 dest = int(dest)
                 if dest not in N:
@@ -83,7 +86,7 @@ def getLocalEquitablePartitions(N, ep, progress_bar = True):
     # if progress_bar:
     #     title = "COMPUTING LEPS"
     #     print("{0}\n{1}".format(title, '=' * len(title)))
-    with alive_bar(3 * len(ep) + 1, title="COMPUTING LEPS\t", disable=not progress_bar) as bar:
+    with alive_bar(3 * len(ep) + 1, title="COMPUTING LEPS...\n", disable=not progress_bar) as bar:
         for i in __computeLocalEquitablePartitions(N, ep):
             bar()
             retval = i

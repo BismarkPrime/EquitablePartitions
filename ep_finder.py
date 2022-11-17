@@ -339,8 +339,11 @@ class ColorClass(LinkedList):
                 C[b].current_p = v.structure_value  # set current_p to the smallest number of connections that a node in C[b] has with this color class (gonna happen here or in previous loop)
                 n_colors += 1                       # add new color
                 # current_color better named (split_off_off, this is what they will be assigned when split)
+                # C.append(ColorClass(n_colors))
                 C[b].current_color = n_colors
                 new_colors.add(n_colors)            # track new colors
+                # if len(C) <= b:
+                #     print("len(C) = {}, b = {}!!!!!!!!!!!!!!!".format(len(C), b))
 
             # As soon as we have gotten past all nodes v from C[b] with minimum structure_value, the current_color of C[b] will change (in the above if statement).
             #   All subsequent nodes from C[b] will go into this if statement and will recieve new temp_f values according to their structure_value (thus, all v in C[b]
@@ -425,7 +428,7 @@ def initialize(G):
     return C, N
 
 
-def initFromFile(file_path, num_nodes=None, delim=',', comments='#', directed=False):
+def initFromFile(file_path, num_nodes=None, delim=',', comments='#', directed=False, rev=False):
     """
     Initializes the Node and ColorClass objects necessary for equitablePartition.
 
@@ -464,8 +467,12 @@ def initFromFile(file_path, num_nodes=None, delim=',', comments='#', directed=Fa
         for line in f:
             if line[0] != comments:
                 line = line.strip().split(delim)
-                src = int(line[0])
-                dest = int(line[1])
+                if rev:
+                    src = int(line[1])
+                    dest = int(line[0])
+                else:
+                    src = int(line[0])
+                    dest = int(line[1])
                 if src not in N:
                     N[src] = Node(src, 0, [])
                 N[src].neighbors.append(dest)
@@ -563,8 +570,6 @@ def equitablePartition(C, N, progress_bar = True):
         iters += 1
         L = set() # nodes with new colors (possible new name: nodes_updated)
         temp_new_colors = set() # indices of nodes with new colors
-
-        iters_per_percent = len(new_colors) / 25
 
         for i, c in enumerate(new_colors):
             C, N = C[c].computeStructureSet(C, N) # has to do with counting the number of neighbors of each vertex and their respective colors

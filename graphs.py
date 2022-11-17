@@ -65,7 +65,7 @@ def GetLocalSpec(G,ep_dict,lep_list):
         
     return spec_dict, orig_spec
 
-def NontrivialityData(G,ep_dict,lep_list, return_vals=False,plot=True,show_progress=True,verbose=False,include_pairs=False):
+def NontrivialityData(G,ep_dict,lep_list, return_vals=False,plot=True,show_progress=True,verbose=False,include_pairs=False, n=None):
     """
     Gets the percentage of nodes in nontrivial eps and creates and returns a dictionary 
     with only the non-trivial partition elements leftover.
@@ -85,6 +85,10 @@ def NontrivialityData(G,ep_dict,lep_list, return_vals=False,plot=True,show_progr
     nontrivLep_list
     nontrivNodePerc
     """
+    if G is not None:
+        num_nodes = len(G)
+    else:
+        num_nodes = n
     from IPython.display import clear_output
     from matplotlib import pyplot as plt
     # Get the Equitable Partition elements that aren't trivial
@@ -156,7 +160,7 @@ def NontrivialityData(G,ep_dict,lep_list, return_vals=False,plot=True,show_progr
             print("There were no nontrivial nodes...")
         else:
             pairs_perc = (2*pairs)/totalNontrivNodes
-            print(f"Total percentage on nontrivial nodes: {totalNontrivNodes/len(G)}")
+            print(f"Total percentage on nontrivial nodes: {totalNontrivNodes/num_nodes}")
             print(f"Total pairs in partition elements: {pairs}")
             print(f"Percentage of nontrivial nodes in pairs: {pairs_perc}")
 
@@ -200,7 +204,7 @@ def NontrivialityData(G,ep_dict,lep_list, return_vals=False,plot=True,show_progr
         plt.show()
             
     if return_vals:
-        return nontrivEp_dict, nontrivLep_list,hist_list,totalNontrivNodes/len(G)
+        return nontrivEp_dict, nontrivLep_list,hist_list,totalNontrivNodes/num_nodes
     
 
 def relabel(G):

@@ -53,7 +53,7 @@ def findBadEPs():
     i = 0
     while (True):
         G = nx.gnp_random_graph(20, .14, seed=i, directed=False)
-        graphs.randomRelabel(G)
+        G = graphs.randomRelabel(G)
         if not validEpResults(G):
             print("Current seed: {}".format(i))
             print("Press <Enter> to continue...")
@@ -77,20 +77,25 @@ def validEpResults(G):
     return True
 
 def isPartition(pi, G):
-    vertex_count = np.ones(G.number_of_nodes())
+    # vertex_count = np.ones(G.number_of_nodes())
+    vertices = set()
     # verify that each vertex shows up exactly once in pi
     for V_i in pi.values():
         for vertex in V_i:
-            vertex_count[vertex] -= 1
+            if vertex in vertices:
+                return False
+            vertices.add(vertex)
     
-    return not np.any(vertex_count)
+    return len(vertices) == G.number_of_nodes()
 
 def isEquitable(pi, G):
     # create table for fast node-to-partition lookups
-    partition_dict = np.empty(G.number_of_nodes(), int)
+    partition_dict = dict() #np.empty(G.number_of_nodes(), int)
     for (element, nodes) in pi.items():
         for node in nodes:
             partition_dict[node] = element
+
+    g_rev = G.reverse() if G.is_directed() else G
     
     for V_i in pi.values():
         if len(V_i) > 1:
@@ -99,10 +104,10 @@ def isEquitable(pi, G):
             for i, vertex in enumerate(V_i):
                 # construct rule
                 if i == 0:
-                    rule = getPartitionNeighbors(vertex, G, partition_dict)
+                    rule = getPartitionNeighbors(vertex, G, partition_dict, g_rev)
                 # test other vertices against the rule
                 else:
-                    conns = getPartitionNeighbors(vertex, G, partition_dict)
+                    conns = getPartitionNeighbors(vertex, G, partition_dict, g_rev)
                     if conns != rule:
                         print(V_i)
                         print("last call{}getPartitionNeighbors({}, {}, part)".format('-'*30, vertex, G))
@@ -111,9 +116,9 @@ def isEquitable(pi, G):
     return True
 
 # specifically, we are getting the in-edge neighbors
-def getPartitionNeighbors(vertex, G, partition_dict):
+def getPartitionNeighbors(vertex, G, partition_dict, g_rev):
     conns = {}
-    for neighbor in (G.reverse() if G.is_directed() else G).neighbors(vertex):
+    for neighbor in g_rev.neighbors(vertex):
         part_el = partition_dict[neighbor]
         if part_el not in conns:
             conns.update({ part_el: 0 })

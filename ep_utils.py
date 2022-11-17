@@ -4,10 +4,12 @@ import matplotlib.pyplot as plt
 import time
 from functools import reduce
 import sys
+import gc
 
 import ep_finder, lep_finder
 
 # TODO: update naming to match paper
+# TODO: use child processes for finding EP and LEP to release memory after computation.
 
 def getEquitablePartitions(G, timed = True, progress_bars = True):
     """Finds the coarsest equitable partition and local equitable partitions of a graph.
@@ -34,7 +36,7 @@ def getEquitablePartitions(G, timed = True, progress_bars = True):
         return ep, leps, coarsest + local
     return ep, leps
 
-def getEquitablePartitionsFromFile(file_path, num_nodes=None, delim=',', comments='#', directed=False, progress_bars=True):
+def getEquitablePartitionsFromFile(file_path, num_nodes=None, delim=',', comments='#', directed=False, progress_bars=True, ret_adj_dict=False, rev=False):
     """Finds the coarsest equitable partition and local equitable partitions of a graph.
    
     ARGUMENTS:
@@ -50,10 +52,13 @@ def getEquitablePartitionsFromFile(file_path, num_nodes=None, delim=',', comment
         The equitable partition (dict; int -> set), local equitable partition (list of sets
             of partition elements grouped together), and computation time (when applicable)
     """
-    C, N = ep_finder.initFromFile(file_path, num_nodes=num_nodes, delim=delim, comments=comments, directed=directed)
+    C, N = ep_finder.initFromFile(file_path, num_nodes=num_nodes, delim=delim, comments=comments, directed=directed, rev=rev)
     ep, N = ep_finder.equitablePartition(C, N, progress_bar=progress_bars)
-    N_G = lep_finder.initFromFile(file_path, num_nodes=num_nodes, delim=delim, comments=comments, directed=directed)
+    
+    N_G = lep_finder.initFromFile(file_path, num_nodes=num_nodes, delim=delim, comments=comments, directed=directed, rev=rev)
     leps = lep_finder.getLocalEquitablePartitions(N_G, ep, progress_bar=progress_bars)
+    if ret_adj_dict:
+        return ep, leps, N
     return ep, leps
 
 def plotEquitablePartition(G, pi, pos_dict = None):
@@ -124,5 +129,5 @@ def __getEPStats(set_list):
     avg_len = reduce(sumSize, set_list, 0) / max(len(list(set_list)), 1)
     return min_len, max_len, avg_len
 
-def printWithLabel(label, delim, item):
-    print("{}\n{}\n{}\n".format(label, delim * len(label), item))
+def printWithLabel(label, delim, item, file=sys.stdout):
+    print("{}\n{}\n{}\n".format(label, delim * len(label), item), file=file)
