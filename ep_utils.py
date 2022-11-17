@@ -11,7 +11,7 @@ import ep_finder, lep_finder
 # TODO: update naming to match paper
 # TODO: use child processes for finding EP and LEP to release memory after computation.
 
-def getEquitablePartitions(G, timed = True, progress_bars = True):
+def getEquitablePartitions(G, progress_bars = True, ret_adj_dict = False, rev = False):
     """Finds the coarsest equitable partition and local equitable partitions of a graph.
    
     ARGUMENTS:
@@ -24,16 +24,17 @@ def getEquitablePartitions(G, timed = True, progress_bars = True):
         The equitable partition (dict; int -> set), local equitable partition (list of sets
             of partition elements grouped together), and computation time (when applicable)
     """
-    start_time = time.time()
-    C, N = ep_finder.initialize(G)
+    G2 = G if not rev else G.reverse()
+    # start_time = time.time()
+    C, N = ep_finder.initialize(G2)
     ep, N = ep_finder.equitablePartition(C, N, progress_bar=progress_bars)
-    coarsest = time.time() - start_time
-    start_time = time.time()
-    N_G = lep_finder.initialize(G)
+    # coarsest = time.time() - start_time
+    # start_time = time.time()
+    N_G = lep_finder.initialize(G2)
     leps = lep_finder.getLocalEquitablePartitions(N_G, ep, progress_bar=progress_bars)
-    local = time.time() - start_time
-    if timed:
-        return ep, leps, coarsest + local
+    # local = time.time() - start_time
+    if ret_adj_dict:
+        return ep, leps, {node: N[node].neighbors for node in N}
     return ep, leps
 
 def getEquitablePartitionsFromFile(file_path, num_nodes=None, delim=',', comments='#', directed=False, progress_bars=True, ret_adj_dict=False, rev=False):
@@ -58,7 +59,7 @@ def getEquitablePartitionsFromFile(file_path, num_nodes=None, delim=',', comment
     N_G = lep_finder.initFromFile(file_path, num_nodes=num_nodes, delim=delim, comments=comments, directed=directed, rev=rev)
     leps = lep_finder.getLocalEquitablePartitions(N_G, ep, progress_bar=progress_bars)
     if ret_adj_dict:
-        return ep, leps, N
+        return ep, leps, {node: N[node].neighbors for node in N}
     return ep, leps
 
 def plotEquitablePartition(G, pi, pos_dict = None):

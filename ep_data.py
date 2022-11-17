@@ -32,8 +32,7 @@ class EPData:
             self.__reset()
         else:
             args = (file_path, num_nodes, delim, comments, directed, progress_bars, True, rev)
-            self.ep, self.leps, N = ep_utils.getEquitablePartitionsFromFile(*args)
-            self.G = {node: N[node].neighbors for node in N}
+            self.ep, self.leps, self.G = ep_utils.getEquitablePartitionsFromFile(*args)
             self.directed = directed
             self.num_nodes = len(self.G)
             self.num_edges = sum([len(i) for i in self.G.values()])
@@ -49,6 +48,16 @@ class EPData:
     def loadFromFile(self, file_path: str):
         with open(file_path, 'rb') as f:
             self.__dict__.update(pickle.load(f).__dict__)
+        self.plt_num = 0
+
+    def loadFromGraph(self, G: nx.Graph | nx.DiGraph, progress_bars: bool=True, rev=False) -> None:
+        self.ep, self.leps, self.G = ep_utils.getEquitablePartitions(G, progress_bars=progress_bars, ret_adj_dict=True, rev=rev)
+        self.directed = G.is_directed()
+        self.num_nodes = len(self.G)
+        self.num_edges = sum([len(i) for i in self.G.values()])
+        if not self.directed:
+            self.num_edges //= 2
+
         self.plt_num = 0
 
     def plotHistogram(self, weighted: bool=False, xscale: str='linear', yscale: str='linear', ax: Axes=None, show: bool=True) -> Tuple[Figure, Axes, List]:
