@@ -13,6 +13,7 @@ from scipy.stats import iqr
 import numpy as np
 from typing import Iterable, List, Tuple
 import sys
+import networkx as nx
 
 class EPData:
 
@@ -146,6 +147,9 @@ class EPData:
     
     def getGraphDict(self):
         return self.G
+
+    def getNetworkX(self):
+        return nx.DiGraph(self.G) if self.directed else nx.Graph(self.G)
     
 def processData(file_path: str, data_name: str, num_nodes: int=None, delim: str=',', \
         comments: str='#', directed: bool=False, progress_bars: bool=True, rev: bool=False) -> None:
@@ -160,6 +164,8 @@ def processData(file_path: str, data_name: str, num_nodes: int=None, delim: str=
     os.chdir(dir_name)
     data.saveToFile("data.bin")
     data.printStats(file=open("stats.txt", "w"))
+
+    # TODO: print general stats to a CSV file along with percent nt for correlation
     
     print("Plotting Histograms...", end=' ')
     figure, _, _ = data.plotHistogram(show=False)
