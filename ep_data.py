@@ -24,7 +24,6 @@ class EPData:
         self.directed = None
         self.num_nodes = None
         self.num_edges = None
-        self.plt_num = None
         
     # file_path should only be none if we are loading from a file
     def __init__(self, file_path: str=None, num_nodes: int=None, delim: str=',', comments: str='#', directed: bool=False, progress_bars: bool=True, rev=False) -> None:
@@ -39,8 +38,6 @@ class EPData:
             if not self.directed:
                 self.num_edges //= 2
 
-            self.plt_num = 0
-
     def saveToFile(self, file_path: str):
         with open(file_path, 'wb') as f:
             pickle.dump(self, f)
@@ -48,7 +45,7 @@ class EPData:
     def loadFromFile(self, file_path: str):
         with open(file_path, 'rb') as f:
             self.__dict__.update(pickle.load(f).__dict__)
-        self.plt_num = 0
+        return self
 
     def loadFromNetworkX(self, G: nx.Graph | nx.DiGraph, progress_bars: bool=True, rev=False) -> None:
         self.ep, self.leps, self.G = ep_utils.getEquitablePartitions(G, progress_bars=progress_bars, ret_adj_dict=True, rev=rev)
@@ -57,8 +54,7 @@ class EPData:
         self.num_edges = sum([len(i) for i in self.G.values()])
         if not self.directed:
             self.num_edges //= 2
-
-        self.plt_num = 0
+        return self
 
     def plotEquitablePartition(self, ax: Axes=None, pos_dict: dict=None, show: bool=True) -> Tuple[Figure, Axes]:
         """Plots the equitable partition of a graph, with each element in its own color.
