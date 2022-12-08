@@ -197,6 +197,11 @@ def processData(file_path: str, data_name: str, num_nodes: int=None, delim: str=
     file_name = file_name + ", reversed" if rev else file_name
     dir_name = "[{:05.2f}%] {} ({})".format(percent_nt, data_name, file_name)
     os.chdir('results')
+
+    with open("nt_graph_metrics.csv", 'a') as f:
+        # TODO: append metrics to file in specified order
+        pass
+
     os.mkdir(dir_name)
     os.chdir(dir_name)
     data.saveToFile("data.bin")
