@@ -289,6 +289,45 @@ def getDogbone():
                      
     return nx.Graph(mat)
 
+def getDirectedDogbone():
+    #                 0  1  2  3  4  5  6  7  8  9
+    mat =  np.array([[0, 0, 1, 0, 1, 0, 1, 0, 1, 1], # 0
+                     [0, 0, 0, 1, 0, 1, 0, 1, 1, 1], # 1
+                     [0, 0, 0, 0, 0, 1, 0, 0, 0, 0], # 2
+                     [0, 0, 0, 0, 0, 0, 0, 1, 0, 0], # 3
+                     [0, 0, 0, 0, 0, 0, 1, 0, 0, 0], # 4
+                     [0, 0, 1, 0, 0, 0, 0, 0, 0, 0], # 5
+                     [0, 0, 0, 0, 1, 0, 0, 0, 0, 0], # 6
+                     [0, 0, 0, 1, 0, 0, 0, 0, 0, 0], # 7
+                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 1], # 8
+                     [0, 0, 0, 0, 0, 0, 0, 0, 1, 0]])# 9
+                     
+    return nx.DiGraph(mat)
+
+def getDirectedDogboneLEP0():
+    #                 0  1  2  3  4  5  6  7
+    mat =  np.array([[0, 0, 1, 0, 1, 0, 1, 0], # 0
+                     [0, 0, 0, 1, 0, 1, 0, 1], # 1
+                     [0, 0, 0, 0, 0, 1, 0, 0], # 2
+                     [0, 0, 0, 0, 0, 0, 0, 1], # 3
+                     [0, 0, 0, 0, 0, 0, 1, 0], # 4
+                     [0, 0, 1, 0, 0, 0, 0, 0], # 5
+                     [0, 0, 0, 0, 1, 0, 0, 0], # 6
+                     [0, 0, 0, 1, 0, 0, 0, 0]])# 7
+    return nx.DiGraph(mat)
+
+def getDirectedDogboneLEP1():
+    #                 0  1
+    mat =  np.array([[0, 1], # 0
+                     [1, 0]])# 1
+    return nx.DiGraph(mat)
+
+def getDirectedDogboneDivisorGraph():
+    mat = np.array([[0, 3, 2],
+                    [0, 1, 0],
+                    [0, 0, 1]])
+    return nx.DiGraph(mat)
+
 def getBerthaJr():
     #                 0  1  2  3  4  5  6  7  8  9
     mat =  np.array([[0, 1, 1, 1, 1, 1, 0, 0, 0], # 0
