@@ -15,13 +15,9 @@ def genDivGraph(G,ep_dict,retMat=False):
     RETURNS:
         divMat (array): the divisor matrix
         OR
-        nx.Graph(divMat): divisor matrix as nx graph object"""
-    # helper function to get key given a value
-    def get_key(val,my_dict):
-        for key, value_list in list(my_dict.items()):
-            if val in value_list:
-                return key
-        print("they key does not exist")
+        nx.Graph(divMat): divisor matrix as nx graph object
+    """
+    rev_ep_dict = {node:partEl for partEl in ep_dict.keys() for node in ep_dict[partEl]}
         
     # create empty divisor to fill
     n = len(ep_dict)
@@ -32,12 +28,12 @@ def genDivGraph(G,ep_dict,retMat=False):
         # always get the first one since the partition is equitable and all connection 
         # will be the same within the partition elements.
         node = node_list[0]
-        #print(f"this is the input node: {node}") # debugging statement
+
         # count connection to partitions and update divisor matrix accordingly
         for connection in G.edges(node):
             connNode = connection[1]
-            #print(curPartElInd,get_key(connNode,ep_dict)) # debugging statement
-            divMat[curPartElInd][get_key(connNode,ep_dict)]+=1
+            divMat[curPartElInd][rev_ep_dict[connNode]] += 1
+
     # return matrix if desired
     if retMat:
         return divMat
