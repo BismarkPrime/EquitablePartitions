@@ -1,6 +1,9 @@
 import numpy as np
 import networkx as nx
 import random
+from scipy import sparse as sp
+from matplotlib import pyplot as plt
+from time import perf_counter as pc
 
 def genDivGraph(G,ep_dict,retMat=False):
     """calculates and returns the divisor graph of the input graph
@@ -64,6 +67,55 @@ def GetLocalSpec(G,ep_dict,lep_list):
     spec_dict["Original Graph Divisor"] = GDivSpec
         
     return spec_dict, orig_spec
+
+def GenBertha(size,show_graph=False):
+    """ constructs a Bertha graph of the size indicated (size=number of nodes) organized in such a way that it 
+    has the optimal amount of LEP's for eigenvalue catching
+    INPUTS:
+        size (int): number of nodes
+        
+    RETURNS:
+        nx.Graph (diGraph): Bertha as a networkx graph"""
+    e = 2.36                                                 # the value of the current fastest algorithm
+    opt_lep = int((((e-1)/e) * size**e )**(1 / (2*e - 1)))              # the optimal amount of leps
+    # we will generate 2 sizes of leps, size 1, which will be as close to the ceiling of the opt_lep number as possible
+    # and size 2, there will only be one lep of size 2 and it will make up the difference. for example if size = 100 then
+    # opt_lep = 18, but 100/18 = 5.55555... but we can't have 5.5 nodes per lep so we'll do as many size 5's as we can and then
+    # another lep with the leftovers but still get 18 leps, so that would be 17 of size 5 and 1 of size 15    
+
+    # matrix to fill
+    mat = sp.lil_matrix((size,size),dtype=int)
+
+    # get the two sizes
+    if size%opt_lep != 0:
+        size1 = size//(opt_lep-1)
+        size2 = size - size1*(opt_lep-1)
+        # populate matrix off diagonals
+        for i in range(opt_lep-2):
+            mat[(i+1)*size1:(i+2)*size1,i*size1:(i+1)*size1] = np.ones((size1,size1))
+            mat = mat.transpose()
+            mat[(i+1)*size1:(i+2)*size1,i*size1:(i+1)*size1] = np.ones((size1,size1))
+
+        if size2 != 0:  # if size 2 was not 0 account for last irregularly sized partition element
+            mat[(opt_lep-1)*size1:,(opt_lep-2)*size1:(opt_lep-1)*size1] = np.ones((size2,size1))
+            mat = mat.transpose()
+            mat[(opt_lep-1)*size1:,(opt_lep-2)*size1:(opt_lep-1)*size1] = np.ones((size2,size1))
+
+    else:   # of the optimal lep size was a divisor just do the exact number of optimal leps
+        size1 = size/opt_lep
+
+        for i in range(opt_lep):
+            mat[(i+1)*size1:(i+2)*size1,i*size1:(i+1)*size1] = np.ones((size1,size1))
+            mat = mat.transpose()
+            mat[(i+1)*size1:(i+2)*size1,i*size1:(i+1)*size1] = np.ones((size1,size1))
+    # make bertha a networkx object
+    bertha = nx.from_scipy_sparse_matrix(mat)
+
+    if show_graph:
+        nx.draw_networkx(bertha)
+        plt.show()
+
+    return bertha
 
 def NontrivialityData(G,ep_dict,lep_list, return_vals=False,plot=True,show_progress=True,verbose=False,include_pairs=False, n=None):
     """

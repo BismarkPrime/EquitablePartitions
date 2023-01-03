@@ -10,7 +10,9 @@ from scipy import sparse
 from scipy.sparse import linalg
 from typing import Dict, List, Set, Tuple
 
+from collections import Counter
 import ep_finder, lep_finder
+import graphs
 
 # TODO: update naming to match paper
 # TODO: use child processes for finding EP and LEP to release memory after computation.
@@ -337,3 +339,54 @@ def __getEPStats(set_list):
 
 def printWithLabel(label, delim, item, file=sys.stdout):
     print("{}\n{}\n{}\n".format(label, delim * len(label), item), file=file)
+
+def GetSpectrumFromLEPs(G,progress_bars=False):
+    """Gets the spectrum of a graph using the decomposition by leps method"""
+    total_spec = []
+    div_specs = []
+
+    ep_dict, lep_dict = getEquitablePartitions(G,progress_bars = progress_bars)
+
+    for lep in list(lep_dict): # cycle through each lep
+        node_list = []   # place to get all nodes in lep
+        temp_ep_dict = {} # make a place for the original ep partitions
+        
+        # iterate through each partition element in that lep.
+        for partElInd, partEl in enumerate(lep):
+            node_list += ep_dict[partEl] # after this loop node_list has all nodes in the lep
+            temp_ep_dict[partElInd] = ep_dict[partEl] # make the temporary ep_dict
+                        
+        subgraph = nx.subgraph(G,node_list)
+        total_spec += list(nx.adjacency_spectrum(subgraph)) # gets subgraph spectrum
+        div_specs += list(nx.adjacency_spectrum(graphs.genDivGraph(subgraph,temp_ep_dict))) # get div spec of those subgraphs
+
+    # collect everything that could be in the spectrum
+    total_spec += list(nx.adjacency_spectrum(graphs.genDivGraph(G,ep_dict)))
+    # place to store the actual spectum
+    actual_spec = []
+
+    # account for everything in both including repeats
+    total_count = Counter(total_spec)
+    div_count = Counter(div_specs)
+    # get the intersection
+    common_elements = total_count & div_count
+    # cycle through the intersection
+    for item in set(total_spec):
+        if item in common_elements:
+            # eliminate the amount of eigenvalues that were in the local divisor graphs
+            remainder = total_count[item] - div_count[item]
+            # append the rest to the actual spectrum holder
+            actual_spec += [item] * remainder
+        else:
+            actual_spec += [item] * total_count[item]
+
+    return actual_spec
+
+def ValidateMethod(G):
+    """runs our eigenvalue catching method and then makes sure that it matches the other method"""
+    our_spec = np.round(np.array(GetSpectrumFromLEPs(G)),2)
+    their_spec = np.round(nx.adjacency_spectrum(G),2)
+
+    return Counter(our_spec) == Counter(their_spec)
+
+
