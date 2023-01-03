@@ -115,10 +115,10 @@ def getEigenvaluesNx(G: nx.Graph) -> List[complex]:
     '''
     # TODO: 
     # 1. get eigenvalues of divisor matrix of graph, LEP submatrices, and divisor matrices of LEPs
-    lifting_eigs, lep_locals, lep_globals = getEigenStuffsNx(G)
+    lifting_eigs, lep_eigs, lep_globals = getEigenStuffsNx(G)
     lifting_eigs = np.sort_complex(lifting_eigs)
-    for i in lep_locals.keys():
-        lep_locals[i] = np.sort_complex(lep_locals[i])
+    for i in lep_eigs.keys():
+        lep_eigs[i] = np.sort_complex(lep_eigs[i])
         lep_globals[i] = np.sort_complex(lep_globals[i])
 
     # print(f"Globals: {lifting_eigs}")
@@ -126,25 +126,27 @@ def getEigenvaluesNx(G: nx.Graph) -> List[complex]:
     # print(f"LEP globals: {lep_globals}")
 
     # 2. remove eigenvalues from LEP divisor matrices from eigenvalues of LEP submatrices
-    for i in lep_locals.keys():
-        lifting_locals = lep_locals[i]
+    for i in lep_eigs.keys():
+        lep_locals = lep_eigs[i]
         # iterate over each eigenvalue of the LEP divisor matrix
         # using a monotonic index to keep track of the index in the LEP submatrix
         #  works because the eigenvalues are sorted
+
+        # TODO: optimize by keeping track of values and indicies in a dict
         local_index = 0
         for lep_global in lep_globals[i]:
             # find the corresponding eigenvalue from the LEP submatrix
             # this will throw an error if there is no corresponding eigenvalue in lep_locals,
             #   but that should never happen. If it does, we need to see and fix the bug.
             # check for equality within a small tolerance
-            while not cmath.isclose(lifting_locals[local_index], lep_global, abs_tol=EPSILON):
+            while not cmath.isclose(lep_locals[local_index], lep_global, abs_tol=EPSILON):
                 local_index += 1
             # remove if equal
-            lifting_locals = np.delete(lifting_locals, local_index)
+            lep_locals = np.delete(lep_locals, local_index)
             # decrement index because we just removed an element
             local_index -= 1
         # 3. concatenate all eigenvalues into one list
-        lifting_eigs = np.concatenate((lifting_eigs, lifting_locals))
+        lifting_eigs = np.concatenate((lifting_eigs, lep_locals))
     return lifting_eigs
 
 def compareEigenvalues(G: nx.Graph) -> None:
@@ -160,15 +162,15 @@ def compareEigenvalues(G: nx.Graph) -> None:
     # 1. get eigenvalues of the graph using the complete equitable partitions method
     cep_eigs = np.sort_complex(getEigenvaluesNx(G))
     # 2. get eigenvalues of the graph using networkx
-    nx_eigs = np.sort_complex(np.linalg.eigvals(nx.adjacency_matrix(G).toarray()))
+    np_eigs = np.sort_complex(np.linalg.eigvals(nx.adjacency_matrix(G).toarray()))
     # print(f"CEP eigenvalues: {cep_eigs}")
     # print(f"NX eigenvalues: {nx_eigs}")
     # 3. compare the two lists of eigenvalues within a small tolerance
     diff = False
     for i in range(len(cep_eigs)):
-        if not cmath.isclose(cep_eigs[i], nx_eigs[i], abs_tol=EPSILON):
+        if not cmath.isclose(cep_eigs[i], np_eigs[i], abs_tol=EPSILON):
             # return False
-            print(f"Eigenvalues do not match! CEP: {cep_eigs[i]}, NX: {nx_eigs[i]}")
+            print(f"Eigenvalues do not match! CEP: {cep_eigs[i]}, NX: {np_eigs[i]}")
             diff = True
     # if not diff:
     #     print("Eigenvalues match!")
