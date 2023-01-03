@@ -3,6 +3,7 @@ import networkx as nx
 import random
 from scipy import sparse as sp
 from matplotlib import pyplot as plt
+from time import perf_counter as pc
 
 def genDivGraph(G,ep_dict,retMat=False):
     """calculates and returns the divisor graph of the input graph
