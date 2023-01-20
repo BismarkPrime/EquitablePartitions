@@ -99,17 +99,17 @@ def GetLocalSpec(G,ep_dict,lep_list):
     return spec_dict, GDivSpec, orig_spec
 
 # test code
-def test(p=.1):
-    while True:
-        G = nx.gnp_random_graph(40, p, directed=True)
-        pi, leps = ep_utils.getEquitablePartitions(G, progress_bars=False)
-        if len(pi) != len(G):
-            compareEPEigenvalues(G, pi, leps)
+def test(p=.1, iters=1000, nodes=40):
+    for i in range(iters):
+        print(f'\r{i}', end='')
+        G = nx.erdos_renyi_graph(nodes, p, directed=True)
+        if not ep_utils.compareEigenvalues(G):
+            print("ERROR")
             input()
 
-    G = nx.random_geometric_graph(40, .15)
-    pi, leps = lep_finder.getEquitablePartitions(G, False, False)
-    lep_finder.plotEquitablePartition(G, pi, nx.get_node_attributes(G, "pos"))
+    # G = nx.random_geometric_graph(40, .15)
+    # pi, leps = lep_finder.getEquitablePartitions(G, False, False)
+    # lep_finder.plotEquitablePartition(G, pi, nx.get_node_attributes(G, "pos"))
 
 def compareEPEigenvalues(G: nx.Graph | nx.DiGraph, pi, leps) -> None:
     spec_dict, div_spec, orig_spec = GetLocalSpec(G, pi, leps)
@@ -878,3 +878,18 @@ def relabel(G):
     # if mapping is None:
     mapping = {old_label: new_label for new_label, old_label in enumerate(G.nodes())}
     nx.relabel_nodes(G, mapping, copy=False)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
