@@ -226,4 +226,3 @@ def processData(file_path: str, data_name: str, num_nodes: int=None, delim: str=
 
     os.chdir("../..")
     print("Done")
-
