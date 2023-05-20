@@ -99,13 +99,19 @@ def GetLocalSpec(G,ep_dict,lep_list):
     return spec_dict, GDivSpec, orig_spec
 
 # test code
-def test(p=.1, iters=1000, nodes=40):
-    for i in range(iters):
-        print(f'\r{i}', end='')
-        G = nx.erdos_renyi_graph(nodes, p, directed=True)
-        if not ep_utils.compareEigenvalues(G):
-            print("ERROR")
-            input()
+def test(p=.04, iters=100, nodes=40):
+    for nodes in range(20, 500, 20):
+        print(f"\nChecking graphs with {nodes} nodes")
+        for i in range(iters):
+            print(f'\r{i}', end='')
+            G = nx.erdos_renyi_graph(nodes, 3.2 // nodes, directed=True, seed=i)
+            if not ep_utils.compareEigenvalues(G):
+                print("ERROR")
+                if (input() == 'v'):
+                    print(nx.adjacency_matrix(G, dtype=int).todense())
+                    ep_dict = ep_utils.getTransceivingEP(G)
+                    ep_utils.plotEquitablePartition(G, ep_dict)
+                    input()
 
     # G = nx.random_geometric_graph(40, .15)
     # pi, leps = lep_finder.getEquitablePartitions(G, False, False)

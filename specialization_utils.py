@@ -16,7 +16,7 @@ def show_graph(G):
     pos = nx.spring_layout(G)     #you can toggle between spring_layout and circular
     #pos = nx.circular_layout(G)
     nx.draw(G,pos)
-    nx.draw_networkx_labels(G, pos);
+    nx.draw_networkx_labels(G, pos)
     edge_labels = nx.get_edge_attributes(G, "weight")
     nx.draw_networkx_edge_labels(G, pos, edge_labels)
  
