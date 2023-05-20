@@ -17,7 +17,7 @@ import graphs
 # TODO: update naming to match paper
 # TODO: use child processes for finding EP and LEP to release memory after computation.
 
-EPSILON = 1e-6
+EPSILON = 1e-3
 
 # maybe start with NetworkX graphs for simplicity, then convert to adjacency dict
 def getDivisorMatrixNx(G: nx.Graph, pi: Dict[int, Set[int]]) -> sparse.base.spmatrix: # [int, set[int]]:
@@ -455,27 +455,32 @@ def GetSpectrumFromLEPs(G,progress_bars=False):
 
     ep_dict, lep_dict = getEquitablePartitions(G,progress_bars = progress_bars)
 
-    for lep in list(lep_dict): # cycle through each lep
+    for i, lep in enumerate(list(lep_dict)): # cycle through each lep                         ## COMPLEXITY: L, times for leps
+        if i%1000==0:
+            print(f"{i} out of {len(list(lep_dict))}")
         node_list = []   # place to get all nodes in lep
         temp_ep_dict = {} # make a place for the original ep partitions
         
         # iterate through each partition element in that lep.
-        for partElInd, partEl in enumerate(lep):
+        for partElInd, partEl in enumerate(lep):                                ## COMPLEXITY: will sum to k, eventually will hit all partitions elements
             node_list += ep_dict[partEl] # after this loop node_list has all nodes in the lep
-            temp_ep_dict[partElInd] = ep_dict[partEl] # make the temporary ep_dict
+            temp_ep_dict[partElInd] = ep_dict[partEl] # make the temporary ep_dict   ## POSSIBLE ERROR: SHOULD BE ADDING TO DICTIONARY
                         
         subgraph = nx.subgraph(G,node_list)
-        total_spec += list(nx.adjacency_spectrum(subgraph)) # gets subgraph spectrum
+        total_spec += list(nx.adjacency_spectrum(subgraph)) # gets subgraph spectrum            ## COMPLEXITY <= n(l-1)F
         div_specs += list(nx.adjacency_spectrum(graphs.genDivGraph(subgraph,temp_ep_dict))) # get div spec of those subgraphs
 
     # collect everything that could be in the spectrum
+    print('now getting total divisor spectrum')
     total_spec += list(nx.adjacency_spectrum(graphs.genDivGraph(G,ep_dict)))
     # place to store the actual spectum
     actual_spec = []
-
+    print('creating counter')
     # account for everything in both including repeats
     total_count = Counter(total_spec)
+    print('subtracting counter')
     total_count.subtract(div_specs)
+    print('returning spectrum')
     return list(total_count.elements())
     div_count = Counter(div_specs)
     # get the intersection

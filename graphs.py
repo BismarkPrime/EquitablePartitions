@@ -4,6 +4,28 @@ import random
 from scipy import sparse as sp
 from matplotlib import pyplot as plt
 from time import perf_counter as pc
+import ep_utils
+from collections import Counter
+
+def getCharacteristicMatrix(partition):
+    """
+    Generate the characteristic matrix for an equitable partition.
+    Parameters:
+        partition (list of sets): The equitable partition.
+    Returns:
+        The characteristic matrix.
+    """
+    # change it to a list of sets
+    partition = [set(element) for element in partition.values()]
+    # create the block characteristic matrix
+    n = sum(len(block) for block in partition)
+    matrix = np.zeros((n, n))
+    i = 0
+    for block in partition:
+        for j in block:
+            matrix[j][i:i+len(block)] = 1
+        i += len(block)
+    return np.unique(matrix,axis=1)[:,::-1] # get only the unique columns, and reverse so it's in order
 
 def genDivGraph(G,ep_dict,retMat=False):
     """calculates and returns the divisor graph of the input graph
@@ -25,12 +47,16 @@ def genDivGraph(G,ep_dict,retMat=False):
     
     # cycle through one node in each partition element to get connections for the Divisor Graph
     for curPartElInd, node_list in enumerate(ep_dict.values()):
+        #print(list(ep_dict.keys()))
+        #print(f"In Divisor Function: {(curPartElInd+1)}/{len(list(ep_dict.keys()))}")
         # always get the first one since the partition is equitable and all connection 
         # will be the same within the partition elements.
         node = node_list[0]
+        #print(len(G.edges(node)))
 
         # count connection to partitions and update divisor matrix accordingly
         for connection in G.edges(node):
+
             connNode = connection[1]
             divMat[curPartElInd][rev_ep_dict[connNode]] += 1
 
@@ -98,14 +124,14 @@ def GenBertha(size,show_graph=False):
             mat[(opt_lep-1)*size1:,(opt_lep-2)*size1:(opt_lep-1)*size1] = np.ones((size2,size1))
 
     else:   # of the optimal lep size was a divisor just do the exact number of optimal leps
-        size1 = size/opt_lep
+        size1 = int(size/opt_lep)
 
         for i in range(opt_lep):
             mat[(i+1)*size1:(i+2)*size1,i*size1:(i+1)*size1] = np.ones((size1,size1))
             mat = mat.transpose()
             mat[(i+1)*size1:(i+2)*size1,i*size1:(i+1)*size1] = np.ones((size1,size1))
     # make bertha a networkx object
-    bertha = nx.from_scipy_sparse_matrix(mat)
+    bertha = nx.from_scipy_sparse_array(mat)
 
     if show_graph:
         nx.draw_networkx(bertha)
@@ -253,8 +279,39 @@ def NontrivialityData(G,ep_dict,lep_list, return_vals=False,plot=True,show_progr
             
     if return_vals:
         return nontrivEp_dict, nontrivLep_list,hist_list,totalNontrivNodes/num_nodes
-    
 
+def DuelOfMethods(bertha):
+    """compares networkx's normal eigenvalue catching method to our method
+    PARAMETERS:
+        size (int): how big of graph you want to compare with
+    RETURNS:
+        our_time (float): how long our method took
+        their_time (float): how long their method took
+        accurate (bool): if we matched their spectrum
+    """
+    # normal method
+    start = pc()
+    their_spec = nx.adjacency_spectrum(bertha)
+    end = pc()
+    their_time = end-start
+    
+    # our method
+    start = pc()
+    our_spec = ep_utils.GetSpectrumFromLEPs(bertha)
+    end = pc()
+    our_time = end-start
+
+    # check if our spectrums are the same
+    accurate = Counter(np.round(np.array(their_spec),2)) == Counter(np.round(our_spec,2))
+    
+    return our_time, their_time, accurate
+
+def NetworkxToMathematica(graph,filename='exported_graph'):
+    """takes in a networkx graph and exports it to a file that mathematica can read in called
+    'exported_graph.graphml'.
+    """
+    nx.write_graphml(graph,'./Mathematica/' + filename + '.graphml')
+    
 def relabel(G):
     mapping = {old_label: new_label for new_label, old_label in enumerate(G.nodes())}
     return nx.relabel_nodes(G, mapping)#, copy=False)
@@ -278,6 +335,69 @@ def getFacebookGraph():
     # G.add_edges_from(edge_list)
 
     return nx.read_edgelist("facebook_combined.txt", nodetype=int)
+
+def gram_schmidt(A):
+    """This function was written by chat GPT for the sake of saving time. but be wary about it.
+    It takes an array of vectors and returns an array based on the input array whose columns are orthonormalized"""
+    Q = np.zeros(A.shape)
+
+    for i in range(A.shape[1]):
+        v = A[:, i].copy()                 # get the column in question
+        v /= np.linalg.norm(v)
+        if i == 0:
+            Q[:, i] = v
+        else:
+            v -= np.sum(v@Q[:,:i] * Q[:, :i], axis=1)   # chat GPT didn't reshape before broadcasting, I had to fix that
+            Q[:,i] = v/np.linalg.norm(v)                      # normalize as you save it
+    return Q
+
+def gl_identification(vecs,ep):
+    """takes a matrix of eigenvectors and returns an array to tell if the columns are global, 
+    local or mixed eigenvectors"""
+    classification = np.empty(vecs.shape[1])
+
+    # check which are local
+    local_check = np.sum(vecs,axis=0)
+    local_mask = np.isclose(local_check,0)
+    classification[local_mask] = 1
+
+    # check which of the remaining are global
+    for i,vec in enumerate(vecs.T):
+        if not local_mask[i]:
+            early = False
+            for element_ind in ep.values():
+                check = vec[element_ind[0]]
+                if np.allclose(vec[element_ind],check):
+                    continue
+                else:
+                    classification[i] = 2   # make it mixed otherwise
+                    early = True
+                    break
+            # if it makes it through checking all parts of the vector then it is global
+            if not early:
+                classification[i] = 0
+        else:
+            continue
+
+    return classification
+
+
+
+def is_orthogonal(Q,verbose=True):
+    """Checks if a set of vectors is orthogonal"""
+    if Q.shape[0] != Q.shape[1]:
+        print("Careful, the matrix is not square")
+    normal_check = np.linalg.norm(Q,axis=0)
+    ortho_check = Q.T@Q
+    if verbose:
+        print(f"This should be all ones:\n{normal_check}\n\nThis should be an identity matrix:\n{np.round(ortho_check,2)}")
+
+    if not np.allclose(normal_check,np.ones(len(normal_check))):
+        return False
+    elif not np.allclose(ortho_check, np.eye(Q.shape[1])):
+        return False
+    return True
+
 
 def getDolores(retMat=False):
     #                 1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17 18 19 20 21 22 23 24
