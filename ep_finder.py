@@ -381,7 +381,7 @@ class ColorClass(LinkedList):
             v = v.next
             data += f', {v}'
             
-def initialize(G):
+def initialize(G, init_C=None):
     """
     Initializes the Node and ColorClass objects necessary for equitablePartition.
 
@@ -411,19 +411,36 @@ def initialize(G):
     """
     num_nodes = G.number_of_nodes()
     
-    # initialize Node list -- all start with ColorClass index of 0
-    N = {node: Node(node, 0, list(G.neighbors(node))) for node in G.nodes()}
-   
+    # initialize Node list -- all start with ColorClass index of 0, unless C was passed in
+    if init_C is None:
+        N = {node: Node(node, 0, list(G.neighbors(node))) for node in G.nodes()}
+    else:
+        # if init_C was passed in, initialize each node with the color class it had in init_C
+        N = dict()
+        for color in range(len(init_C)):
+            curr_node = init_C[color].head
+            while curr_node is not None:
+                N[curr_node.label] = Node(curr_node.label, color, list(G.neighbors(curr_node.label)))
+                curr_node = curr_node.next
+                
     # initialize ColorClass list
         # this creates n ColorClass objects for each of the n nodes. 
         # It's not the most efficient since the coarsest ep will generally not be trivial
-    C = [ColorClass() for c in range(num_nodes)]
+    C = [ColorClass() for _ in range(num_nodes)]
     
-    # add all nodes to ColorClass 0
+    # add all nodes to their correspnding ColorClass (usually 0, unless C was passed in)
     for n in N.values():
-        C[0].append(n)
+        C[n.f].append(n)
 
-    C[0].size = num_nodes # set ColorClass 0 size attribute
+    if init_C is None:
+        C[0].size = num_nodes # set ColorClass 0 size attribute
+    else:
+        # set size attribute for each non-empty color class in C
+        # note: this assumes that init_C has at least as many elements as the number of nodes in the
+        #    graph, since the size of C is len(G)
+        for color in range(len(C)):
+            if C[color].head is not None:
+                C[color].size = init_C[color].size
 
     return C, N
 
@@ -456,11 +473,7 @@ def initFromFile(file_path, num_nodes=None, delim=',', comments='#', directed=Fa
     N : list(Node)
         List of Node objects representing the nodes of `G`.
     """
-    # # initialize ColorClass list
-    # C = [ColorClass() for c in range(num_nodes)]
-    
-    # # initialize Node list -- all start with ColorClass index of 0
-    # N = {node: Node(node, 0, []) for node in range(num_nodes)}
+
     N = dict()
     
     with open(file_path, 'r') as f:
@@ -561,9 +574,12 @@ def equitablePartition(C, N, progress_bar = True):
     progress = 0
     if progress_bar:
         print("Finding Coarsest EP...")
-
-    new_colors = {0} # notice all nodes are in the same color class
-    n_colors = 0
+    
+    # Note: unless C was custom initialized, the first color class will be the only one with nodes
+    new_colors = {color for color in range(len(C)) if C[color].size > 0} # generally equivalent to new_colors = {0}
+    # all colors treated as new colors in first iteration, ergo new_colors contains all colors
+    # n_colors is the maximum color index
+    n_colors = len(new_colors) - 1 # generally equivalent to n_colors = 1
     iters = 0
 
     while True:
@@ -581,7 +597,9 @@ def equitablePartition(C, N, progress_bar = True):
             for v in C[c].structure_set:
                 v.structure_value = 0
 
-        C = recolor(C, L)
+        # I don't think reassignment is necessary
+        # C = recolor(C, L)
+        recolor(C, L)
         new_colors = temp_new_colors
 
         progress += 1

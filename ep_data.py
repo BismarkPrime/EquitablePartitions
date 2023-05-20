@@ -14,6 +14,7 @@ import numpy as np
 from typing import Iterable, List, Tuple
 import sys
 import networkx as nx
+from pprint import pprint
 
 class EPData:
 
@@ -82,8 +83,8 @@ class EPData:
             c = next(color)
             for vertex in V_i:
                 color_list[vertex] = c
-        
-        nx.draw_networkx(self.getNetworkX(), pos=pos_dict, node_color=color_list)
+
+        nx.draw_networkx(self.getNetworkX(), pos=pos_dict, node_color=color_list, nodelist=list(range(len(color_list))))
         if show:
             f.show()
         return f, ax

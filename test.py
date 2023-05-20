@@ -99,8 +99,8 @@ def GetLocalSpec(G,ep_dict,lep_list):
     return spec_dict, GDivSpec, orig_spec
 
 # test code
-def test(p=.04, iters=100, nodes=40):
-    for nodes in range(20, 500, 20):
+def test(p=.04, iters=500, nodes=40):
+    for nodes in range(20, 160, 20):
         print(f"\nChecking graphs with {nodes} nodes")
         for i in range(iters):
             print(f'\r{i}', end='')

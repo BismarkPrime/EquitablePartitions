@@ -314,7 +314,7 @@ def getEigenvalues(N: dict[int, set[int]], pi: dict[int, set[int]], leps: list[s
     # hint: use getDivisorMatrix to get the divisor matrix of the graph and of each LEP
     pass
 
-def getTransceivingEP(G: nx.Graph) -> dict[int, set[int]]:
+def getTransceivingEP(G: nx.Graph | nx.DiGraph) -> dict[int, set[int]]:
     """
     Finds the transceiving equitable partition of a graph.
    
@@ -325,45 +325,28 @@ def getTransceivingEP(G: nx.Graph) -> dict[int, set[int]]:
     RETURNS:
         The transceiving equitable partition (dict; int -> set)
     """
-    # 1. get transmitting equitable partition
-    C, N = ep_finder.initialize(G)
-    ep1, N = ep_finder.equitablePartition(C, N, progress_bar=False)
-    # 2. get receiving equitable partition
-    # if graph is undirected, the transceiving equitable partition is the same as the transmitting
-    if not nx.is_directed(G):
-        return ep1
+    # find the transmitting EP; use it as an initial coloring when finding the receiving;
+    #   use the resulting coloring for finding a transmitting EP; continue until stable
+    # NOTE: this method increases complexity of finding directed (transceiving) EPs as 
+    #   opposed to the undireced case. Perhaps ep_finder can be modified to account for 
+    #   both trasceiving directed cases better?
+    C1, C2 = None, None
+    ep1, ep2 = None, None
     G_inv = G.reverse()
-    C, N = ep_finder.initialize(G_inv)
-    ep2, N = ep_finder.equitablePartition(C, N, progress_bar=False)
-    # 3. find the intersection of the two equitable partitions
-    # 3a. create a dictionary mapping nodes to their equitable partition
-    node_to_ep1 = {}
-    node_to_ep2 = {}
-    for ep1_index, ep1_set in ep1.items():
-        for node in ep1_set:
-            node_to_ep1[node] = ep1_index
-    for ep2_index, ep2_set in ep2.items():
-        for node in ep2_set:
-            node_to_ep2[node] = ep2_index
-    # 3b. take one node from the first ep
-    visited = set()
-    transceiving_ep = {}
-    i = 0
-    for node, ep_el1 in node_to_ep1.items():
-        if node in visited:
-            continue
-        # 3c. find the corresponding node in the second ep
-        ep_el2 = node_to_ep2[node]
-        # 3d. take the intersection of the two partition elements and add it to transceiving ep
-        transceiving_ep[i] = list(set(ep1[ep_el1]).intersection(set(ep2[ep_el2])))
-        visited.update(transceiving_ep[i])
-        i += 1
-        # 3e. preserve only the nodes that are not in the transceiving ep (symmetric difference)
-        #   (completed by checking if a node is in visited)
-        # 3f. repeat until all nodes are in the transceiving ep
-    # 4. return the transceiving equitable partition
-
-    return transceiving_ep, N
+    while True:
+        # 1. get transmitting equitable partition
+        C1, N1 = ep_finder.initialize(G, C2)
+        ep1, N1 = ep_finder.equitablePartition(C1, N1, progress_bar=False)
+        # 2. get receiving equitable partition
+        # if graph is undirected, the transceiving equitable partition is the same as the transmitting
+        if not nx.is_directed(G):
+            return ep1
+        if ep1 == ep2:
+            return ep1, N1
+        C2, N2 = ep_finder.initialize(G_inv, C1)
+        ep2, N2 = ep_finder.equitablePartition(C2, N2, progress_bar=False)
+        if ep1 == ep2:
+            return ep1, N1
 
 
 def getEquitablePartitions(G, progress_bars = True, ret_adj_dict = False, rev = False):
