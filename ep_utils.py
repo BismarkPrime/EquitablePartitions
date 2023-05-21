@@ -12,6 +12,7 @@ from typing import Dict, List, Set, Tuple
 
 from collections import Counter
 import ep_finder, lep_finder
+import ep_finder2
 import graphs
 
 # TODO: update naming to match paper
@@ -348,6 +349,31 @@ def getTransceivingEP(G: nx.Graph | nx.DiGraph) -> dict[int, set[int]]:
         if ep1 == ep2:
             return ep1, N1
 
+def getTransceivingEP2(G: nx.Graph | nx.DiGraph) -> dict[int, set[int]]:
+    """
+    Finds the transceiving equitable partition of a graph.
+   
+    ARGUMENTS:
+        G : NetworkX Graph
+            The graph to analyze
+    
+    RETURNS:
+        The transceiving equitable partition (dict; int -> set)
+    """
+    # find the transmitting EP; use it as an initial coloring when finding the receiving;
+    #   use the resulting coloring for finding a transmitting EP; continue until stable
+    # NOTE: this method increases complexity of finding directed (transceiving) EPs as 
+    #   opposed to the undireced case. Perhaps ep_finder can be modified to account for 
+    #   both trasceiving directed cases better?
+    C1 = None
+    ep1 = None
+    while True:
+        # 1. get transmitting equitable partition
+        C1, N1 = ep_finder2.initialize(G)
+        ep1, N1 = ep_finder2.equitablePartition(C1, N1, progress_bar=False)
+        # 2. get receiving equitable partition
+        # if graph is undirected, the transceiving equitable partition is the same as the transmitting
+        return ep1, N1
 
 def getEquitablePartitions(G, progress_bars = True, ret_adj_dict = False, rev = False):
     """Finds the coarsest equitable partition and local equitable partitions of a graph.

@@ -1,5 +1,6 @@
 import math
 from pprint import pprint
+from timeit import Timer
 from typing import Iterable
 import numpy as np
 import networkx as nx
@@ -116,6 +117,30 @@ def test(p=.04, iters=500, nodes=40):
     # G = nx.random_geometric_graph(40, .15)
     # pi, leps = lep_finder.getEquitablePartitions(G, False, False)
     # lep_finder.plotEquitablePartition(G, pi, nx.get_node_attributes(G, "pos"))
+
+# function to test runtime complexity
+def complexityTest():
+    num_nodes = list()
+    ep_comp_time = list()
+    ep2_comp_time = list()
+    for nodes in range(2000, 200000, 2000):
+        num_nodes.append(nodes)
+        G = nx.erdos_renyi_graph(nodes, 3.2 // nodes, directed=True)
+        func = lambda: ep_utils.getTransceivingEP(G)
+        func2 = lambda: ep_utils.getTransceivingEP2(G)
+        t = Timer(func)
+        t2 = Timer(func2)
+        ep_comp_time.append(t.timeit(1))
+        ep2_comp_time.append(t2.timeit(1))
+
+    
+    plt.scatter(num_nodes, ep_comp_time, color='b', label="ep_finder")
+    plt.scatter(num_nodes, ep2_comp_time, color='r', label="ep_finder2")
+    plt.title("EP vs EP2 Computation Time")
+    plt.xlabel('Number of Nodes')
+    plt.ylabel('Computation Time')
+    plt.legend(loc="upper left")
+    plt.show()
 
 def compareEPEigenvalues(G: nx.Graph | nx.DiGraph, pi, leps) -> None:
     spec_dict, div_spec, orig_spec = GetLocalSpec(G, pi, leps)
@@ -327,30 +352,6 @@ def graphWithColoredPartEl(adj_mat, ep):
             index+=1   #use this to get different colorArr position each time
     
     nx.draw_networkx(nx.from_numpy_array(adj_mat),node_color=colorArr)    #graph it with colors
-
-# outdated function to test runtime complexity
-def complexityTest():
-    num_nodes = list()
-    ep_comp_time = list()
-    lep_comp_time = list()
-    for i in range(2000, 50000, 2000):
-        num_nodes.append(i)
-        G = nx.random_internet_as_graph(i)
-        # func = lambda: getEquitablePartitions(G)
-        # t = Timer(func)
-        # computation_time.append(t.timeit(1))
-        coarsest, local = lep_finder.getEquitablePartitions(G)
-        ep_comp_time.append(coarsest)
-        lep_comp_time.append(local)
-
-    
-    plt.scatter(num_nodes, ep_comp_time, color='b', label="ep_finder")
-    plt.scatter(num_nodes, lep_comp_time, color='r', label="LEP Algorithm")
-    plt.title("EP vs LEP Computation Time")
-    plt.xlabel('Number of Nodes')
-    plt.ylabel('Computation Time')
-    plt.legend(loc="upper left")
-    plt.show()
 
 def getLocalEquitablePartitions(ep, adjMat, print_subgraphs = False, verbose = False):
     """This function finds the local equitable partitions of a graph.
@@ -884,16 +885,6 @@ def relabel(G):
     # if mapping is None:
     mapping = {old_label: new_label for new_label, old_label in enumerate(G.nodes())}
     nx.relabel_nodes(G, mapping, copy=False)
-
-
-
-
-
-
-
-
-
-
 
 
 

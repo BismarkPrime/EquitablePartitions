@@ -390,8 +390,6 @@ def gl_identification(vecs,ep):
 
     return classification
 
-
-
 def is_orthogonal(Q,verbose=True):
     """Checks if a set of vectors is orthogonal"""
     if Q.shape[0] != Q.shape[1]:
