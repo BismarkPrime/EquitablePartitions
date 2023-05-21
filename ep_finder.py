@@ -357,6 +357,7 @@ class ColorClass(LinkedList):
                     print("v = {} with type {}".format(v, type(v)))
                     L.add(v)
                 # change temp_f (pseudo color) of v
+                # TODO: perhaps better to update the sizes when node v is removed from one class and appended to the other? (see recolor)
                 C[v.temp_f].size -= 1                   # decrement the size of the color class that v used to be in
                 v.temp_f = C[b].current_color
                 C[v.temp_f].size += 1                   # increment the size of the color class that v is in now
@@ -537,6 +538,8 @@ def recolor(C, L):
         # if color d has more nodes than the original, switch their coloring
             # WRONG: equally (i think), if c != d (since d has max size, then if c != d then C[c].size < C[d].size)
             #   ...because if temp_f is different than f, then v.temp_f might not include c, so d not guaranteed to be max until compared with c
+            #       In other words, because L is the set of new colors, and d = v.temp_f for some v \in L, d is one of the new colors, and c is the old color.
+            #           Thus, d != c and they must be compared
         if C[c].size < C[d].size:
             C[c].relabel(d)
             C[d].relabel(c)
@@ -587,10 +590,12 @@ def equitablePartition(C, N, progress_bar = True):
         L = set() # nodes with new colors (possible new name: nodes_updated)
         temp_new_colors = set() # indices of nodes with new colors
 
-        for i, c in enumerate(new_colors):
+        for c in new_colors:
+            # assignment likely unnecessary here as well
             C, N = C[c].computeStructureSet(C, N) # has to do with counting the number of neighbors of each vertex and their respective colors
 
             args = (C, L, n_colors, temp_new_colors)
+            # n_color is (perhaps) the only argument that needs reassignment
             args = C[c].splitColor(*args)
             C, L, n_colors, temp_new_colors = args
 

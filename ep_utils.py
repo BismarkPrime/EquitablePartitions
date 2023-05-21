@@ -18,7 +18,7 @@ import graphs
 # TODO: update naming to match paper
 # TODO: use child processes for finding EP and LEP to release memory after computation.
 
-EPSILON = 2e-2
+EPSILON = 1e-6
 
 # maybe start with NetworkX graphs for simplicity, then convert to adjacency dict
 def getDivisorMatrixNx(G: nx.Graph | nx.DiGraph, pi: Dict[int, Set[int]]) -> sparse.base.spmatrix: # [int, set[int]]:
@@ -392,7 +392,7 @@ def getEquitablePartitions(G, progress_bars = True, ret_adj_dict = False, rev = 
     # start_time = time.time()
     # C, N = ep_finder.initialize(G2)
     # ep, N = ep_finder.equitablePartition(C, N, progress_bar=progress_bars)
-    ep, N = getTransceivingEP(G)
+    ep, N = getTransceivingEP2(G)
     # coarsest = time.time() - start_time
     # start_time = time.time()
     N_G = lep_finder.initialize(G2)
