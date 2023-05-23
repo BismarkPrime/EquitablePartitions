@@ -333,7 +333,7 @@ def getTransceivingEP(G: nx.Graph | nx.DiGraph) -> dict[int, set[int]]:
     #   both trasceiving directed cases better?
     C1, C2 = None, None
     ep1, ep2 = None, None
-    G_inv = G.reverse()
+    G_inv = G.reverse() if nx.is_directed(G) else G
     while True:
         # 1. get transmitting equitable partition
         C1, N1 = ep_finder.initialize(G, C2)
@@ -341,7 +341,7 @@ def getTransceivingEP(G: nx.Graph | nx.DiGraph) -> dict[int, set[int]]:
         # 2. get receiving equitable partition
         # if graph is undirected, the transceiving equitable partition is the same as the transmitting
         if not nx.is_directed(G):
-            return ep1
+            return ep1, N1
         if ep1 == ep2:
             return ep1, N1
         C2, N2 = ep_finder.initialize(G_inv, C1)
@@ -360,20 +360,14 @@ def getTransceivingEP2(G: nx.Graph | nx.DiGraph) -> dict[int, set[int]]:
     RETURNS:
         The transceiving equitable partition (dict; int -> set)
     """
-    # find the transmitting EP; use it as an initial coloring when finding the receiving;
-    #   use the resulting coloring for finding a transmitting EP; continue until stable
-    # NOTE: this method increases complexity of finding directed (transceiving) EPs as 
-    #   opposed to the undireced case. Perhaps ep_finder can be modified to account for 
-    #   both trasceiving directed cases better?
-    C1 = None
-    ep1 = None
+
     while True:
         # 1. get transmitting equitable partition
-        C1, N1 = ep_finder2.initialize(G)
-        ep1, N1 = ep_finder2.equitablePartition(C1, N1, progress_bar=False)
+        N = ep_finder2.initFromNx(G)
+        ep = ep_finder2.equitablePartition(N, progress_bar=False)
         # 2. get receiving equitable partition
         # if graph is undirected, the transceiving equitable partition is the same as the transmitting
-        return ep1, N1
+        return ep, N
 
 def getEquitablePartitions(G, progress_bars = True, ret_adj_dict = False, rev = False):
     """Finds the coarsest equitable partition and local equitable partitions of a graph.

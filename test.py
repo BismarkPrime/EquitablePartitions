@@ -10,6 +10,7 @@ import json
 import random
 
 import ep_finder
+import ep_finder2
 import lep_finder
 import graphs
 import ep_utils
@@ -105,7 +106,7 @@ def test(p=.04, iters=500, nodes=40):
         print(f"\nChecking graphs with {nodes} nodes")
         for i in range(iters):
             print(f'\r{i}', end='')
-            G = nx.erdos_renyi_graph(nodes, 3.2 // nodes, directed=True, seed=i)
+            G = nx.random_internet_as_graph(nodes, seed=i)
             if not ep_utils.compareEigenvalues(G):
                 print("ERROR")
                 if (input() == 'v'):
@@ -118,20 +119,45 @@ def test(p=.04, iters=500, nodes=40):
     # pi, leps = lep_finder.getEquitablePartitions(G, False, False)
     # lep_finder.plotEquitablePartition(G, pi, nx.get_node_attributes(G, "pos"))
 
+def testCorrectness(p=.04, iters=3000, nodes=40):
+    for nodes in range(20, 80, 20):
+        print(f"\nChecking graphs with {nodes} nodes")
+        for i in range(iters):
+            print(f'\r{i}', end='')
+            G = nx.erdos_renyi_graph(nodes, 3.2 / nodes, directed=True, seed=i)
+            pi1 = list(ep_utils.getTransceivingEP(G)[0].values())
+            pi2 = list(ep_utils.getTransceivingEP2(G)[0].values())
+            for l in pi1:
+                l.sort()
+            for l in pi2:
+                l.sort()
+            pi1.sort()
+            pi3 = sorted(pi2)
+            if pi1 != pi3:
+                print("ERROR")
+                if (input() == 'v'):
+                    print(nx.adjacency_matrix(G, dtype=int).todense())
+                    pprint(f"EP from ep_finder:\n{pi1}")
+                    pprint(f"EP from ep_finder2:\n{pi3}")
+                    pprint(f"EP2 orig: {pi2}")
+                    input()
+
 # function to test runtime complexity
 def complexityTest():
     num_nodes = list()
     ep_comp_time = list()
     ep2_comp_time = list()
-    for nodes in range(2000, 200000, 2000):
+    for nodes in range(200, 4000, 200):
+        print(f"\rComputing iteration w/ {nodes} nodes.", end='')
         num_nodes.append(nodes)
-        G = nx.erdos_renyi_graph(nodes, 3.2 // nodes, directed=True)
+        # G = nx.erdos_renyi_graph(nodes, 2.4 / nodes, directed=True)
+        G = nx.random_internet_as_graph(nodes)
         func = lambda: ep_utils.getTransceivingEP(G)
         func2 = lambda: ep_utils.getTransceivingEP2(G)
         t = Timer(func)
         t2 = Timer(func2)
-        ep_comp_time.append(t.timeit(1))
-        ep2_comp_time.append(t2.timeit(1))
+        ep_comp_time.append(t.timeit(15))
+        ep2_comp_time.append(t2.timeit(15))
 
     
     plt.scatter(num_nodes, ep_comp_time, color='b', label="ep_finder")
