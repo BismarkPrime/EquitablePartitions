@@ -12,7 +12,6 @@ paper. To translate between our naming and his, we provide the following table:
 
 NAME IN PAPER       || NAME IN CODE
 ====================||====================
-L                   || updated_colors
 f (color)           || old_color
 f bar (pseudo color)|| new_color
 hit                 || curr_color_in_edge_neighbors (or curr_color_out_edge_neighbors)
@@ -256,6 +255,10 @@ class ColorClass(LinkedList):
         # reset neighbor lists
         self.out_edge_neighbors = list()
         self.in_edge_neighbors = list()
+
+        self.max_out_edge_count = 0
+        self.max_in_edge_count = 0
+
         # All the nodes in a color class are stored as a linked list, so 
         #   self.head returns the first node in the color class
         w = self.head
@@ -268,6 +271,9 @@ class ColorClass(LinkedList):
                     C[v.new_color].curr_color_out_edge_neighbors += 1   # if not, increment out-edge neighbor count for its color
                     self.out_edge_neighbors.append(v)                   # and add v to this color class's out-edge neighbors
                 v.out_edge_count += 1                                   # increment count of out-edges from this color class to v
+                # track largest number of outgoing edges to a single node
+                if v.out_edge_count > self.max_out_edge_count:
+                    self.max_out_edge_count = v.out_edge_count
             
             # do the same for each in-edge neighbor v of w 
             #   (i.e., there exists an edge v --> w)
@@ -277,10 +283,12 @@ class ColorClass(LinkedList):
                     C[v.new_color].curr_color_in_edge_neighbors += 1
                     self.in_edge_neighbors.append(v)
                 v.in_edge_count += 1
+                if v.in_edge_count > self.max_in_edge_count:
+                    self.max_in_edge_count = v.in_edge_count
 
             w = w.next # move to next node in the color class
 
-    def splitColor(self, C: List['ColorClass'], updated_nodes: Set[Node]) -> None:
+    def splitColor(self, C: List['ColorClass'], L: Set[Node]) -> None:
         """
         Uses metrics collected in computeColorStructure to determine which nodes 
             must be moved to a new color class; new color classes are assigend 
@@ -289,9 +297,9 @@ class ColorClass(LinkedList):
 
         Parameters
         ----------
-        N               : the node dictionary
-        C               : the list of ColorClasses
-        updated_nodes   : the set of nodes that will get new colors
+        N   : the node dictionary
+        C   : the list of ColorClasses
+        L   : the set of nodes that will get new colors
 
         Complexity
         ----------
@@ -300,9 +308,20 @@ class ColorClass(LinkedList):
 
         """
         
+        
+
         # sort neighbors by number of edges from connecting them to this color class, ascending
-        self.in_edge_neighbors.sort(key=operator.attrgetter('in_edge_count'))
-        self.out_edge_neighbors.sort(key=operator.attrgetter('out_edge_count'))
+        # a bucket sort of these vertices will be bounded by the number of edges between a vertex
+        #   and this color class, which will not be more than the size of the color class. To 
+        #   improve performance on large color classes, we bound it by the actual max number of 
+        #   edges.
+
+        # NOTE: this may actually be somewhat slower in practice for many graphs, but is necessary 
+        #   guarantee linear sorting complexity and m log(n) complexity overall. The alternative:
+        # self.in_edge_neighbors.sort(key=operator.attrgetter('in_edge_count'))
+        # self.out_edge_neighbors.sort(key=operator.attrgetter('out_edge_count'))
+        bucketSort(self.in_edge_neighbors, 'in_edge_count', 1, self.max_in_edge_count)
+        bucketSort(self.out_edge_neighbors, 'out_edge_count', 1, self.max_out_edge_count)
 
         visited = set() # tracking which ColorClasses have been visited
         for v in self.in_edge_neighbors:
@@ -348,7 +367,7 @@ class ColorClass(LinkedList):
             #   the same new_color value). The only nodes that will retain their original color 
             #   value will be the nodes from each C[b] with the same minimum in_edge_count
             if v.new_color != C[b].split_color:   # if split_color of C[b] changed
-                updated_nodes.add(v)
+                L.add(v)
                 
                 # NOTE: it may seem more intuitive to update the ColorClass sizes when nodes are 
                 #   added or removed (in recolor); HOWEVER, we use the updated sizes before that 
@@ -384,7 +403,7 @@ class ColorClass(LinkedList):
                 C[b].split_color = len(C) - 1
 
             if v.new_color != C[b].split_color:
-                updated_nodes.add(v)
+                L.add(v)
                 
                 C[v.new_color].size -= 1
                 v.new_color = C[b].split_color
@@ -403,7 +422,37 @@ class ColorClass(LinkedList):
 
             v = v.next
             data += f', {v}'
-            
+
+def bucketSort(objs: List[Any], attribute: str, attr_min_val: int, attr_max_val: int) -> None:
+    """
+    Initializes the Node list necessary for equitablePartition.
+
+    Parameters
+    ----------
+    objs        : the list to be sorted
+    attribute   : the attribute with which to perform a bucket sort
+    attr_min_val: the smallest possible value of `attribute`
+    attr_max_val: the largest possible value of `attribute`
+
+    Complexity
+    ----------
+    Time: Linear with length of objs and (attr_max_val - attr_min_val)
+    Space: Linear with length of objs and (attr_max_val - attr_min_val)
+
+    """
+    buckets = [None for _ in range(attr_min_val, attr_max_val + 1)]
+    for obj in objs:
+        index = getattr(obj, attribute) - attr_min_val
+        if buckets[index] is None:
+            buckets[index] = set()
+        buckets[index].add(obj)
+    i = 0
+    for bucket in buckets:
+        if bucket is not None:
+            for obj in bucket:
+                objs[i] = obj
+                i += 1
+   
 def initFromNx(G: nx.Graph | nx.DiGraph) -> Dict[Any, Node]:
     """
     Initializes the Node list necessary for equitablePartition.
@@ -497,34 +546,39 @@ def initFromFile(file_path: str, num_nodes: int=None, delim: str=',',
     return N
 
 
-def recolor(C: List[ColorClass], updated_nodes: Set[Node]) -> None:
+def recolor(C: List[ColorClass], L: Set[Node]) -> None:
     """
     Updates color classes to reflect the coloring stored in each node's 
         new_color attribute. When a color class splits, the largest derived 
         color class keeps the original color.
+    
+    Parameters
+    ----------
+    C   : the list of ColorClasses
+    L   : the set of nodes that will get new colors
 
     Complexity
     ----------
-    Time: Linear with len(updated_nodes)
-    Space: Linear with len(updated_nodes)
+    Time: Linear with len(L)
+    Space: Linear with len(L)
 
     """
 
-    for v in updated_nodes:
+    for v in L:
         C[v.old_color].remove(v)
         C[v.new_color].append(v)
 
     # make sure largest new color retains old color label (for a more efficient next iteration)
-    for c in {v.old_color for v in updated_nodes}:
+    for c in {v.old_color for v in L}:
         # get index of largest new colorclass from same previous colorclass
-        d = max({(C[c].size, c) for v in updated_nodes if v.old_color == c})[1]
+        d = max({(C[c].size, c) for v in L if v.old_color == c})[1]
         # if color d has more nodes than the original, switch their coloring
         if C[c].size < C[d].size:
             C[c].relabel(d)
             C[d].relabel(c)
             C[c], C[d] = C[d], C[c]
 
-    for v in updated_nodes:
+    for v in L:
         v.old_color = v.new_color
 
 
@@ -550,6 +604,10 @@ def equitablePartition(N: Dict[Any, Node], progress_bar: bool= True) -> Dict[int
     """
 
     # initialize ColorClass list
+    # NOTE: it might be slightly faster just to initialize color class list to 
+    #   have size len(N) (rather than adding to it until it whenever we add a 
+    #   color class), but we may actually care about that wasted memory when 
+    #   working with very large graphs
     C = [ColorClass()]
     
     # add all nodes to their correspnding ColorClass
@@ -564,8 +622,15 @@ def equitablePartition(N: Dict[Any, Node], progress_bar: bool= True) -> Dict[int
     
     prev_color_count = 0 # number of colors in the previous iteration
 
+    # NOTE: the complexity of each iteration is proportional to 
+    #   SUM from i=0 -> len(L) of degree(L[i]).
+    #   Hence, if every node is recolored once, the complexity is bounded by the 
+    #   total number of edges, m. Each node may be recolored at most log(n) 
+    #   times, where n is the number of nodes. Hence, we have an overall 
+    #   complexity of O(m log(n)).
+
     while len(C) > prev_color_count:
-        updated_nodes = set() # nodes with new colors
+        L = set() # nodes with new colors
 
         color_count = len(C)
 
@@ -573,14 +638,14 @@ def equitablePartition(N: Dict[Any, Node], progress_bar: bool= True) -> Dict[int
         for c in range(prev_color_count, len(C)):
             C[c].computeColorStructure(C, N)
 
-            C[c].splitColor(C, updated_nodes)
+            C[c].splitColor(C, L)
 
             for v in C[c].in_edge_neighbors:
                 v.in_edge_count = 0
             for v in C[c].out_edge_neighbors:
                 v.out_edge_count = 0
 
-        recolor(C, updated_nodes)
+        recolor(C, L)
 
         prev_color_count = color_count
 
