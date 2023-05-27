@@ -6,6 +6,24 @@ in O(n log(m)) time.
 
 Implementation based on the 1999 paper "Computing equitable partitions of graphs",
 by Bastert (http://match.pmf.kg.ac.rs/electronic_versions/Match40/match40_265-272.pdf)
+
+To improve readability, we have changed some of the variable names used in Bastert's
+paper. To translate between our naming and his, we provide the following table:
+
+NAME IN PAPER       || NAME IN CODE
+====================||====================
+L                   || updated_colors
+f (color)           || old_color
+f bar (pseudo color)|| new_color
+hit                 || curr_color_in_edge_neighbors (or curr_color_out_edge_neighbors)
+p (structure_value) || in_edge_count (or out_edge_count)
+current_p           || curr_conns
+current_color       || split_color
+
+TODO:
+    Improve variable naming for code readability
+    Parallelization
+    Use some sort of bucket sort in splitcolor to achieve lower complexity (is paper wrong on this point?)
 """
 
 import operator
@@ -321,7 +339,7 @@ class ColorClass(LinkedList):
             if C[b].curr_conns != v.in_edge_count:
                 C[b].curr_conns = v.in_edge_count   # update curr_conns with the new in_edge_count
                 C.append(ColorClass())              # add new color
-                C[b].split_color = len(C) - 1     # update split to apply to subsequent nodes
+                C[b].split_color = len(C) - 1       # update split to apply to subsequent nodes
 
             # As soon as we have gotten past all nodes v from C[b] with minimum in_edge_count, the 
             #   split_color of C[b] will change (in the above if statement). All subsequent nodes 
