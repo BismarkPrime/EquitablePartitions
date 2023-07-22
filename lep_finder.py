@@ -1,5 +1,8 @@
 import numpy as np
+import networkx as nx
 from alive_progress import alive_bar
+
+from typing import Any, List, Set, Dict
 
 # TODO: update naming to match paper
 
@@ -7,12 +10,11 @@ from alive_progress import alive_bar
 #   Using Disjoint Set data structures to store partitions
 #   Initialize using csv files
 
-def initialize(G):
+def initialize(G: nx.Graph | nx.DiGraph) -> Dict[Any, Set[Any]]:
     """Initializes the inverted neighbor dictionary required to compute leps.
    
     ARGUMENTS:
-        G : NetworkX Graph
-            The graph to analyzed
+        G : The graph to analyzed
     
     RETURNS:
         A dictionary with nodes as keys and a set of their in-edge neighbors as values.
@@ -25,17 +27,17 @@ def initialize(G):
     N = { node:set(g_rev.neighbors(node)) for node in G.nodes() }
     return N
 
-def initFromFile(file_path, num_nodes=None, delim=',', comments='#', directed=False, rev=False):
+def initFromFile(file_path: str, num_nodes: int=None, delim: str=',', comments: str='#', directed: bool=False, rev: bool=False) -> Dict[int, Set[int]]:
     """Initializes the inverted neighbor dictionary required to compute leps.
    
     ARGUMENTS:
         file_path : the path to the file storing edge data of the graph to be analyzed
         num_nodes : the total number of nodes; only necessary if the file at file_path
-            does not contain all nodes (i.e., if there are nodes with no edges between them)
-        delim : the delimiter between source and destination nodes for each edge in the
-            file at file_path; uses ',' by default
-        comments : a character used to denote a comment, or line to ignore; uses '#' by default
-        directed : whether the graph is directed; uses False by default
+                        does not contain all nodes (i.e., if there are nodes with no edges between them)
+        delim :     the delimiter between source and destination nodes for each edge in the
+                        file at file_path; uses ',' by default
+        comments :  a character used to denote a comment, or line to ignore; uses '#' by default
+        directed :  whether the graph is directed; uses False by default
 
     
     RETURNS:
@@ -67,20 +69,17 @@ def initFromFile(file_path, num_nodes=None, delim=',', comments='#', directed=Fa
                 N.update({i: set()})
     return N
 
-def getLocalEquitablePartitions(N, ep, progress_bar = True):
+def getLocalEquitablePartitions(N: Dict[Any, Set[Any]], ep: Dict[int, Set[Any]], progress_bar: bool=True) -> List[Set[int]]:
     """Finds the local equitable partitions of a graph.
    
     ARGUMENTS:
-        N : dict
-            A dictionary containing nodes as keys with their in-edge neighbors as values
-        ep : dict
-            The equitable partition of the graph, as returned by ep_finder
-        progress_bar : boolean
-            whether to show realtime progress bar (enabled by default)
+        N :     A dictionary containing nodes as keys with their in-edge neighbors as values
+        ep :    The equitable partition of the graph, as returned by ep_finder
+        progress_bar : whether to show realtime progress bar (enabled by default)
     
     RETURNS:
-        A list of sets, with each set containing the partition elements that can be
-            grouped together in the same local equitable partition
+        A list of sets, with each set containing the indices/keys of partition elements
+            that can be grouped together in the same local equitable partition
     """
     retval = None
     # if progress_bar:
@@ -92,14 +91,12 @@ def getLocalEquitablePartitions(N, ep, progress_bar = True):
             retval = i
     return retval
 
-def __computeLocalEquitablePartitions(N, pi):
+def __computeLocalEquitablePartitions(N: Dict[Any, Any], pi: Dict[int, Set[Any]]) -> None | List[Set[int]]:
     """Finds the local equitable partitions of a graph.
    
     ARGUMENTS:
-        N : dict
-            A dictionary containing nodes as keys with their in-edge neighbors as values
-        pi : dict
-            The equitable partition of the graph, as returned by ep_finder
+        N :     A dictionary containing nodes as keys with their in-edge neighbors as values
+        pi :    The equitable partition of the graph, as returned by ep_finder
     
     RETURNS:
         A list of sets, with each set containing the partition elements that can be
@@ -130,7 +127,7 @@ def __computeLocalEquitablePartitions(N, pi):
     leps = __extractConnectedComponents(lep_network, len(pi))
     yield leps
 
-def __link(i, j, edge_dict):
+def __link(i: int, j: int, edge_dict: Dict[int, Set[int]]) -> None:
     if i not in edge_dict:
         edge_dict.update({i: set()})
     edge_dict.get(i).add(j)
@@ -139,7 +136,7 @@ def __link(i, j, edge_dict):
         edge_dict.update({j: set()})
     edge_dict.get(j).add(i)
 
-def __extractConnectedComponents(edge_dict, num_nodes):
+def __extractConnectedComponents(edge_dict: Dict[int, Set[int]], num_nodes: int) -> List[Set[int]]:
     visited = set()
     scc_list = []
     for i in range(num_nodes):

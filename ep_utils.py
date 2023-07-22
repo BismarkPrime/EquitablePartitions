@@ -394,7 +394,7 @@ def getEquitablePartitions(G, progress_bars = True, ret_adj_dict = False, rev = 
     # local = time.time() - start_time
     if ret_adj_dict:
         # this may no longer be applicable with a tranceiving equitable partition
-        return ep, leps, {node: N[node].neighbors for node in N}
+        return ep, leps, {node: N[node].successors for node in N}
     return ep, leps
 
 def getEquitablePartitionsFromFile(file_path, num_nodes=None, delim=',', comments='#', directed=False, progress_bars=True, ret_adj_dict=False, rev=False):
