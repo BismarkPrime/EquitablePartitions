@@ -1,0 +1,448 @@
+(* Content-type: application/vnd.wolfram.mathematica *)
+
+(*** Wolfram Notebook File ***)
+(* http://www.wolfram.com/nb *)
+
+(* CreatedBy='Mathematica 13.2' *)
+
+(*CacheID: 234*)
+(* Internal cache information:
+NotebookFileLineBreakTest
+NotebookFileLineBreakTest
+NotebookDataPosition[       158,          7]
+NotebookDataLength[     19285,        440]
+NotebookOptionsPosition[     17918,        407]
+NotebookOutlinePosition[     18314,        423]
+CellTagsIndexPosition[     18271,        420]
+WindowFrame->Normal*)
+
+(* Beginning of Notebook Content *)
+Notebook[{
+
+Cell[CellGroupData[{
+Cell[BoxData[
+ RowBox[{"SetDirectory", "[", 
+  RowBox[{"NotebookDirectory", "[", "]"}], "]"}]], "Input",
+ CellChangeTimes->{{3.886181847202178*^9, 3.8861818797101803`*^9}, {
+  3.886182070714025*^9, 3.8861820731103363`*^9}, {3.886182189899201*^9, 
+  3.8861821949774942`*^9}},
+ CellLabel->"In[6]:=",ExpressionUUID->"500fd561-2a92-46b6-a7ff-29617d6acf05"],
+
+Cell[BoxData["\<\"/Users/josephhenderson/Desktop/Research/EquitablePartitions/\
+Mathematica\"\>"], "Output",
+ CellChangeTimes->{{3.886181851027725*^9, 3.88618188019232*^9}, 
+   3.886182073940715*^9, 3.886182195589872*^9},
+ CellLabel->"Out[6]=",ExpressionUUID->"03590e7b-5a0f-4d54-9c22-5fd96328b567"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"graph", " ", "=", " ", 
+  RowBox[{"Graph", "[", 
+   RowBox[{
+    RowBox[{"Import", "[", "\"\<exported_graph.graphml\>\"", "]"}], ",", 
+    RowBox[{"VertexLabels", "->", "Automatic"}], ",", 
+    RowBox[{"VertexSize", "->", ".35"}]}], "]"}]}]], "Input",
+ CellChangeTimes->{
+  3.88618222806849*^9, {3.886182756422373*^9, 3.8861827666547832`*^9}, {
+   3.886186297301083*^9, 3.886186316840878*^9}},
+ CellLabel->"In[17]:=",ExpressionUUID->"7c733eac-d75f-46e7-aa79-3827b220b7f8"],
+
+Cell[BoxData[
+ GraphicsBox[
+  NamespaceBox["NetworkGraphics",
+   DynamicModuleBox[{Typeset`graph = HoldComplete[
+     Graph[{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}, {
+      Null, {{1, 3}, {1, 5}, {1, 7}, {1, 9}, {1, 10}, {2, 4}, {2, 6}, {2, 
+       8}, {2, 9}, {2, 10}, {3, 6}, {4, 8}, {5, 7}, {9, 10}}}, {
+      AnnotationRules -> {
+        UndirectedEdge["1", "8"] -> {"weight" -> "1"}, 
+         UndirectedEdge["1", "7"] -> {"weight" -> "1"}, 
+         UndirectedEdge["0", "6"] -> {"weight" -> "1"}, 
+         UndirectedEdge["1", "5"] -> {"weight" -> "1"}, 
+         UndirectedEdge["1", "3"] -> {"weight" -> "1"}, 
+         UndirectedEdge["1", "9"] -> {"weight" -> "1"}, 
+         UndirectedEdge["2", "5"] -> {"weight" -> "1"}, 
+         UndirectedEdge["0", "4"] -> {"weight" -> "1"}, 
+         UndirectedEdge["0", "8"] -> {"weight" -> "1"}, 
+         UndirectedEdge["0", "9"] -> {"weight" -> "1"}, 
+         UndirectedEdge["3", "7"] -> {"weight" -> "1"}, 
+         UndirectedEdge["0", "2"] -> {"weight" -> "1"}, 
+         UndirectedEdge["8", "9"] -> {"weight" -> "1"}, 
+         UndirectedEdge["4", "6"] -> {"weight" -> "1"}}, 
+       GraphLayout -> {"Dimension" -> 2}, VertexLabels -> {Automatic}, 
+       VertexSize -> {0.35}}]]}, 
+    TagBox[GraphicsGroupBox[{
+       {Hue[0.6, 0.7, 0.5], Opacity[0.7], Arrowheads[0.], 
+        ArrowBox[CompressedData["
+1:eJxTTMoPSmVmYGDgA2ImKK6tqny0R/2jvVKS+fRikwf2f9Y2Zy2v/2nvU1A0
+z+Txd3t0eQYokNNQLm3XfYIhP6GFT+377t32Dh8jS8O0ZmHInzscF7LzHoPD
+ip7J5tuU72PIG/2Z4lALlIfZoxoeYpKgzumw6XiMir7VA3uxK5HnVt0TcHgh
+bdnSA7QfXf6c4us6jR8sDt9v1zpOevIdQ95ih5jakzwBhwMMu7w8Fs7C1I/m
+PnR5dPehhxe6/ejuRbcfPTzRww/dPej2AwACZLib
+         "], 0.08514707038302578]}, 
+       {Hue[0.6, 0.2, 0.8], EdgeForm[{GrayLevel[0], Opacity[
+        0.7]}], {
+         DiskBox[{1.0722016188298362, 0.5064027741855777}, 
+          0.08514707038302578], 
+         InsetBox["\<\"0\"\>", 
+          Offset[{2, 2}, {1.157348689212862, 0.5915498445686035}], 
+          ImageScaled[{0, 0}],
+          BaseStyle->"Graphics"]}, {
+         DiskBox[{3.14422646410357, 0.5071025572017247}, 0.08514707038302578],
+          InsetBox["\<\"1\"\>", 
+          Offset[{2, 2}, {3.2293735344865957, 0.5922496275847505}], 
+          ImageScaled[{0, 0}],
+          BaseStyle->"Graphics"]}, {
+         DiskBox[{1.5936655197828022, 1.492970103200622}, 
+          0.08514707038302578], 
+         InsetBox["\<\"2\"\>", 
+          Offset[{2, 2}, {1.678812590165828, 1.5781171735836477}], 
+          ImageScaled[{0, 0}],
+          BaseStyle->"Graphics"]}, {
+         DiskBox[{4.217448448403067, 0.6305601675493309}, 
+          0.08514707038302578], 
+         InsetBox["\<\"3\"\>", 
+          Offset[{2, 2}, {4.3025955187860925, 0.7157072379323567}], 
+          ImageScaled[{0, 0}],
+          BaseStyle->"Graphics"]}, {
+         DiskBox[{0., 0.6305577552641386}, 0.08514707038302578], 
+         InsetBox["\<\"4\"\>", 
+          Offset[{2, 2}, {0.08514707038302578, 0.7157048256471644}], 
+          ImageScaled[{0, 0}],
+          BaseStyle->"Graphics"]}, {
+         DiskBox[{2.621170989561711, 1.4933035429255577}, 
+          0.08514707038302578], 
+         InsetBox["\<\"5\"\>", 
+          Offset[{2, 2}, {2.7063180599447367, 1.5784506133085834}], 
+          ImageScaled[{0, 0}],
+          BaseStyle->"Graphics"]}, {
+         DiskBox[{0.10833687476271536, 0.025552130615765778}, 
+          0.08514707038302578], 
+         InsetBox["\<\"6\"\>", 
+          Offset[{2, 2}, {0.19348394514574113, 0.11069920099879156}], 
+          ImageScaled[{0, 0}],
+          BaseStyle->"Graphics"]}, {
+         DiskBox[{4.108292193543143, 0.02600586849303066}, 
+          0.08514707038302578], 
+         InsetBox["\<\"7\"\>", 
+          Offset[{2, 2}, {4.193439263926169, 0.11115293887605644}], 
+          ImageScaled[{0, 0}],
+          BaseStyle->"Graphics"]}, {
+         DiskBox[{2.108751925603861, 0.4865546744096698}, 
+          0.08514707038302578], 
+         InsetBox["\<\"8\"\>", 
+          Offset[{2, 2}, {2.1938989959868866, 0.5717017447926956}], 
+          ImageScaled[{0, 0}],
+          BaseStyle->"Graphics"]}, {
+         DiskBox[{2.108637337252298, 0.}, 0.08514707038302578], 
+         InsetBox["\<\"9\"\>", 
+          Offset[{2, 2}, {2.1937844076353237, 0.08514707038302578}], 
+          ImageScaled[{0, 0}],
+          BaseStyle->"Graphics"]}}}],
+     MouseAppearanceTag["NetworkGraphics"]],
+    AllowKernelInitialization->False]],
+  DefaultBaseStyle->"NetworkGraphics",
+  FormatType->TraditionalForm,
+  FrameTicks->None]], "Output",
+ CellChangeTimes->{
+  3.886182229813922*^9, {3.886182762402112*^9, 3.886182766987817*^9}, {
+   3.886186303341682*^9, 3.88618631710511*^9}},
+ CellLabel->"Out[17]=",ExpressionUUID->"f64f8592-699c-460f-a329-123e370edaf9"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"H", " ", "=", " ", 
+  RowBox[{"AdjacencyGraph", "[", 
+   RowBox[{"AdjacencyMatrix", "[", "graph", "]"}], "]"}]}]], "Input",
+ CellChangeTimes->{{3.886187557445916*^9, 3.886187567957979*^9}},
+ CellLabel->"In[20]:=",ExpressionUUID->"e0bc6fb8-a2fa-4be3-b776-3b71829f78ae"],
+
+Cell[BoxData[
+ GraphicsBox[
+  NamespaceBox["NetworkGraphics",
+   DynamicModuleBox[{Typeset`graph = HoldComplete[
+     Graph[{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, {Null, 
+       SparseArray[
+       Automatic, {10, 10}, 0, {
+        1, {{0, 5, 10, 12, 14, 16, 18, 20, 22, 25, 28}, {{3}, {5}, {7}, {9}, {
+          10}, {4}, {6}, {8}, {9}, {10}, {1}, {6}, {2}, {8}, {1}, {7}, {2}, {
+          3}, {1}, {5}, {2}, {4}, {1}, {2}, {10}, {1}, {2}, {9}}}, 
+         Pattern}]}]]}, 
+    TagBox[
+     GraphicsGroupBox[
+      GraphicsComplexBox[{{1.0722016188298362`, 0.5064027741855777}, {
+       3.14422646410357, 0.5071025572017247}, {1.5936655197828022`, 
+       1.492970103200622}, {4.217448448403067, 0.6305601675493309}, {0., 
+       0.6305577552641386}, {2.621170989561711, 1.4933035429255577`}, {
+       0.10833687476271536`, 0.025552130615765778`}, {4.108292193543143, 
+       0.02600586849303066}, {2.108751925603861, 0.4865546744096698}, {
+       2.108637337252298, 0.}}, {
+        {Hue[0.6, 0.7, 0.5], Opacity[0.7], Arrowheads[0.], 
+         ArrowBox[{{1, 3}, {1, 5}, {1, 7}, {1, 9}, {1, 10}, {2, 4}, {2, 6}, {
+          2, 8}, {2, 9}, {2, 10}, {3, 6}, {4, 8}, {5, 7}, {9, 10}}, 
+          0.03837696361960205]}, 
+        {Hue[0.6, 0.2, 0.8], EdgeForm[{GrayLevel[0], Opacity[0.7]}], 
+         DiskBox[1, 0.03837696361960205], DiskBox[2, 0.03837696361960205], 
+         DiskBox[3, 0.03837696361960205], DiskBox[4, 0.03837696361960205], 
+         DiskBox[5, 0.03837696361960205], DiskBox[6, 0.03837696361960205], 
+         DiskBox[7, 0.03837696361960205], DiskBox[8, 0.03837696361960205], 
+         DiskBox[9, 0.03837696361960205], DiskBox[10, 0.03837696361960205]}}]],
+     MouseAppearanceTag["NetworkGraphics"]],
+    AllowKernelInitialization->False]],
+  DefaultBaseStyle->"NetworkGraphics",
+  FormatType->TraditionalForm,
+  FrameTicks->None]], "Output",
+ CellChangeTimes->{3.8861875752259617`*^9},
+ CellLabel->"Out[20]=",ExpressionUUID->"f1d91da9-7106-4c2b-8050-2351727bfa34"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"HighlightGraph", "[", 
+  RowBox[{"H", ",", 
+   RowBox[{"{", 
+    RowBox[{
+     RowBox[{"{", 
+      RowBox[{"2", ",", "1"}], "}"}], ",", 
+     RowBox[{"{", 
+      RowBox[{"3", ",", "4", ",", "5", ",", "6", ",", "7", ",", "8"}], "}"}], 
+     ",", 
+     RowBox[{"{", 
+      RowBox[{"9", ",", "10"}], "}"}]}], "}"}], ",", 
+   RowBox[{"VertexSize", "->", ".35"}], ",", 
+   RowBox[{"VertexLabels", "->", "Automatic"}]}], "]"}]], "Input",
+ CellChangeTimes->{{3.886182800178751*^9, 3.8861828160048037`*^9}, {
+  3.8861828461460533`*^9, 3.886182860832468*^9}, {3.88618626058856*^9, 
+  3.886186287339962*^9}, {3.886186668894277*^9, 3.886186671300798*^9}, {
+  3.886187370122945*^9, 3.886187399350614*^9}, {3.8861875712491302`*^9, 
+  3.88618767328368*^9}},
+ CellLabel->"In[30]:=",ExpressionUUID->"4c072f4b-82df-427d-9331-93ff81057f59"],
+
+Cell[BoxData[
+ GraphicsBox[
+  NamespaceBox["NetworkGraphics",
+   DynamicModuleBox[{Typeset`graph = HoldComplete[
+     Graph[{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, {Null, 
+       SparseArray[
+       Automatic, {10, 10}, 0, {
+        1, {{0, 5, 10, 12, 14, 16, 18, 20, 22, 25, 28}, {{3}, {5}, {7}, {9}, {
+          10}, {4}, {6}, {8}, {9}, {10}, {1}, {6}, {2}, {8}, {1}, {7}, {2}, {
+          3}, {1}, {5}, {2}, {4}, {1}, {2}, {10}, {1}, {2}, {9}}}, 
+         Pattern}]}, {
+      VertexLabels -> {
+        6 -> Automatic, 3 -> Automatic, 5 -> Automatic, 8 -> Automatic, 7 -> 
+         Automatic, 10 -> Automatic, 9 -> Automatic, 4 -> Automatic, 2 -> 
+         Automatic, 1 -> Automatic}, 
+       VertexSize -> {
+        7 -> 0.35, 6 -> 0.35, 10 -> 0.35, 4 -> 0.35, 3 -> 0.35, 9 -> 0.35, 8 -> 
+         0.35, 2 -> 0.35, 1 -> 0.35, 5 -> 0.35}, 
+       GraphHighlight -> {10, 1, 6, 5, 9, 7, 2, 8, 4, 3}, 
+       GraphHighlightStyle -> {4 -> {VertexStyle -> Directive[
+             Hue[0.14, 1, 0.9], 
+             EdgeForm[{
+               Hue[0.14, 1, 0.9], 
+               Opacity[1]}]]}, 1 -> {VertexStyle -> Directive[
+             Hue[0, 1, 0.8], 
+             EdgeForm[{
+               Hue[0, 1, 0.8], 
+               Opacity[1]}]]}, 2 -> {VertexStyle -> Directive[
+             Hue[0, 1, 0.8], 
+             EdgeForm[{
+               Hue[0, 1, 0.8], 
+               Opacity[1]}]]}, 10 -> {VertexStyle -> Directive[
+             Hue[0.8, 0.6, 0.8], 
+             EdgeForm[{
+               Hue[0.8, 0.6, 0.8], 
+               Opacity[1]}]]}, 5 -> {VertexStyle -> Directive[
+             Hue[0.14, 1, 0.9], 
+             EdgeForm[{
+               Hue[0.14, 1, 0.9], 
+               Opacity[1]}]]}, 3 -> {VertexStyle -> Directive[
+             Hue[0.14, 1, 0.9], 
+             EdgeForm[{
+               Hue[0.14, 1, 0.9], 
+               Opacity[1]}]]}, 9 -> {VertexStyle -> Directive[
+             Hue[0.8, 0.6, 0.8], 
+             EdgeForm[{
+               Hue[0.8, 0.6, 0.8], 
+               Opacity[1]}]]}, 6 -> {VertexStyle -> Directive[
+             Hue[0.14, 1, 0.9], 
+             EdgeForm[{
+               Hue[0.14, 1, 0.9], 
+               Opacity[1]}]]}, 8 -> {VertexStyle -> Directive[
+             Hue[0.14, 1, 0.9], 
+             EdgeForm[{
+               Hue[0.14, 1, 0.9], 
+               Opacity[1]}]]}, 7 -> {VertexStyle -> Directive[
+             Hue[0.14, 1, 0.9], 
+             EdgeForm[{
+               Hue[0.14, 1, 0.9], 
+               Opacity[1]}]]}}}]]}, 
+    TagBox[GraphicsGroupBox[{
+       {Hue[0.6, 0.7, 0.5], Opacity[0.7], Arrowheads[0.], 
+        ArrowBox[CompressedData["
+1:eJxTTMoPSmVmYGDgA2ImKK6tqny0R/2jvVKS+fRikwf2f9Y2Zy2v/2nvU1A0
+z+Txd3t0eQYokNNQLm3XfYIhP6GFT+377t32Dh8jS8O0ZmHInzscF7LzHoPD
+ip7J5tuU72PIG/2Z4lALlIfZoxoeYpKgzumw6XiMir7VA3uxK5HnVt0TcHgh
+bdnSA7QfXf6c4us6jR8sDt9v1zpOevIdQ95ih5jakzwBhwMMu7w8Fs7C1I/m
+PnR5dPehhxe6/ejuRbcfPTzRww/dPej2AwACZLib
+         "], 0.03837696361960205]}, 
+       {Hue[0.6, 0.2, 0.8], EdgeForm[{GrayLevel[0], Opacity[0.7]}], {
+         {Hue[0, 1, 0.8], EdgeForm[{Hue[0, 1, 0.8], Opacity[1]}], 
+          DiskBox[{1.0722016188298362, 0.5064027741855777}, 
+           0.08514707038302578]}, 
+         InsetBox["1", 
+          Offset[{2, 2}, {1.157348689212862, 0.5915498445686035}], 
+          ImageScaled[{0, 0}],
+          BaseStyle->"Graphics"]}, {
+         {Hue[0, 1, 0.8], EdgeForm[{Hue[0, 1, 0.8], Opacity[1]}], 
+          DiskBox[{3.14422646410357, 0.5071025572017247}, 
+           0.08514707038302578]}, 
+         InsetBox["2", 
+          Offset[{2, 2}, {3.2293735344865957, 0.5922496275847505}], 
+          ImageScaled[{0, 0}],
+          BaseStyle->"Graphics"]}, {
+         {Hue[0.14, 1, 0.9], EdgeForm[{Hue[0.14, 1, 0.9], Opacity[1]}], 
+          DiskBox[{1.5936655197828022, 1.492970103200622}, 
+           0.08514707038302578]}, 
+         InsetBox["3", 
+          Offset[{2, 2}, {1.678812590165828, 1.5781171735836477}], 
+          ImageScaled[{0, 0}],
+          BaseStyle->"Graphics"]}, {
+         {Hue[0.14, 1, 0.9], EdgeForm[{Hue[0.14, 1, 0.9], Opacity[1]}], 
+          DiskBox[{4.217448448403067, 0.6305601675493309}, 
+           0.08514707038302578]}, 
+         InsetBox["4", 
+          Offset[{2, 2}, {4.3025955187860925, 0.7157072379323567}], 
+          ImageScaled[{0, 0}],
+          BaseStyle->"Graphics"]}, {
+         {Hue[0.14, 1, 0.9], EdgeForm[{Hue[0.14, 1, 0.9], Opacity[1]}], 
+          DiskBox[{0., 0.6305577552641386}, 0.08514707038302578]}, 
+         InsetBox["5", 
+          Offset[{2, 2}, {0.08514707038302578, 0.7157048256471644}], 
+          ImageScaled[{0, 0}],
+          BaseStyle->"Graphics"]}, {
+         {Hue[0.14, 1, 0.9], EdgeForm[{Hue[0.14, 1, 0.9], Opacity[1]}], 
+          DiskBox[{2.621170989561711, 1.4933035429255577}, 
+           0.08514707038302578]}, 
+         InsetBox["6", 
+          Offset[{2, 2}, {2.7063180599447367, 1.5784506133085834}], 
+          ImageScaled[{0, 0}],
+          BaseStyle->"Graphics"]}, {
+         {Hue[0.14, 1, 0.9], EdgeForm[{Hue[0.14, 1, 0.9], Opacity[1]}], 
+          DiskBox[{0.10833687476271536, 0.025552130615765778}, 
+           0.08514707038302578]}, 
+         InsetBox["7", 
+          Offset[{2, 2}, {0.19348394514574113, 0.11069920099879156}], 
+          ImageScaled[{0, 0}],
+          BaseStyle->"Graphics"]}, {
+         {Hue[0.14, 1, 0.9], EdgeForm[{Hue[0.14, 1, 0.9], Opacity[1]}], 
+          DiskBox[{4.108292193543143, 0.02600586849303066}, 
+           0.08514707038302578]}, 
+         InsetBox["8", 
+          Offset[{2, 2}, {4.193439263926169, 0.11115293887605644}], 
+          ImageScaled[{0, 0}],
+          BaseStyle->"Graphics"]}, {
+         {Hue[0.8, 0.6, 0.8], EdgeForm[{Hue[0.8, 0.6, 0.8], Opacity[1]}], 
+          DiskBox[{2.108751925603861, 0.4865546744096698}, 
+           0.08514707038302578]}, 
+         InsetBox["9", 
+          Offset[{2, 2}, {2.1938989959868866, 0.5717017447926956}], 
+          ImageScaled[{0, 0}],
+          BaseStyle->"Graphics"]}, {
+         {Hue[0.8, 0.6, 0.8], EdgeForm[{Hue[0.8, 0.6, 0.8], Opacity[1]}], 
+          DiskBox[{2.108637337252298, 0.}, 0.08514707038302578]}, 
+         InsetBox["10", 
+          Offset[{2, 2}, {2.1937844076353237, 0.08514707038302578}], 
+          ImageScaled[{0, 0}],
+          BaseStyle->"Graphics"]}}}],
+     MouseAppearanceTag["NetworkGraphics"]],
+    AllowKernelInitialization->False]],
+  DefaultBaseStyle->"NetworkGraphics",
+  FormatType->TraditionalForm,
+  FrameTicks->None]], "Output",
+ CellChangeTimes->{{3.886186284580339*^9, 3.8861862877244043`*^9}, {
+  3.8861873872094097`*^9, 3.88618740015182*^9}, {3.8861875809104156`*^9, 
+  3.8861876743327217`*^9}},
+ CellLabel->"Out[30]=",ExpressionUUID->"438ba157-d125-480c-b98e-3b29d98f55ad"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[""], "Input",
+ CellChangeTimes->{{3.8861825649394083`*^9, 3.886182569787882*^9}, {
+  3.886182650640212*^9, 
+  3.886182663048975*^9}},ExpressionUUID->"557f9620-6263-406b-bfe2-\
+242d1ade6451"],
+
+Cell[BoxData[
+ GraphicsBox[
+  GraphicsComplexBox[{{1.0722016188298362`, 0.5064027741855777}, {
+   3.14422646410357, 0.5071025572017247}, {1.5936655197828022`, 
+   1.492970103200622}, {4.217448448403067, 0.6305601675493309}, {0., 
+   0.6305577552641386}, {2.621170989561711, 1.4933035429255577`}, {
+   0.10833687476271536`, 0.025552130615765778`}, {4.108292193543143, 
+   0.02600586849303066}, {2.108751925603861, 0.4865546744096698}, {
+   2.108637337252298, 0.}}, {
+    {Hue[0.6, 0.7, 0.5], Opacity[0.7], Arrowheads[0.], 
+     ArrowBox[{{1, 3}, {1, 5}, {1, 7}, {1, 9}, {1, 10}, {2, 4}, {2, 6}, {2, 
+      8}, {2, 9}, {2, 10}, {3, 6}, {4, 8}, {5, 7}, {9, 10}}, 
+      0.03837696361960205]}, 
+    {Hue[0.6, 0.2, 0.8], EdgeForm[{GrayLevel[0], Opacity[0.7]}], 
+     DiskBox[1, 0.03837696361960205], DiskBox[2, 0.03837696361960205], 
+     DiskBox[3, 0.03837696361960205], DiskBox[4, 0.03837696361960205], 
+     DiskBox[5, 0.03837696361960205], DiskBox[6, 0.03837696361960205], 
+     DiskBox[7, 0.03837696361960205], DiskBox[8, 0.03837696361960205], 
+     DiskBox[9, 0.03837696361960205], DiskBox[10, 0.03837696361960205]}}],
+  FormatType->TraditionalForm,
+  FrameTicks->None]], "Output",
+ CellChangeTimes->{3.88618265393891*^9},
+ CellLabel->"Out[8]=",ExpressionUUID->"bf738b1c-9605-4e9b-aa49-d4a23593f4f5"]
+}, Open  ]]
+},
+WindowSize->{Full, Full},
+WindowMargins->{{4, Automatic}, {Automatic, 4}},
+FrontEndVersion->"13.2 for Mac OS X x86 (64-bit) (January 30, 2023)",
+StyleDefinitions->"Default.nb",
+ExpressionUUID->"d16255be-cde0-4a4e-a38d-dc2017c3b1d6"
+]
+(* End of Notebook Content *)
+
+(* Internal cache information *)
+(*CellTagsOutline
+CellTagsIndex->{}
+*)
+(*CellTagsIndex
+CellTagsIndex->{}
+*)
+(*NotebookFileOutline
+Notebook[{
+Cell[CellGroupData[{
+Cell[580, 22, 352, 6, 30, "Input",ExpressionUUID->"500fd561-2a92-46b6-a7ff-29617d6acf05"],
+Cell[935, 30, 299, 4, 34, "Output",ExpressionUUID->"03590e7b-5a0f-4d54-9c22-5fd96328b567"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[1271, 39, 496, 10, 30, "Input",ExpressionUUID->"7c733eac-d75f-46e7-aa79-3827b220b7f8"],
+Cell[1770, 51, 4734, 100, 170, "Output",ExpressionUUID->"f64f8592-699c-460f-a329-123e370edaf9"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[6541, 156, 292, 5, 30, "Input",ExpressionUUID->"e0bc6fb8-a2fa-4be3-b776-3b71829f78ae"],
+Cell[6836, 163, 1973, 36, 158, "Output",ExpressionUUID->"f1d91da9-7106-4c2b-8050-2351727bfa34"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[8846, 204, 846, 19, 30, "Input",ExpressionUUID->"4c072f4b-82df-427d-9331-93ff81057f59"],
+Cell[9695, 225, 6663, 146, 193, "Output",ExpressionUUID->"438ba157-d125-480c-b98e-3b29d98f55ad"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[16395, 376, 203, 4, 30, "Input",ExpressionUUID->"557f9620-6263-406b-bfe2-242d1ade6451"],
+Cell[16601, 382, 1301, 22, 158, "Output",ExpressionUUID->"bf738b1c-9605-4e9b-aa49-d4a23593f4f5"]
+}, Open  ]]
+}
+]
+*)
+

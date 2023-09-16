@@ -57,7 +57,7 @@ class EPData:
             self.num_edges //= 2
         return self
 
-    def plotEquitablePartition(self, ax: Axes=None, pos_dict: dict=None, show: bool=True) -> Tuple[Figure, Axes]:
+    def plotEquitablePartition(self, ax: Axes=None,f:Figure=None, pos_dict: dict=None, show: bool=True) -> Tuple[Figure, Axes]:
         """Plots the equitable partition of a graph, with each element in its own color.
     
         ARGUMENTS:
@@ -73,7 +73,7 @@ class EPData:
         if ax is None:
             f, ax = plt.subplots(layout='constrained')
         else:
-            f = ax.figure(layout='constrained')
+            f.layout = 'constrained'
         # stores the color for each node
         color_list = [0 for _ in range(self.num_nodes)]
         # iterator over equidistant colors on the color spectrum

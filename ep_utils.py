@@ -394,7 +394,7 @@ def getEquitablePartitions(G, progress_bars = True, ret_adj_dict = False, rev = 
     # local = time.time() - start_time
     if ret_adj_dict:
         # this may no longer be applicable with a tranceiving equitable partition
-        return ep, leps, {node: N[node].neighbors for node in N}
+        return ep, leps, {node: N[node].successors for node in N}
     return ep, leps
 
 def getEquitablePartitionsFromFile(file_path, num_nodes=None, delim=',', comments='#', directed=False, progress_bars=True, ret_adj_dict=False, rev=False):
@@ -527,20 +527,6 @@ def GetSpectrumFromLEPs(G,progress_bars=False):
     total_count.subtract(div_specs)
     print('returning spectrum')
     return list(total_count.elements())
-    div_count = Counter(div_specs)
-    # get the intersection
-    common_elements = total_count & div_count
-    # cycle through the intersection
-    for item in set(total_spec):
-        if item in common_elements:
-            # eliminate the amount of eigenvalues that were in the local divisor graphs
-            remainder = total_count[item] - div_count[item]
-            # append the rest to the actual spectrum holder
-            actual_spec += [item] * remainder
-        else:
-            actual_spec += [item] * total_count[item]
-
-    return actual_spec
 
 def ValidateMethod(G):
     """runs our eigenvalue catching method and then makes sure that it matches the other method"""

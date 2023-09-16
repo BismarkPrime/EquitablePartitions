@@ -126,10 +126,11 @@ def GenBertha(size,show_graph=False):
     else:   # of the optimal lep size was a divisor just do the exact number of optimal leps
         size1 = int(size/opt_lep)
 
-        for i in range(opt_lep):
+        for i in range(opt_lep-1):
             mat[(i+1)*size1:(i+2)*size1,i*size1:(i+1)*size1] = np.ones((size1,size1))
             mat = mat.transpose()
             mat[(i+1)*size1:(i+2)*size1,i*size1:(i+1)*size1] = np.ones((size1,size1))
+
     # make bertha a networkx object
     bertha = nx.from_scipy_sparse_array(mat)
 
