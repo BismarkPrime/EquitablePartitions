@@ -493,7 +493,7 @@ def __getEPStats(set_list):
 def printWithLabel(label, delim, item, file=sys.stdout):
     print("{}\n{}\n{}\n".format(label, delim * len(label), item), file=file)
 
-def GetSpectrumFromLEPs(G,progress_bars=False):
+def GetSpectrumFromLEPs(G,progress_bars=False,verbose=False):
     """Gets the spectrum of a graph using the decomposition by leps method"""
     total_spec = []
     div_specs = []
@@ -502,7 +502,7 @@ def GetSpectrumFromLEPs(G,progress_bars=False):
 
     for i, lep in enumerate(list(lep_dict)): # cycle through each lep                         ## COMPLEXITY: L, times for leps
         if i%1000==0:
-            print(f"{i} out of {len(list(lep_dict))}")
+            if verbose: print(f"{i} out of {len(list(lep_dict))}")
         node_list = []   # place to get all nodes in lep
         temp_ep_dict = {} # make a place for the original ep partitions
         
@@ -516,16 +516,16 @@ def GetSpectrumFromLEPs(G,progress_bars=False):
         div_specs += list(nx.adjacency_spectrum(graphs.genDivGraph(subgraph,temp_ep_dict))) # get div spec of those subgraphs
 
     # collect everything that could be in the spectrum
-    print('now getting total divisor spectrum')
+    if verbose: print('now getting total divisor spectrum')
     total_spec += list(nx.adjacency_spectrum(graphs.genDivGraph(G,ep_dict)))
     # place to store the actual spectum
     actual_spec = []
-    print('creating counter')
+    if verbose: print('creating counter')
     # account for everything in both including repeats
     total_count = Counter(total_spec)
-    print('subtracting counter')
+    if verbose: print('subtracting counter')
     total_count.subtract(div_specs)
-    print('returning spectrum')
+    if verbose: print('returning spectrum')
     return list(total_count.elements())
 
 def ValidateMethod(G):

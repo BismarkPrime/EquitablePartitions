@@ -90,7 +90,7 @@ def GetLocalSpec(G,ep_dict,lep_list):
         
     return spec_dict, orig_spec
 
-def GenBertha(size,show_graph=False):
+def GenBertha(size,show_graph=False,parallelize=False):
     """ constructs a Bertha graph of the size indicated (size=number of nodes) organized in such a way that it 
     has the optimal amount of LEP's for eigenvalue catching
     INPUTS:
@@ -108,37 +108,49 @@ def GenBertha(size,show_graph=False):
     # matrix to fill
     mat = sp.lil_matrix((size,size),dtype=int)
 
-    # get the two sizes
-    if size%opt_lep != 0:
-        size1 = size//(opt_lep-1)
-        size2 = size - size1*(opt_lep-1)
-        # populate matrix off diagonals
-        for i in range(opt_lep-2):
-            mat[(i+1)*size1:(i+2)*size1,i*size1:(i+1)*size1] = np.ones((size1,size1))
-            mat = mat.transpose()
-            mat[(i+1)*size1:(i+2)*size1,i*size1:(i+1)*size1] = np.ones((size1,size1))
+    if parallelize:    # then make the function that populates a part of the sparse matrix
+        #TODO: figure out how to distribute the populating of the matrix in an efficient way.
+        try:
+            comm = MPI.COMM_WORLD
+            size = comm.getSize()
+            rank = comm.getRank()
+        except ModuleNotFoundError as e:
+            print(f"encountered {e}\n\n Computer must have mpi4py module")
 
-        if size2 != 0:  # if size 2 was not 0 account for last irregularly sized partition element
-            mat[(opt_lep-1)*size1:,(opt_lep-2)*size1:(opt_lep-1)*size1] = np.ones((size2,size1))
-            mat = mat.transpose()
-            mat[(opt_lep-1)*size1:,(opt_lep-2)*size1:(opt_lep-1)*size1] = np.ones((size2,size1))
+    if not parallelize:
+        # get the two sizes
+        if size%opt_lep != 0:
+            size1 = size//(opt_lep-1)
+            size2 = size - size1*(opt_lep-1)
+            # populate matrix off diagonals
+            for i in range(opt_lep-2):
+                mat[(i+1)*size1:(i+2)*size1,i*size1:(i+1)*size1] = np.ones((size1,size1))
+                mat = mat.transpose()
+                mat[(i+1)*size1:(i+2)*size1,i*size1:(i+1)*size1] = np.ones((size1,size1))
 
-    else:   # of the optimal lep size was a divisor just do the exact number of optimal leps
-        size1 = int(size/opt_lep)
+            if size2 != 0:  # if size 2 was not 0 account for last irregularly sized partition element
+                mat[(opt_lep-1)*size1:,(opt_lep-2)*size1:(opt_lep-1)*size1] = np.ones((size2,size1))
+                mat = mat.transpose()
+                mat[(opt_lep-1)*size1:,(opt_lep-2)*size1:(opt_lep-1)*size1] = np.ones((size2,size1))
 
-        for i in range(opt_lep-1):
-            mat[(i+1)*size1:(i+2)*size1,i*size1:(i+1)*size1] = np.ones((size1,size1))
-            mat = mat.transpose()
-            mat[(i+1)*size1:(i+2)*size1,i*size1:(i+1)*size1] = np.ones((size1,size1))
+        else:   # of the optimal lep size was a divisor just do the exact number of optimal leps
+            size1 = int(size/opt_lep)
 
-    # make bertha a networkx object
-    bertha = nx.from_scipy_sparse_array(mat)
+            for i in range(opt_lep-1):
+                mat[(i+1)*size1:(i+2)*size1,i*size1:(i+1)*size1] = np.ones((size1,size1))
+                mat = mat.transpose()
+                mat[(i+1)*size1:(i+2)*size1,i*size1:(i+1)*size1] = np.ones((size1,size1))
 
-    if show_graph:
-        nx.draw_networkx(bertha)
-        plt.show()
+        # make bertha a networkx object
+        bertha = nx.from_scipy_sparse_array(mat)
 
-    return bertha
+        if show_graph:
+            nx.draw_networkx(bertha)
+            plt.show()
+
+        return bertha
+
+        
 
 def NontrivialityData(G,ep_dict,lep_list, return_vals=False,plot=True,show_progress=True,verbose=False,include_pairs=False, n=None):
     """
