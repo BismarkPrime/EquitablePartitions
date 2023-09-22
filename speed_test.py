@@ -1,5 +1,4 @@
-import os
-os.chdir('..')
+import os,sys
 import graphs
 import ep_utils
 from time import perf_counter as pc
@@ -8,8 +7,8 @@ from collections import Counter
 import numpy as np
 from matplotlib import pyplot as plt
 from tqdm import tqdm
-import profile
-import pstats
+#import profile
+#import pstats
 from importlib import reload
 
 def create_berthas(top_power2=13):
@@ -91,8 +90,11 @@ def plot_result(our_times,their_times,acc_count,sizes,fname="speed_comp.png"):
     plt.show()
 
 if __name__ == "__main__":
-    graph_fname = sys.argv[2]
-    print(graph_fname)
-    #berthas, sizes = create_berthas()
-    #us,them,acc = test_speed(berthas,sizes)
-    #plot_result(us,them,acc,sizes)
+    graph_fname = input("Input the name of the speed test file to be saved (default: 'speed_comp.png): ")
+    if graph_fname == '': graph_fname = 'speed_comp.png'       
+    top_power2 = input("Input the highest power of 2 to go to when generating Bertha's sizes (default: 13): ")
+    if top_power2 == '': top_power2 = 13
+    else: top_power2 = int(top_power2)
+    berthas, sizes = create_berthas(top_power2)
+    us,them,acc = test_speed(berthas,sizes)
+    plot_result(us,them,acc,sizes)
