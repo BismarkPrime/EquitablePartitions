@@ -369,7 +369,7 @@ def getTransceivingEP2(G: nx.Graph | nx.DiGraph) -> dict[int, set[int]]:
         # if graph is undirected, the transceiving equitable partition is the same as the transmitting
         return ep, N
 
-def getEquitablePartitions(G, progress_bars = True, ret_adj_dict = False, rev = False):
+def getEquitablePartitions(G, progress_bars = True, ret_adj_dict = False, rev = False,plot_graph=True):
     """Finds the coarsest equitable partition and local equitable partitions of a graph.
    
     ARGUMENTS:
@@ -395,6 +395,8 @@ def getEquitablePartitions(G, progress_bars = True, ret_adj_dict = False, rev = 
     if ret_adj_dict:
         # this may no longer be applicable with a tranceiving equitable partition
         return ep, leps, {node: N[node].successors for node in N}
+    if plot_graph:
+        plotEquitablePartition(G,ep)
     return ep, leps
 
 def getEquitablePartitionsFromFile(file_path, num_nodes=None, delim=',', comments='#', directed=False, progress_bars=True, ret_adj_dict=False, rev=False):
@@ -493,14 +495,18 @@ def __getEPStats(set_list):
 def printWithLabel(label, delim, item, file=sys.stdout):
     print("{}\n{}\n{}\n".format(label, delim * len(label), item), file=file)
 
-def GetSpectrumFromLEPs(G,progress_bars=False,verbose=False):
+def GetSpectrumFromLEPs(G,progress_bars=False,verbose=False,fake_parallel=False):
     """Gets the spectrum of a graph using the decomposition by leps method"""
     total_spec = []
     div_specs = []
 
     ep_dict, lep_dict = getEquitablePartitions(G,progress_bars = progress_bars)
+    
 
-    for i, lep in enumerate(list(lep_dict)): # cycle through each lep                         ## COMPLEXITY: L, times for leps
+    if fake_parallel:lep_list = list(lep_dict[0])
+    else: lep_list = list(lep_dict)
+
+    for i, lep in enumerate(lep_list): # cycle through each lep                         ## COMPLEXITY: L, times for leps
         if i%1000==0:
             if verbose: print(f"{i} out of {len(list(lep_dict))}")
         node_list = []   # place to get all nodes in lep
