@@ -512,20 +512,20 @@ def initFromSparse(mat: sparse.lil_matrix) -> Dict[Any, Node]:
     """
 
     # initialize Node list -- all start with ColorClass index of 0
-    # NOTE: this is very similar to the initialization in lep_finder.initFromSparse
+    # TODO: this is very similar to the initialization in lep_finder.initFromSparse
     #   we should probably reuse shared logic instead of duplicating it here
     rows, cols = mat.nonzero()
     start = 0
     N = {i: Node(i, 0) for i in range(mat.shape[0])}
-    # while start < len(rows):
-    #     curr_row = rows[start]
-    #     end = start + 1
-    #     while end < len(rows) and rows[end] == curr_row:
-    #         end += 1
-    #     N[curr_row].successors = cols[start:end]
-    #     start = end
-    # assert False
-    matT = mat#.transpose()
+    while start < len(rows):
+        curr_row = rows[start]
+        end = start + 1
+        while end < len(rows) and rows[end] == curr_row:
+            end += 1
+        N[curr_row].successors = cols[start:end]
+        start = end
+    
+    matT = mat.transpose()
     rowsT, colsT = matT.nonzero()
     # if mat is symmetric, calculating predecessors is redundant
     # NOTE: since we already have rows and cols, this check for matrix symmetry 
