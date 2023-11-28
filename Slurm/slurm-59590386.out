@@ -1,0 +1,41 @@
+
+Activating Modules:
+  1) defaultenv/10     2) lmod/7.5.13
+
+Creating Graphs
+  0%|          | 0/6 [00:00<?, ?it/s] 17%|█▋        | 1/6 [00:01<00:08,  1.70s/it]100%|██████████| 6/6 [00:01<00:00,  3.54it/s]
+What about me?
+Already created for size 32
+What about me?
+Already created for size 64
+What about me?
+Already created for size 128
+What about me?
+Already created for size 256
+What about me?
+Already created for size 512
+What about me?
+Already created for size 1024
+loading previously calculated times...
+We already have times recorded for sizes: [32, 256, 64, 128, 512, 1024, 2048, 4096]
+no times for new sizes requested.
+Traceback (most recent call last):
+  File "/home/jrhmc1/Desktop/EquitablePartitions/./speed_test.py", line 165, in <module>
+    plot_result(us,them,acc,sizes,fname=graph_fname)
+  File "/home/jrhmc1/Desktop/EquitablePartitions/./speed_test.py", line 122, in plot_result
+    plt.loglog(sizes,our_times,'.-',color='forestgreen',label="Our Method Time")
+  File "/apps/python/3.11.4/gcc-13.2.0/lib/python3.11/site-packages/matplotlib/pyplot.py", line 2722, in loglog
+    return gca().loglog(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/apps/python/3.11.4/gcc-13.2.0/lib/python3.11/site-packages/matplotlib/axes/_axes.py", line 1829, in loglog
+    return self.plot(
+           ^^^^^^^^^^
+  File "/apps/python/3.11.4/gcc-13.2.0/lib/python3.11/site-packages/matplotlib/axes/_axes.py", line 1688, in plot
+    lines = [*self._get_lines(*args, data=data, **kwargs)]
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/apps/python/3.11.4/gcc-13.2.0/lib/python3.11/site-packages/matplotlib/axes/_base.py", line 311, in __call__
+    yield from self._plot_args(
+               ^^^^^^^^^^^^^^^^
+  File "/apps/python/3.11.4/gcc-13.2.0/lib/python3.11/site-packages/matplotlib/axes/_base.py", line 504, in _plot_args
+    raise ValueError(f"x and y must have same first dimension, but "
+ValueError: x and y must have same first dimension, but have shapes (6,) and (8,)
