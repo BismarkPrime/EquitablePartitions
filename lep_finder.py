@@ -1,5 +1,6 @@
 import numpy as np
 import networkx as nx
+from scipy import sparse
 from alive_progress import alive_bar
 
 from typing import Any, List, Set, Dict
@@ -26,6 +27,29 @@ def initialize(G: nx.Graph | nx.DiGraph) -> Dict[Any, Set[Any]]:
     #    Thus, it is different than just calling G.neighbors(v); (hence, we use G.reverse())
     N = { node:set(g_rev.neighbors(node)) for node in G.nodes() }
     return N
+
+def initFromSparse(mat: sparse.lil_matrix) -> Dict[Any, Set[Any]]:
+    """Initializes the inverted neighbor dictionary required to compute leps.
+   
+    ARGUMENTS:
+        G : The graph to analyzed
+    
+    RETURNS:
+        A dictionary with nodes as keys and a set of their in-edge neighbors as values.
+    """
+    rows, cols = mat.transpose().nonzero()
+    start = 0
+    # NOTE: we should revert to using arrays/lists where possible instead of dictionaries to reduce spatial complexity
+    N = {i: None for i in range(mat.shape[0])}
+    while start < len(rows):
+        curr_row = rows[start]
+        end = start + 1
+        while end < len(rows) and rows[end] == curr_row:
+            end += 1
+        N[curr_row] = set(cols[start:end])
+        start = end
+    return N
+        
 
 def initFromFile(file_path: str, num_nodes: int=None, delim: str=',', comments: str='#', directed: bool=False, rev: bool=False) -> Dict[int, Set[int]]:
     """Initializes the inverted neighbor dictionary required to compute leps.

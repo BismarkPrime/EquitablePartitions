@@ -25,13 +25,15 @@ TODO:
     Use some sort of bucket sort in splitcolor to achieve lower complexity (is paper wrong on this point?)
 """
 
-import operator
 from typing import Any, List, Set, Dict
 
 import networkx as nx
+from scipy import sparse
+import numpy as np
 
 class LinkedListNode:
     """Base class for doubly-linked list nodes"""
+    __slots__ = 'next', 'prev'
 
     def __init__(self):
         self.next = None
@@ -55,6 +57,8 @@ class Node(LinkedListNode):
     successors : list(int)
         list of integers corresponding to the node's out-edge neighbors
     """
+    slots = 'label', 'old_color', 'new_color', 'predecessors', 'successors', \
+        'in_edge_count', 'out_edge_count', 'structure_value'
 
     def __init__(self, label: Any, color_class_ind: int, predecessors: List[int]=None, successors: List[int]=None):
         """
@@ -78,6 +82,10 @@ class Node(LinkedListNode):
         self.old_color = color_class_ind
         self.new_color = color_class_ind
 
+        if predecessors is None:
+            predecessors = []
+        if successors is None:
+            successors = []
         self.predecessors = predecessors # list of node indices of nodes with in-edges to self (in-edge neighbors)
         self.successors = successors # list of the indices of the neighboring nodes (out-edge neighbors)
         self.in_edge_count = 0 # value used to count connections to a given color class
@@ -187,6 +195,8 @@ class ColorClass(LinkedList):
 
 
     """
+    __slots__ = 'in_edge_neighbors', 'out_edge_neighbors', 'curr_color_in_edge_neighbors', \
+        'curr_color_out_edge_neighbors', 'split_color', 'curr_conns'
 
     def __init__(self) -> None:
         """
@@ -482,6 +492,58 @@ def initFromNx(G: nx.Graph | nx.DiGraph) -> Dict[Any, Node]:
 
     return N
 
+def initFromSparse(mat: sparse.lil_matrix) -> Dict[Any, Node]:
+    """
+    Initializes the Node list necessary for equitablePartition.
+
+    Parameters
+    ----------
+    G   : the graph to be analyzed
+
+    Returns
+    -------
+    N   : a list of Node objects representing the nodes of G
+
+    Complexity
+    ----------
+    Time: Linear with number of nodes and with number of edges
+    Space: Linear with number of nodes and with number of edges
+
+    """
+
+    # initialize Node list -- all start with ColorClass index of 0
+    # NOTE: this is very similar to the initialization in lep_finder.initFromSparse
+    #   we should probably reuse shared logic instead of duplicating it here
+    rows, cols = mat.nonzero()
+    start = 0
+    N = {i: Node(i, 0) for i in range(mat.shape[0])}
+    # while start < len(rows):
+    #     curr_row = rows[start]
+    #     end = start + 1
+    #     while end < len(rows) and rows[end] == curr_row:
+    #         end += 1
+    #     N[curr_row].successors = cols[start:end]
+    #     start = end
+    # assert False
+    matT = mat#.transpose()
+    rowsT, colsT = matT.nonzero()
+    # if mat is symmetric, calculating predecessors is redundant
+    # NOTE: since we already have rows and cols, this check for matrix symmetry 
+    #   is empirically faster than the more intuitive (mat != mat.transpose()).nnz == 0
+    if not all((np.array_equal(rows, rowsT), 
+                np.array_equal(cols, colsT),
+                np.array_equal(mat.data, matT.data))):
+        # mat is not symmetric, populate predecessors
+        start = 0
+        while start < len(rowsT):
+            curr_row = rowsT[start]
+            end = start + 1
+            while end < len(rowsT) and rowsT[end] == curr_row:
+                end += 1
+            N[curr_row].predecessors = set(colsT[start:end])
+            start = end
+
+    return N
 
 def initFromFile(file_path: str, num_nodes: int=None, delim: str=',', 
                  comments: str='#', directed: bool=False, rev: bool=False) -> Dict[Any, Node]:

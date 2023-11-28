@@ -81,7 +81,7 @@ def GetLocalSpec(G,ep_dict,lep_list):
         for partElInd, partEl in enumerate(lep):
             node_list += ep_dict[partEl] # after this loop node_list has all nodes in the lep
             temp_ep_dict[partElInd] = ep_dict[partEl] # make the temporary ep_dict
-                        
+        
         subgraph = nx.subgraph(G,node_list) # make a subgraph
         spec_dict[f"{lep}"] = np.round(nx.adjacency_spectrum(subgraph),3)  # store its spectrum in dictionary
        
@@ -89,6 +89,37 @@ def GetLocalSpec(G,ep_dict,lep_list):
     spec_dict["Original Graph Divisor"] = GDivSpec
         
     return spec_dict, orig_spec
+
+def GenBerthaSparse(n):
+    """
+    NOTE: this function could be a near-exact copy of GenBertha, but returning `mat` instead of using
+    `nx.from_scipy_sparse_array`. However, writing it from scratch may prove more readable and efficient.
+    """
+    e = 2.36 # exponent of the current fastest algorithm (e.g., we hope that np.eigs is in O(n^e))
+    num_leps = int(n ** (e / (2 * e - 1)))
+    lep_size = n // num_leps
+    num_larger_leps = n - num_leps * lep_size
+
+    mat = sp.lil_matrix((n, n), dtype=int)
+    start = 0
+    # width and height are named for the submatrices _under_ the diagonal
+    width = lep_size + 1 if num_larger_leps > 0 else lep_size
+    height = lep_size + 1 if num_larger_leps > 1 else lep_size
+    for i in range(num_leps - 1):
+        if i == num_larger_leps:
+            width = lep_size
+        if i == num_larger_leps - 1:
+            height = lep_size
+        mat[start:start + width, start + width:start + width + height] = np.ones((width, height), dtype=int)
+        mat[start + width:start + width + height, start:start + width] = np.ones((height, width), dtype=int)
+        start += width
+
+    # NOTE: for large values of n, it's surprisingly slower (empirically) to fill
+    # in one side of the matrix and then use the following to make it symmetric:
+    # rows, cols = mat.nonzero()
+    # mat[cols, rows] = mat[rows, cols]
+    
+    return mat
 
 def GenBertha(size,show_graph=False,parallelize=False):
     """ constructs a Bertha graph of the size indicated (size=number of nodes) organized in such a way that it 

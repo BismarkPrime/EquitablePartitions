@@ -113,13 +113,13 @@ def getEigenStuffsNx(G: nx.Graph) -> Tuple[List[complex], Dict[int, List[complex
         lep_globals += list(np.linalg.eigvals(subgraph_div))
         # 6. get eigenvalues of LEP submatrices
         # print(nx.adjacency_matrix(subgraph))
-        lep_locals += list(np.linalg.eigvals(nx.adjacency_matrix(subgraph).todense()))
+        # lep_locals += list(np.linalg.eigvals(nx.adjacency_matrix(subgraph).todense()))
         # the line below should be identical; both present to verify that assumption
-        # lep_locals += list(nx.adjacency_spectrum(subgraph))
+        lep_locals += list(nx.adjacency_spectrum(subgraph))
     # 7. return all three
     return globals, lep_locals, lep_globals
 
-def getEigenvaluesNx(G: nx.Graph) -> List[complex]:
+def getEigenvaluesNx(G: nx.Graph | nx.DiGraph) -> List[complex]:
     '''
     Extracts eigenvalues from graph using the complete equitable partitions method.
     ARGUMENTS:
@@ -133,7 +133,8 @@ def getEigenvaluesNx(G: nx.Graph) -> List[complex]:
     # lifting_counter = Counter(lifting_eigs)
     # for i in lep_eigs.keys():
     lifting_counter += lep_eigs
-    lifting_counter, _ = getSymmetricDifferenceMatching(lifting_counter, lep_globals)
+    # use getSymmetricDifferenceMatching here if complex
+    lifting_counter, _ = getSymmetricDifference(lifting_counter, lep_globals)
     return lifting_counter
     
 
@@ -215,7 +216,7 @@ def getSymmetricDifferenceMatching(list1: List[complex], list2: List[complex]) -
     # 1. create a bipartite graph with edges between each complex number in list1 and all 
     #   complex numbers in list2 that are sufficiently close to be considered equal
     #   (within some floating point tolerance)
-    sparse_graph = sparse.dok_matrix((len(list1), len(list2)), dtype=np.bool)
+    sparse_graph = sparse.dok_matrix((len(list1), len(list2)), dtype=bool)
     for i, cnum1 in enumerate(list1):
         for j, cnum2 in enumerate(list2):
             if cmath.isclose(cnum1, cnum2, abs_tol=EPSILON):
@@ -255,7 +256,8 @@ def compareEigenvalues(G: nx.Graph) -> None:
     # 2. get eigenvalues of the graph using networkx
     np_eigs = np.linalg.eigvals(nx.adjacency_matrix(G).toarray())
 
-    rem_cep, rem_np = getSymmetricDifferenceMatching(cep_eigs, np_eigs)
+    # use getSymmetricDifferenceMatching for complex eigs
+    rem_cep, rem_np = getSymmetricDifference(cep_eigs, np_eigs)
 
     if len(rem_cep) != 0 or len(rem_np) != 0:
         print(f"Eigenvalues do not match!\nUnique to CEP: \n{np.asarray(rem_cep)}\nUnique to NP: \n{np.asarray(rem_np)}")
@@ -369,7 +371,7 @@ def getTransceivingEP2(G: nx.Graph | nx.DiGraph) -> dict[int, set[int]]:
         # if graph is undirected, the transceiving equitable partition is the same as the transmitting
         return ep, N
 
-def getEquitablePartitions(G, progress_bars = True, ret_adj_dict = False, rev = False,plot_graph=True):
+def getEquitablePartitions(G, progress_bars = True, ret_adj_dict = False, rev = False,plot_graph=False):
     """Finds the coarsest equitable partition and local equitable partitions of a graph.
    
     ARGUMENTS:
@@ -382,14 +384,14 @@ def getEquitablePartitions(G, progress_bars = True, ret_adj_dict = False, rev = 
         The equitable partition (dict; int -> set), local equitable partition (list of sets
             of partition elements grouped together), and computation time (when applicable)
     """
-    G2 = G if not rev else G.reverse()
+    G = G if not rev else G.reverse()
     # start_time = time.time()
     # C, N = ep_finder.initialize(G2)
     # ep, N = ep_finder.equitablePartition(C, N, progress_bar=progress_bars)
     ep, N = getTransceivingEP2(G)
     # coarsest = time.time() - start_time
     # start_time = time.time()
-    N_G = lep_finder.initialize(G2)
+    N_G = lep_finder.initialize(G)
     leps = lep_finder.getLocalEquitablePartitions(N_G, ep, progress_bar=progress_bars)
     # local = time.time() - start_time
     if ret_adj_dict:
@@ -436,18 +438,24 @@ def plotEquitablePartition(G, pi, pos_dict = None):
             A dictionary mapping nodes to their x,y coordinates. Only used when a such
             values are available and meaningful (such as a random geometric graph).
     """
-    # stores the color for each node
-    color_list = [0 for _ in range(G.number_of_nodes())]
     # iterator over equidistant colors on the color spectrum
-    color = iter(plt.cm.rainbow(np.linspace(0, 1, len(pi))))
+    color = iter(plt.cm.rainbow(np.linspace(0, 1, len(pi) + 1)))
+    # stores the color for each node
+    default_color = next(color)
+    color_list = [default_color for _ in range(G.number_of_nodes())]
     # assign all vertices in the same partition element to the same color
     for V_i in pi.values():
         c = next(color)
         for vertex in V_i:
             color_list[vertex] = c
     
+    # set plot as non-blocking
+    plt.ion()
+
     nx.draw_networkx(G, pos=pos_dict, node_color=color_list)
     plt.show()
+    # need to pause briefly because GUI events (e.g., drawing) happen when the main loop sleeps
+    plt.pause(.001)
 
 def printStats(G):
     # get coarsest EP and list of local EPs
