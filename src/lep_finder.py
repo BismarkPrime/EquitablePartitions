@@ -1,5 +1,6 @@
 import numpy as np
 import networkx as nx
+from scipy import sparse
 from alive_progress import alive_bar
 
 from typing import Any, List, Set, Dict
@@ -10,7 +11,7 @@ from typing import Any, List, Set, Dict
 #   Using Disjoint Set data structures to store partitions
 #   Initialize using csv files
 
-def initialize(N_dict):      # NOTE: I changed this, it used to be this -> G: nx.Graph | nx.DiGraph) -> Dict[Any, Set[Any]]:
+def initializeFromN(N_dict):      # NOTE: I changed this, it used to be this -> G: nx.Graph | nx.DiGraph) -> Dict[Any, Set[Any]]:
     """Initializes the inverted neighbor dictionary required to compute leps.
    
     ARGUMENTS:
@@ -20,14 +21,50 @@ def initialize(N_dict):      # NOTE: I changed this, it used to be this -> G: nx
     RETURNS:
         A dictionary with nodes as keys and a set of their in-edge neighbors as values.
     """
+    # this assumes undirected because we need to use predecessors for the directed case
+    # TODO: refer to above comment
+    N = {label:Node.successors for label,Node in N_dict.items()}
+    return N
 
-    #g_rev = G.reverse() if G.is_directed() else G
+def initializeFromNx(G: nx.Graph | nx.DiGraph) -> Dict[Any, Set[Any]]:
+    """Initializes the inverted neighbor dictionary required to compute leps.
+    PAS's Code
+    ARGUMENTS:
+        G : The graph to analyzed
+    
+    RETURNS:
+        A dictionary with nodes as keys and a set of their in-edge neighbors as values.
+    """
+
+    g_rev = G.reverse() if G.is_directed() else G
 
     # NOTE: N stores the in-edge neighbors, i.e. N[v] returns all nodes w with an edge w -> v.
     #    Thus, it is different than just calling G.neighbors(v); (hence, we use G.reverse())
-    #N = { node:set(g_rev.neighbors(node)) for node in G.nodes() }
-    N = {label:Node.predecessors for label,Node in N_dict.items()}
+    N = { node:set(g_rev.neighbors(node)) for node in G.nodes() }
     return N
+
+def initFromSparse(mat: sparse.lil_matrix) -> Dict[Any, Set[Any]]:
+    """Initializes the inverted neighbor dictionary required to compute leps.
+   
+    ARGUMENTS:
+        G : The graph to analyzed
+    
+    RETURNS:
+        A dictionary with nodes as keys and a set of their in-edge neighbors as values.
+    """
+    rows, cols = mat.transpose().nonzero()
+    start = 0
+    # NOTE: we should revert to using arrays/lists where possible instead of dictionaries to reduce spatial complexity
+    N = {i: None for i in range(mat.shape[0])}
+    while start < len(rows):
+        curr_row = rows[start]
+        end = start + 1
+        while end < len(rows) and rows[end] == curr_row:
+            end += 1
+        N[curr_row] = set(cols[start:end])
+        start = end
+    return N
+        
 
 def initFromFile(file_path: str, num_nodes: int=None, delim: str=',', comments: str='#', directed: bool=False, rev: bool=False) -> Dict[int, Set[int]]:
     """Initializes the inverted neighbor dictionary required to compute leps.

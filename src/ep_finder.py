@@ -8,12 +8,11 @@ Implementation based on the 1999 paper "Computing equitable partitions of graphs
 by Bastert (http://match.pmf.kg.ac.rs/electronic_versions/Match40/match40_265-272.pdf)
 """
 
-from itertools import chain, combinations, groupby
-import math
 import operator
 
 class LinkedListNode:
     """Base class for doubly-linked list nodes"""
+    __slots__ = 'next', 'prev'
 
     def __init__(self):
         self.next = None
@@ -35,6 +34,7 @@ class Node(LinkedListNode):
     neighbors : list(int)
         list of integers corresponding to the node's neighbors, defined by in-edges
     """
+    slots = 'label', 'f', 'temp_f', 'neighbors', 'structure_value'
 
     def __init__(self, label, color_class_ind, neighbors=None):
         """
@@ -73,6 +73,7 @@ class Node(LinkedListNode):
     
 class LinkedList:
     """Base doubly-linked list class"""
+    __slots__ = 'head', 'tail', 'size'
 
     def __init__(self, data=None):
         """
@@ -185,6 +186,7 @@ class ColorClass(LinkedList):
     splitColor
 
     """
+    __slots__ = 'structure_set', 'hit', 'current_color', 'current_p'
 
     def __init__(self, label=None):
         """
@@ -572,7 +574,6 @@ def equitablePartition(C, N, progress_bar = True):
     
     """
 
-    # import pdb; pdb.set_trace()
 
     progress = 0
     if progress_bar:

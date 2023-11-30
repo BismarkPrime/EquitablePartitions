@@ -8,6 +8,9 @@ import matplotlib.pyplot as plt
 import matplotlib
 import json
 import random
+import timeit
+from functools import partial
+import pdb
 
 import ep_finder
 import ep_finder2
@@ -36,6 +39,30 @@ class NumpyEncoder(json.JSONEncoder):
         elif isinstance(obj, (np.ndarray,)):
             return obj.tolist()
         return json.JSONEncoder.default(self, obj)
+
+def testSlots():
+    ns = list(range(250, 2750, 250))
+    print("Generating Graphs...", end='\r')
+    Gs = [graphs.GenBertha(n) for n in ns]
+    print("Computing Coarsest EP w/Dict...", end='\r')
+    dict_times = [min(timeit.Timer(partial(runEP, G)).repeat(repeat=10, number=20)) / 10 for G in Gs]
+    print("Computing Coarsest EP w/Slots...", end='\r')
+    slot_times = [min(timeit.Timer(partial(runEPSlots, G)).repeat(repeat=10, number=20)) / 10 for G in Gs]
+    print("Plotting Results...", end='\r')
+    plt.plot(ns, list(zip(dict_times, slot_times)))
+    plt.xlabel("Size of Bertha")
+    plt.ylabel("Time to Compute Coarsest EP")
+    plt.title("Slots vs Dicts Runtime in EP Finder")
+    plt.legend(("Dictionary", "Slots"))
+    plt.show()
+
+def runEP(G):
+    ep_finder.equitablePartition(*ep_finder.initialize(G), False)
+
+def runEPSlots(G):
+    # for testing, ep_finder1 had slots and ep_finder didn't. Since slots are faster, they have now been added to ep_finder
+    # ep_finder1.equitablePartition(*ep_finder1.initialize(G), False)
+    pass
 
 def genDivGraph(G,ep_dict,retMat=False):
     """calculates and returns the divisor graph of the input graph
