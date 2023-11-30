@@ -349,13 +349,14 @@ def getTransceivingEP(G: nx.Graph | nx.DiGraph) -> dict[int, set[int]]:
         if ep1 == ep2:
             return ep1, N1
 
-def getTransceivingEP2(G: nx.Graph | nx.DiGraph) -> dict[int, set[int]]:
+def getTransceivingEP2(G,sparse_alg=False) -> dict[int, set[int]]:
     """
     Finds the transceiving equitable partition of a graph.
    
     ARGUMENTS:
         G : NetworkX Graph
             The graph to analyze
+        sparse_alg (bool): whether or not the graph being passed in is a sparse matrix
     
     RETURNS:
         The transceiving equitable partition (dict; int -> set)
@@ -363,7 +364,7 @@ def getTransceivingEP2(G: nx.Graph | nx.DiGraph) -> dict[int, set[int]]:
 
     while True:
         # 1. get transmitting equitable partition
-        N = ep_finder2.initFromNx(G)
+        N = ep_finder2.initFromNx(G,sparse_alg = sparse_alg)
         ep = ep_finder2.equitablePartition(N, progress_bar=False)
         # 2. get receiving equitable partition
         # if graph is undirected, the transceiving equitable partition is the same as the transmitting
@@ -382,14 +383,23 @@ def getEquitablePartitions(G, progress_bars = True, ret_adj_dict = False, rev = 
         The equitable partition (dict; int -> set), local equitable partition (list of sets
             of partition elements grouped together), and computation time (when applicable)
     """
-    G2 = G if not rev else G.reverse()
+    sparse_alg = False
+    graph_type = str(type(G)).split('\'')[1].split('.')[0]
+    #TODO: GET IT TO RECOGNIZE CSR FORMAT
+    if graph_type == 'scipy':
+        #print("Inputted graph as sparse matrix!")
+        sparse_alg = True
+        G2 = G
+    else: # if not sparse we assume networkx graph
+        G2 = G if not rev else G.reverse()
     # start_time = time.time()
     # C, N = ep_finder.initialize(G2)
     # ep, N = ep_finder.equitablePartition(C, N, progress_bar=progress_bars)
-    ep, N = getTransceivingEP2(G)
+    ep, N = getTransceivingEP2(G,sparse_alg = sparse_alg)
     # coarsest = time.time() - start_time
     # start_time = time.time()
-    N_G = lep_finder.initialize(G2)
+    # ERROR WARNING: this used to be inputting G but I changed the function. If errors look here
+    N_G = lep_finder.initialize(N)
     leps = lep_finder.getLocalEquitablePartitions(N_G, ep, progress_bar=progress_bars)
     # local = time.time() - start_time
     if ret_adj_dict:

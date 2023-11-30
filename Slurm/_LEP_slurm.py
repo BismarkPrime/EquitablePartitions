@@ -8,12 +8,21 @@ import networkx as nx
 from time import perf_counter as pc
 import timing as tim
 import ep_utils
+import scipy.sparse as sp
 
 if __name__ == "__main__":
     start = pc()
     graph_path = os.environ.get('GRAPH_PATH')
-    G = nx.read_graphml(graph_path)
-    os.environ['GRAPH'] = G
+    try:
+        G = nx.read_graphml(graph_path)
+    except: 
+        G = sp.load_npz(graph_path)
+    #nodes, edges = os.environ.get('GRAPH_NODES'), os.environ.get('GRAPH_EDGES')
+    #G = nx.Graph()
+    #G.add_nodes_from(nodes)
+    #G.add_edges_from(edges)
+    #G = nx.parse_edgelist(serialized_graph,nodetype=int)
+    #print(type(G))
     end = pc()
     data_fn = graph_path.split('/')[-1].split('.')[0]
     build_time = end-start

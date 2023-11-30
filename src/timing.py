@@ -84,11 +84,19 @@ def SearchGraphName(string_to_mathc = None):
             choice = input("Which file do you want to use?\n(based on numberical label): ")
 
 def CheckSlurmParameters(skip_check=False):
-
+    """Gets the slurm parameters saved in slurm_params.txt
+    ARGS:
+    ----------------
+    skip_check (bool): if True shows params, asks if any need to be changed and changes them according
+        to input. If False then just returns the parameters as they are
+    RETURNS:
+    -----------------
+    param_dict (dict): dictionary with indices as keys mapping to a list with param names and values
+    """
     with open('./../../Slurm/slurm_params.txt','r') as file:
         params = file.read()
     param_dict = {}
-   
+    # print the params for the user to see.
     for i,par in enumerate(params.strip().split('\n')):
         label,val = par.split('=')
         param_dict[i] = [label,val]
@@ -105,8 +113,8 @@ def CheckSlurmParameters(skip_check=False):
         if choice == 'Y':
             while True:
                 choice = input("Type index of change: ")
-                choice = int(choice)
                 try: 
+                    choice = int(choice)
                     new_val = input(f"Change {param_dict[choice][0]} from {param_dict[choice][1]} to what: ")
                     param_dict[choice][1] = new_val
                     break

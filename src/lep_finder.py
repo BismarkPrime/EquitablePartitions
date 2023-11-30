@@ -10,21 +10,23 @@ from typing import Any, List, Set, Dict
 #   Using Disjoint Set data structures to store partitions
 #   Initialize using csv files
 
-def initialize(G: nx.Graph | nx.DiGraph) -> Dict[Any, Set[Any]]:
+def initialize(N_dict):      # NOTE: I changed this, it used to be this -> G: nx.Graph | nx.DiGraph) -> Dict[Any, Set[Any]]:
     """Initializes the inverted neighbor dictionary required to compute leps.
    
     ARGUMENTS:
-        G : The graph to analyzed
-    
+        G : The graph to analyzed (depracated)
+        N_dict (dict): dictionary created in the get transceivingEP2 function in ep_utils
+
     RETURNS:
         A dictionary with nodes as keys and a set of their in-edge neighbors as values.
     """
 
-    g_rev = G.reverse() if G.is_directed() else G
+    #g_rev = G.reverse() if G.is_directed() else G
 
     # NOTE: N stores the in-edge neighbors, i.e. N[v] returns all nodes w with an edge w -> v.
     #    Thus, it is different than just calling G.neighbors(v); (hence, we use G.reverse())
-    N = { node:set(g_rev.neighbors(node)) for node in G.nodes() }
+    #N = { node:set(g_rev.neighbors(node)) for node in G.nodes() }
+    N = {label:Node.predecessors for label,Node in N_dict.items()}
     return N
 
 def initFromFile(file_path: str, num_nodes: int=None, delim: str=',', comments: str='#', directed: bool=False, rev: bool=False) -> Dict[int, Set[int]]:

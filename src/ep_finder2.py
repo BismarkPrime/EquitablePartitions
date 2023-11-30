@@ -27,7 +27,7 @@ TODO:
 
 import operator
 from typing import Any, List, Set, Dict
-
+import scipy.sparse as sp
 import networkx as nx
 
 class LinkedListNode:
@@ -80,6 +80,7 @@ class Node(LinkedListNode):
 
         self.predecessors = predecessors # list of node indices of nodes with in-edges to self (in-edge neighbors)
         self.successors = successors # list of the indices of the neighboring nodes (out-edge neighbors)
+        #self.neighbors = np.unique(np.concatenate((predecessors,successors)))
         self.in_edge_count = 0 # value used to count connections to a given color class
         self.out_edge_count = 0 # value used to count connections to a given color class
 
@@ -453,7 +454,7 @@ def bucketSort(objs: List[Any], attribute: str, attr_min_val: int, attr_max_val:
                 objs[i] = obj
                 i += 1
    
-def initFromNx(G: nx.Graph | nx.DiGraph) -> Dict[Any, Node]:
+def initFromNx(G: nx.Graph | nx.DiGraph | sp.coo_matrix, sparse_alg=False) -> Dict[Any, Node]:
     """
     Initializes the Node list necessary for equitablePartition.
 
@@ -474,11 +475,27 @@ def initFromNx(G: nx.Graph | nx.DiGraph) -> Dict[Any, Node]:
 
     # initialize Node list -- all start with ColorClass index of 0
     N = dict()
-    for node in G.nodes():
-        predecessors = list(G.predecessors(node) if nx.is_directed(G) else [])
-        # in DiGraphs, neighbors() is the same as successors()
-        successors = list(G.neighbors(node))
-        N[node] = Node(node, 0, predecessors, successors)
+    if sparse_alg:
+        #CGPT warning, if errors, check this.
+        if G.format == 'csr':
+            for node in range(G.shape[0]):
+                predecessors = G.indices[G.indptr[node]:G.indptr[node + 1]].astype(str)
+                successors = G.indices[G.indptr[node]:G.indptr[node + 1]].astype(str)
+                N[str(node)] = Node(str(node), 0, predecessors, successors)
+        elif G.format == 'coo':
+            for node in [n for n in range(G.shape[0])]:
+                predecessors = G.row[G.col == node].astype(str) # incoming edges
+                successors = G.col[G.row == node].astype(str)   # outgoing edges
+                N[str(node)] = Node(str(node),0,predecessors, successors)
+    else:
+        for node in G.nodes():
+            # ERROR WARNING. I altered this so it puts neighbors for successors and predecessors, before it 
+                # returned [] for predecessors if it was undirected and neighbors for successors regardless
+                # I believe this is correct but could be wrong so if there's weird errors check here. -JRH
+            predecessors = list(G.predecessors(node) if nx.is_directed(G) else G.neighbors(node))
+            # in DiGraphs, neighbors() is the same as successors()
+            successors = list(G.successors(node) if nx.is_directed(G) else G.neighbors(node))
+            N[node] = Node(node, 0, predecessors, successors)
 
     return N
 

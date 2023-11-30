@@ -47,12 +47,9 @@ def genDivGraph(G,ep_dict,retMat=False):
     
     # cycle through one node in each partition element to get connections for the Divisor Graph
     for curPartElInd, node_list in enumerate(ep_dict.values()):
-        #print(list(ep_dict.keys()))
-        #print(f"In Divisor Function: {(curPartElInd+1)}/{len(list(ep_dict.keys()))}")
         # always get the first one since the partition is equitable and all connection 
         # will be the same within the partition elements.
         node = node_list[0]
-        #print(len(G.edges(node)))
 
         # count connection to partitions and update divisor matrix accordingly
         for connection in G.edges(node):

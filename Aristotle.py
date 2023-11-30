@@ -47,11 +47,14 @@ def TimeGraph(graph):
     subprocess.run(slurm_command)
 
 if __name__ == '__main__':
-    mandato = sys.argv[1]
+    try: mandato = sys.argv[1]
+    except: 
+        print("\n\nyou must choose a command for Aristotle\n\trun -> run a timing\n\tclean -> compile timing results\n\n")
+        
     if mandato == 'run':
         # show possible graphs to run time tests on
         print("Available graphs:\n")
-        graphml_list = [file for file in filter(lambda x: 'graphml' in x,os.listdir("./Networks/"))]
+        graphml_list = [file for file in filter(lambda x: 'graphml' in x or 'csr' in x or 'coo' in x,os.listdir("./Networks/"))]
         for i,graph in enumerate(graphml_list):
             print(f"{i}: {graph}")
         
@@ -61,20 +64,23 @@ if __name__ == '__main__':
                         "\n\tlist of numbers with spaces between (# # # #...) = will grab only those #'s"
                         "\nYour choice is: ")
 
-        ChangeToCorrectFolder(graphml_list[int(decision)])
-
         # if given a range
         if ':' in decision:
             first,last = decision.split(':')
             first = int(first)
             last = int(last)
             for graph in graphml_list[first:last+1]:
+                ChangeToCorrectFolder(graph)
                 TimeGraph(graph)
+                os.chdir('../..')
         elif len(decision) == 1:
+            ChangeToCorrectFolder(graphml_list[int(decision)])
             TimeGraph(graphml_list[int(decision)])
         else:
             for ind in decision.strip().split(' '):
+                ChangeToCorrectFolder(graphml_list[int(ind)])
                 TimeGraph(graphml_list[int(ind)])
+                os.chdir('../..')
     
     elif mandato == 'clean':
         print("Please still implement me.")

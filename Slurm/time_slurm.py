@@ -9,7 +9,7 @@
 #SBATCH --qos=normal
 
 #import ep_utils
-import os, sys, json
+import os, sys, json, io
 sys.path.append("/home/jrhmc1/Desktop/EquitablePartitions/src/")
 import graphs
 import networkx as nx
@@ -18,14 +18,20 @@ import timing as tim
 import ep_utils
 import subprocess
 from time import perf_counter as pc
+import scipy.sparse as sp
 
 if __name__ == "__main__":
     # get graph we are doing analysis on
     graph_path = sys.argv[1]
     data_fn = graph_path.split('/')[-1].split('.')[0]
     os.environ['GRAPH_PATH'] = graph_path
-    try: G = nx.read_graphml(graph_path)
+    try: 
+        try: G = nx.read_graphml(graph_path)
+        except: G = sp.load_npz(graph_path)
     except: print("You need to give the file path to graph you want to run")
+    #nodes,edges = str(G.nodes(data=True)),str(G.edges(data=True))
+    #os.environ['GRAPH_NODES'] = tim.serialize(nodes)
+    #os.environ['GRAPH_EDGES'] = tim.serialize(edges)
     # run how long it takes to get equitable partitions
     out,t = tim.time_this(ep_utils.getEquitablePartitions,[G],ret_output=True,
                             label="get_eps",store_in='./' + data_fn + '_parallel.txt')
