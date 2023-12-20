@@ -505,7 +505,7 @@ def initFromNx(G: nx.Graph | nx.DiGraph | sp.coo_matrix, sparse_alg=False) -> Di
 
     return N
 
-def initFromSparse(mat: sparse.lil_matrix) -> Dict[Any, Node]:
+def initFromSparse(mat: sp.lil_matrix) -> Dict[Any, Node]:
     """
     Initializes the Node list necessary for equitablePartition.
 

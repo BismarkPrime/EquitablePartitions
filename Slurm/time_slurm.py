@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-#SBATCH --job-name=bertha121_getEPs
+"""#SBATCH --job-name=bertha121_getEPs
 #SBATCH --time=00:05:00   # walltime
 ##SBATCH --output=output.%A.%a.out
 ##SBATCH --error=error.%A.%a.err
 #SBATCH --nodes=1
 #SBATCH --mem-per-cpu=1024M
 #SBATCH --tasks-per-node=1
-#SBATCH --qos=normal
+#SBATCH --qos=normal"""
 
 #import ep_utils
 import os, sys, json, io
@@ -29,18 +29,15 @@ if __name__ == "__main__":
         try: G = nx.read_graphml(graph_path)
         except: G = sp.load_npz(graph_path)
     except: print("You need to give the file path to graph you want to run")
-    #nodes,edges = str(G.nodes(data=True)),str(G.edges(data=True))
-    #os.environ['GRAPH_NODES'] = tim.serialize(nodes)
-    #os.environ['GRAPH_EDGES'] = tim.serialize(edges)
-    # run how long it takes to get equitable partitions
     out,t = tim.time_this(ep_utils.getEquitablePartitions,[G],ret_output=True,
                             label="get_eps",store_in='./' + data_fn + '_parallel.txt')
     ep,lep_list = out
     # get the eps and leps from that operation
     os.environ['EP'] = tim.serialize(ep)
     os.environ['LEPs'] = tim.serialize({i:list(lep) for i,lep in enumerate(lep_list)})
+    total_tasks = int(np.sqrt(len(lep_list)))
     num_nodes = min(30,int(np.sqrt(len(lep_list))))
-    print(str(num_nodes))
+    print(f"number of nodes to be used calculated as: {total_tasks}\nsubmitting with: {num_nodes}")
     os.environ['NUM_NODES'] = str(num_nodes)
 
     # get the slurm parameters
@@ -59,6 +56,7 @@ if __name__ == "__main__":
         f'--qos={qos_val}',
         '/home/jrhmc1/Desktop/EquitablePartitions/Slurm/_LEP_slurm.py'
     ]   
+    print(slurm_command)
     subprocess.run(slurm_command)
 
 

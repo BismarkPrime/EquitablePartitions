@@ -45,5 +45,5 @@ if __name__ == "__main__":
     part_spec,t = tim.time_this(ep_utils.GetSpectrumFromLEPs,[G,[ep,leps_prepped[int(task_id)-1]]],
                                 ret_output=True,store_in='./' + data_fn + '_parallel.txt',label=f"lep_time{task_id}")
     json.dump(str(part_spec) + '\n',open(data_fn + '_spec.txt','a'))
-    print("finished!")
+    print("Finished!")
     

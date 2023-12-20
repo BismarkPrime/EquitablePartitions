@@ -4,9 +4,9 @@
 ##SBATCH --output=output.%A.%a.out
 ##SBATCH --error=error.%A.%a.err
 #SBATCH --nodes=1
-#SBATCH --mem-per-cpu=1024M
+#SBATCH --mem-per-cpu=10G
 #SBATCH --tasks-per-node=1
-#SBATCH --array=1-20
+#SBATCH --array=1-18
 #SBATCH --qos=normal
 
 #import ep_utils
@@ -16,7 +16,7 @@ import graphs
 import networkx as nx
 
 def birthBertha(size_id):
-    sizes = [i**2 for i in range(15,301,15)]
+    sizes = [i**2 for i in range(130,301,10)]
     bertha = graphs.GenBertha(sizes[size_id])
     nx.write_graphml(bertha,f"/home/jrhmc1/Desktop/EquitablePartitions/Networks/bertha_{sizes[size_id]}.graphml")
 
