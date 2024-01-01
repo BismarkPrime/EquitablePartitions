@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 #SBATCH --job-name=build_bertha
-#SBATCH --time=01:00:00   # walltime
+#SBATCH --time=10:00:00   # walltime
 ##SBATCH --output=output.%A.%a.out
 ##SBATCH --error=error.%A.%a.err
 #SBATCH --nodes=1
-#SBATCH --mem-per-cpu=10G
+#SBATCH --mem-per-cpu=256G
 #SBATCH --tasks-per-node=1
-#SBATCH --array=1-18
+#SBATCH --array=1-2
 #SBATCH --qos=normal
 
 #import ep_utils
@@ -14,9 +14,12 @@ import os, sys
 sys.path.append("/home/jrhmc1/Desktop/EquitablePartitions/src/")
 import graphs
 import networkx as nx
+import numpy as np
 
 def birthBertha(size_id):
-    sizes = [i**2 for i in range(130,301,10)]
+    sizes = np.array([2**i for i in range(17,19)])
+    sizes = np.floor(np.sqrt(sizes))**2
+    sizes = sizes.astype(int)
     bertha = graphs.GenBertha(sizes[size_id])
     nx.write_graphml(bertha,f"/home/jrhmc1/Desktop/EquitablePartitions/Networks/bertha_{sizes[size_id]}.graphml")
 
