@@ -57,7 +57,7 @@ class Node(LinkedListNode):
     successors : list(int)
         list of integers corresponding to the node's out-edge neighbors
     """
-    slots = 'label', 'old_color', 'new_color', 'predecessors', 'successors', \
+    __slots__ = 'label', 'old_color', 'new_color', 'predecessors', 'successors', \
         'in_edge_count', 'out_edge_count', 'structure_value'
 
     def __init__(self, label: Any, color_class_ind: int, predecessors: List[int]=None, successors: List[int]=None):
@@ -86,7 +86,8 @@ class Node(LinkedListNode):
             predecessors = []
         if successors is None:
             successors = []
-        self.predecessors = predecessors # list of node indices of nodes with in-edges to self (in-edge neighbors)
+        #NOTE: this is temporarily set to an empty list to work with out-edges only (not transceiving)
+        self.predecessors = [] # predecessors # list of node indices of nodes with in-edges to self (in-edge neighbors)
         self.successors = successors # list of the indices of the neighboring nodes (out-edge neighbors)
         self.in_edge_count = 0 # value used to count connections to a given color class
         self.out_edge_count = 0 # value used to count connections to a given color class
@@ -505,7 +506,7 @@ def initFromNx(G: nx.Graph | nx.DiGraph | sp.coo_matrix, sparse_alg=False) -> Di
 
     return N
 
-def initFromSparse(mat: sp.lil_matrix) -> Dict[Any, Node]:
+def initFromSparse(mat: sp.sparray) -> Dict[Any, Node]:
     """
     Initializes the Node list necessary for equitablePartition.
 
@@ -657,7 +658,7 @@ def recolor(C: List[ColorClass], L: Set[Node]) -> None:
         v.old_color = v.new_color
 
 
-def equitablePartition(N: Dict[Any, Node], progress_bar: bool= True) -> Dict[int, List[Any]]:
+def equitablePartition(N: Dict[Any, Node], progress_bar: bool=False) -> Dict[int, List[Any]]:
     """
     Finds the coarsest equitable partition of a network.
     

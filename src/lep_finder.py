@@ -43,7 +43,7 @@ def initializeFromNx(G: nx.Graph | nx.DiGraph) -> Dict[Any, Set[Any]]:
     N = { node:set(g_rev.neighbors(node)) for node in G.nodes() }
     return N
 
-def initFromSparse(mat: sparse.lil_matrix) -> Dict[Any, Set[Any]]:
+def initFromSparse(mat: sparse.sparray) -> Dict[Any, Set[Any]]:
     """Initializes the inverted neighbor dictionary required to compute leps.
    
     ARGUMENTS:
@@ -108,13 +108,13 @@ def initFromFile(file_path: str, num_nodes: int=None, delim: str=',', comments: 
                 N.update({i: set()})
     return N
 
-def getLocalEquitablePartitions(N: Dict[Any, Set[Any]], ep: Dict[int, Set[Any]], progress_bar: bool=True) -> List[Set[int]]:
+def getLocalEquitablePartitions(N: Dict[Any, Set[Any]], ep: Dict[int, Set[Any]], progress_bar: bool=False) -> List[Set[int]]:
     """Finds the local equitable partitions of a graph.
    
     ARGUMENTS:
         N :     A dictionary containing nodes as keys with their in-edge neighbors as values
         ep :    The equitable partition of the graph, as returned by ep_finder
-        progress_bar : whether to show realtime progress bar (enabled by default)
+        progress_bar : whether to show realtime progress bar (disabled by default)
     
     RETURNS:
         A list of sets, with each set containing the indices/keys of partition elements
@@ -130,7 +130,7 @@ def getLocalEquitablePartitions(N: Dict[Any, Set[Any]], ep: Dict[int, Set[Any]],
             retval = i
     return retval
 
-def __computeLocalEquitablePartitions(N: Dict[Any, Any], pi: Dict[int, Set[Any]]) -> None | List[Set[int]]:
+def __computeLocalEquitablePartitions(N: Dict[Any, Set[Any]], pi: Dict[int, Set[Any]]) -> None | List[Set[int]]:
     """Finds the local equitable partitions of a graph.
    
     ARGUMENTS:
@@ -156,7 +156,7 @@ def __computeLocalEquitablePartitions(N: Dict[Any, Any], pi: Dict[int, Set[Any]]
     for (index, V) in pi.items():
         common_neighbors = set(N[V[0]])
         for v in V:
-            common_neighbors.intersection_update(set(N[v]))
+            common_neighbors.intersection_update(N[v])
         yield
         for v in V:
             for unique_neighbor in set(N[v]).difference(common_neighbors):

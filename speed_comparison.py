@@ -10,9 +10,7 @@ import numpy as np
 
 from sizing import getsize
 
-import graphs
-import ep_utils
-import ep_finder2
+from src import graphs, ep_utils, ep_finder2
 
 def timer_decorator(func):
     @wraps(func)
@@ -126,9 +124,10 @@ def epFinderInitSpeedTest(sizes):
 def speedTest(Gs: List[nx.Graph | nx.DiGraph], build_times: List[float]=None) -> None:
     # note: this method has not been tested with DiGraphs
     status("Running LEParD Algorithm...")
-    our_time = zip(*[min(Timer(lambda: getLEParDEigenvaluesNx(G)).repeat(1, 5)) for G in Gs])
+    # our_time = build_times
+    our_time = [min(Timer(lambda: getLEParDEigenvaluesNx(G)).repeat(3, 1)) for G in Gs]
     status("Running Traditional Algorithm...")
-    their_time = zip(*[min(Timer(getTradEigenvaluesNx(G)).repeat(1, 5)) for G in Gs])
+    their_time = our_time# [min(Timer(lambda: getTradEigenvaluesNx(G)).repeat(1, 1)) for G in Gs]
 
     # status("Verifying Correctness...")
     # result_diffs = [ep_utils.getSymmetricDifference(ours, theirs) for ours, theirs in zip(our_res, their_res)]
@@ -139,17 +138,23 @@ def speedTest(Gs: List[nx.Graph | nx.DiGraph], build_times: List[float]=None) ->
     #         f"ERROR: For size {len(Gs[i])}, traditional algorithm produced the following eigenvalues not in LEParD results: {theirs}"
 
     status("Plotting Results...")
+    plt.clf()
     times = (our_time, their_time)
     legend = ("LEParD Algorithm", "Traditional Algorithm")
     if build_times is not None:
         times = build_times, *times
         legend = "Building Graphs",*legend
-    plt.plot([len(G) for G in Gs], list(zip(*times)))
-    plt.xlabel("Size of Bertha")
+    plt.plot([len(G) for G in Gs], list(zip(*times)))#our_time), label=legend[0])
+    # plt.plot([len(G) for G in Gs], their_time), label=legend[1])
+    plt.xlabel("Size of Layered Graph")
     plt.ylabel("Time (seconds)")
+    plt.xscale('log')
     plt.yscale('log')
     plt.legend(legend)
-    plt.show()
+    # plt.ion()
+    # plt.show()
+    plt.savefig('SpeedComparison.png')
+    return our_time, their_time
 
 def getBerthas(sizes: List[int]) -> Tuple[List[nx.Graph | nx.DiGraph], List[float]]:
     status("Generating Berthas...")
