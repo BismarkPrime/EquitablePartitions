@@ -86,9 +86,9 @@ class Node(LinkedListNode):
             predecessors = []
         if successors is None:
             successors = []
+        self.predecessors = predecessors # predecessors # list of node indices of nodes with in-edges to self (in-edge neighbors)
         #NOTE: this is temporarily set to an empty list to work with out-edges only (not transceiving)
-        self.predecessors = [] # predecessors # list of node indices of nodes with in-edges to self (in-edge neighbors)
-        self.successors = successors # list of the indices of the neighboring nodes (out-edge neighbors)
+        self.successors = [] # list of the indices of the neighboring nodes (out-edge neighbors)
         self.in_edge_count = 0 # value used to count connections to a given color class
         self.out_edge_count = 0 # value used to count connections to a given color class
 

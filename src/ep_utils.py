@@ -113,14 +113,20 @@ def getDivisorMatrixNx(G: nx.Graph | nx.DiGraph, pi: Dict[int, Set[int]]) -> spa
     # create divisor matrix
     div_mat = np.zeros((len(pi), len(pi)), dtype=int)
         # sparse.dok_matrix((len(pi), len(pi)), dtype=int)
+    
+    # label nodes with their ep element
+    for ep_id, ep in pi.items():
+        for node in ep:
+            G.nodes[node]['ep'] = ep_id
+
     # populate divisor matrix by sampling one node from each ep and counting 
     #   the number of connections between the sampled node and its neighbors
     for ep_id, ep in pi.items():
-        for node in ep:
-        # node = ep[0]
+        # for node in ep:
+            node = ep[0]
             for neighbor in G.neighbors(node):
                 neighbor_ep = G.nodes[neighbor]['ep']
-                div_mat[ep_to_div[ep_id], ep_to_div[neighbor_ep]] += 1.0 / len(ep)
+                div_mat[ep_to_div[ep_id], ep_to_div[neighbor_ep]] += 1
     return div_mat
 
 
@@ -152,11 +158,7 @@ def getEigenStuffsNx(G: nx.Graph) -> Tuple[List[complex], Dict[int, List[complex
     # TODO:
     # 1. get EP and LEPs
     pi, leps = getEquitablePartitions(G, progress_bars=False)
-    #TODO: move this logic to getDivisorMatrixNx (it is not used anywhere else)
-    # label nodes with their ep element
-    for ep_id, ep in pi.items():
-        for node in ep:
-            G.nodes[node]['ep'] = ep_id
+    
     # 2. get divisor matrix of graph
     div = getDivisorMatrixNx(G, pi)
     # 3. get eigenvalues of divisor matrix of graph
@@ -529,6 +531,10 @@ def plotEquitablePartition(G, pi, pos_dict = None):
         for vertex in V_i:
             color_list[vertex] = c
     
+    if pos_dict is None:
+        # other layout options include: random, circular, spiral, spring, kamada_kawai, etc
+        pos_dict = nx.shell_layout(G)
+
     # set plot as non-blocking
     plt.ion()
 
