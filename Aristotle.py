@@ -83,10 +83,15 @@ def EnsureRecord(results_fn):
         df.loc[slurm_id] = stats
         df.to_csv('/home/jrhmc1/Desktop/EquitablePartitions/Results/Master_keeper.csv',index_label="SlurmID")
 
-def ChangeToCorrectFolder(graph):
+def ChangeToCorrectFolder(graph,serial=None):
     os.chdir('./Results')
+    if serial is None:
+        print("Need to specify serial")
+    else:
+        if serial: tag="_serial"
+        if not serial: tag="_slurm"
     # get into the right folder
-    name = graph.split('.')[0] + '_results'
+    name = graph.split('.')[0] + '_results' + tag
     if name in os.listdir(): # make sure the run has been save and then recreate the folder.
         try: 
             EnsureRecord(name) # put try because errors mean there is no data to record so I want to just delete it anyway, might not be the best fix though JRH
@@ -103,8 +108,9 @@ def ChangeToCorrectFolder(graph):
 
 def TimeGraph(graph: str,serial=False) -> None:
     """Times the graph both serially and in parallel and records the times in the master_dict"""
-    if serial: start_script='time_serial.py'
-    else: start_script='time_slurm.py'
+    if serial: start_script= '/home/jrhmc1/Desktop/EquitablePartitions/Slurm/time_serial.py'
+    else: start_script='/home/jrhmc1/Desktop/EquitablePartitions/Slurm/time_slurm.py'
+    tag = start_script.split('_')[1].split('.')[0]
     # make sure params are what you want
     print(f"\n\nSTARTING RUN FOR: {graph}\n\n")
     print(os.getcwd())
@@ -112,17 +118,33 @@ def TimeGraph(graph: str,serial=False) -> None:
     # Get the values
     node_val,ntasks_val,time_val,mem_val,qos_val = [pair[1] for pair in param_dict.values()]
     job_name = graph.split('.')[0]
+    # get string to paste into python file.
+    slurm_paste = f"""#!/usr/bin/env python3
+#SBATCH --job-name={job_name+tag}
+#SBATCH --time={time_val}   # walltime
+##SBATCH --ntasks-per-node={ntasks_val}
+##SBATCH --nodes={node_val}
+#SBATCH --mem-per-cpu={mem_val}
+#SBATCH --tasks-per-node=1
+#SBATCH --qos={qos_val}"""
+    # prep and run the script
+    h.PrepSlurmScript(slurm_paste,start_script)
     slurm_command = [
         'sbatch',
-        f'--nodes={node_val}',
-        f'--ntasks-per-node={ntasks_val}',
-        f'--time={time_val}',
-        f'--mem-per-cpu={mem_val}',
-        f'--job-name={job_name}_getEPs',
-        f'--qos={qos_val}',
-        f'/home/jrhmc1/Desktop/EquitablePartitions/Slurm/{start_script}',
+        f'/{start_script}',
         f'/home/jrhmc1/Desktop/EquitablePartitions/Networks/{graph}'
-    ]   
+    ]  
+    # slurm_command = [
+    #     'sbatch',
+    #     f'--nodes={node_val}',
+    #     f'--ntasks-per-node={ntasks_val}',
+    #     f'--time={time_val}',
+    #     f'--mem-per-cpu={mem_val}',
+    #     f'--job-name={job_name+tag}',
+    #     f'--qos={qos_val}',
+    #     f'/home/jrhmc1/Desktop/EquitablePartitions/Slurm/{start_script}',
+    #     f'/home/jrhmc1/Desktop/EquitablePartitions/Networks/{graph}'
+    # ]   
     subprocess.run(slurm_command)
 
 def ProcessDecision(decision,graph_list,serial):
@@ -130,7 +152,7 @@ def ProcessDecision(decision,graph_list,serial):
     pattern = re.compile("\w+=\S+")
     digit_catcher = re.compile("\d+")
     commands = re.findall(pattern,decision)
-    print(commands)
+
     if commands:
         for command in commands:
             if 'type' in command: # is you want to run all graphs of one graph type
@@ -159,7 +181,7 @@ def ProcessDecision(decision,graph_list,serial):
         first = int(first)
         last = int(last)
         for graph in graph_list[first:last+1]:
-            ready = ChangeToCorrectFolder(graph)             # create results folder (built into this is recording the last run)
+            ready = ChangeToCorrectFolder(graph,serial=serial)             # create results folder (built into this is recording the last run)
             if ready:
                 TimeGraph(graph,serial=serial)               # Time the algorithim on the graph
                 os.chdir('../..')                            # go back to Aristotles directory
@@ -167,19 +189,19 @@ def ProcessDecision(decision,graph_list,serial):
                 continue
         return
     elif len(decision) == 1: # if only one index given
-        ChangeToCorrectFolder(graph_list[int(decision)])
+        ChangeToCorrectFolder(graph_list[int(decision)],serial=serial)
         TimeGraph(graph_list[int(decision)],serial=serial)
         return
     elif ' ' in decision: # if multiple indices that aren't a range was given
         for ind in decision.strip().split(' '):
-            ChangeToCorrectFolder(graph_list[int(ind)])
+            ChangeToCorrectFolder(graph_list[int(ind)],serial=serial)
             TimeGraph(graph_list[int(ind)],serial=serial)
             os.chdir('../..')
         return
 
     # run for filtered graphs based on commands
     for graph in graph_list:
-        ChangeToCorrectFolder(graph)
+        ChangeToCorrectFolder(graph,serial=serial)
         TimeGraph(graph,serial=serial)
         os.chdir('../..')
     

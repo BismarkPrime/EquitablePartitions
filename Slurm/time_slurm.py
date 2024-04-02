@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
-"""#SBATCH --job-name=bertha121_getEPs
-#SBATCH --time=00:05:00   # walltime
-##SBATCH --output=output.%A.%a.out
-##SBATCH --error=error.%A.%a.err
-#SBATCH --nodes=1
-#SBATCH --mem-per-cpu=1024M
+#SBATCH --job-name=bertha_65536slurm
+#SBATCH --time=3-00:00:00   # walltime
+##SBATCH --ntasks-per-node=1
+##SBATCH --nodes=1
+#SBATCH --mem-per-cpu=256G
 #SBATCH --tasks-per-node=1
-#SBATCH --qos=normal"""
+#SBATCH --qos=normal
 
-#import ep_utils
-import os, sys, json, io
+
+import os, sys, json
 sys.path.append("/home/jrhmc1/Desktop/EquitablePartitions/src/")
 import graphs
 import networkx as nx
@@ -19,8 +18,10 @@ import ep_utils
 import subprocess
 from time import perf_counter as pc
 import scipy.sparse as sp
+import helper as h
 
 if __name__ == "__main__":
+    start_script = '/home/jrhmc1/Desktop/EquitablePartitions/Slurm/_LEP_slurm.py'
     # get graph we are doing analysis on
     graph_path = sys.argv[1]
     data_fn = graph_path.split('/')[-1].split('.')[0]
@@ -33,8 +34,12 @@ if __name__ == "__main__":
                             label="get_eps",store_in='./' + data_fn + '_parallel.txt')
     ep,lep_list = out
     # get the eps and leps from that operation
-    os.environ['EP'] = tim.serialize(ep)
-    os.environ['LEPs'] = tim.serialize({i:list(lep) for i,lep in enumerate(lep_list)})
+    with open("EpLep.txt","w") as f:
+        f.write("EPs==" + tim.serialize(ep))
+        f.write("==LEPs==" + tim.serialize({i:list(lep) for i,lep in enumerate(lep_list)}))
+        
+    #os.environ['EP'] = tim.serialize(ep)
+    #os.environ['LEPs'] = tim.serialize({i:list(lep) for i,lep in enumerate(lep_list)})
     total_tasks = int(np.sqrt(len(lep_list)))
     num_nodes = min(30,int(np.sqrt(len(lep_list))))
     print(f"number of nodes to be used calculated as: {total_tasks}\nsubmitting with: {num_nodes}")
@@ -45,17 +50,31 @@ if __name__ == "__main__":
     node_val,ntasks_val,time_val,mem_val,qos_val = [pair[1] for pair in param_dict.values()]
 
     # divy up the leps to each of the nodes in a second script
+    # get string to paste into python file.
+    slurm_paste = f"""#!/usr/bin/env python3
+#SBATCH --job-name={data_fn}_LEPs
+#SBATCH --time={time_val}   # walltime
+#SBATCH --ntasks={ntasks_val}
+#SBATCH --nodes={node_val}
+#SBATCH --mem-per-cpu={mem_val}
+#SBATCH --qos={qos_val}
+#SBATCH --array=1-{num_nodes}"""
+    # prep and run the script
+    h.PrepSlurmScript(slurm_paste,start_script)
     slurm_command = [
         'sbatch',
-        f'--nodes={node_val}',
-        f'--ntasks-per-node={ntasks_val}',
-        f'--time={time_val}',
-        f'--mem-per-cpu={mem_val}',
-        '--job-name=' + f'{data_fn}_LEPs',
-        '--array=1-' + f'{num_nodes}',
-        f'--qos={qos_val}',
-        '/home/jrhmc1/Desktop/EquitablePartitions/Slurm/_LEP_slurm.py'
-    ]   
+        f'{start_script}',]
+    # slurm_command = [
+    #     'sbatch',
+    #     f'--nodes={node_val}',
+    #     f'--ntasks-per-node={ntasks_val}',
+    #     f'--time={time_val}',
+    #     f'--mem-per-cpu={mem_val}',
+    #     '--job-name=' + f'{data_fn}_LEPs',
+    #     '--array=1-' + f'{num_nodes}',
+    #     f'--qos={qos_val}',
+    #     '/home/jrhmc1/Desktop/EquitablePartitions/Slurm/_LEP_slurm.py'
+    # ]   
     print(slurm_command)
     subprocess.run(slurm_command)
 
