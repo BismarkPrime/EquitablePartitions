@@ -133,3 +133,11 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+#Created Graphs on supercomputer
+Networks/
+
+# Ignore everything in results except for the keeper_tools.py
+# each user will have their own Results folder where their run information is recorded.
+Results/*
+!Results/keeper_tools.py

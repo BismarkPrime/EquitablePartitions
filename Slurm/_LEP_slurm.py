@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
+#SBATCH --job-name=bertha_262144_LEPs
+#SBATCH --time=3-00:00:00   # walltime
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --mem-per-cpu=256G
+#SBATCH --qos=normal
+#SBATCH --array=1-30
 
-#import ep_utils
+
 import os, sys, json
 sys.path.append("/home/jrhmc1/Desktop/EquitablePartitions/src/")
 import graphs
@@ -28,10 +35,15 @@ if __name__ == "__main__":
     build_time = end-start
     # get environment variables
     start = pc()
-    ep = os.environ.get('EP')
+    with open("EpLep.txt","r") as f:
+        data = f.read()
+    data = data.split('==')
+    ep = data[1]    
+    #ep = os.environ.get('EP') # failed after 8100 with this method trying read/writing files
     ep = tim.deserialize(ep)
     ep = {int(key):val for key,val in ep.items()}
-    lep_list = os.environ.get('LEPs')
+    #lep_list = os.environ.get('LEPs')
+    lep_list = data[3]
     lep_list = tim.deserialize(lep_list)
     lep_list = [set(lep) for lep in lep_list.values()]
     task_id = int(os.environ["SLURM_ARRAY_TASK_ID"])

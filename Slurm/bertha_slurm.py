@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 #SBATCH --job-name=build_bertha
 #SBATCH --time=10:00:00   # walltime
-##SBATCH --output=output.%A.%a.out
-##SBATCH --error=error.%A.%a.err
 #SBATCH --nodes=1
 #SBATCH --mem-per-cpu=256G
 #SBATCH --tasks-per-node=1
@@ -17,7 +15,7 @@ import networkx as nx
 import numpy as np
 
 def birthBertha(size_id):
-    sizes = np.array([2**i for i in range(17,19)])
+    sizes = np.array([2**i for i in range(19,21)])#[2**i for i in range(17,19)])
     sizes = np.floor(np.sqrt(sizes))**2
     sizes = sizes.astype(int)
     bertha = graphs.GenBertha(sizes[size_id])

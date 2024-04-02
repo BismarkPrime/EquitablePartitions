@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
-#SBATCH --job-name=bertha121_getEPs
-#SBATCH --time=00:05:00   # walltime
-##SBATCH --output=output.%A.%a.out
-##SBATCH --error=error.%A.%a.err
-#SBATCH --nodes=1
-#SBATCH --mem-per-cpu=1024M
+#SBATCH --job-name=bertha_8100serial
+#SBATCH --time=3-00:00:00   # walltime
+##SBATCH --ntasks-per-node=1
+##SBATCH --nodes=1
+#SBATCH --mem-per-cpu=256G
 #SBATCH --tasks-per-node=1
 #SBATCH --qos=normal
 
-#import ep_utils
+
 import os, sys, json, io
 sys.path.append("/home/jrhmc1/Desktop/EquitablePartitions/src/")
 import graphs
