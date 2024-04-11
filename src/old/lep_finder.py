@@ -3,9 +3,7 @@ import networkx as nx
 from scipy import sparse
 from alive_progress import alive_bar
 
-from typing import Any, List, Set, Dict, Generator
-# imported to support type hint for initFromN
-import ep_finder
+from typing import Any, List, Set, Dict
 
 # TODO: update naming to match paper
 
@@ -13,21 +11,22 @@ import ep_finder
 #   Using Disjoint Set data structures to store partitions
 #   Initialize using csv files
 
-def initFromN(N: Dict[Any, ep_finder.Node]) -> Dict[Any, Set[Any]]: 
+def initializeFromN(N_dict):      # NOTE: I changed this, it used to be this -> G: nx.Graph | nx.DiGraph) -> Dict[Any, Set[Any]]:
     """Initializes the inverted neighbor dictionary required to compute leps.
    
     ARGUMENTS:
-        N (dict): dictionary created used by 
+        G : The graph to analyzed (depracated)
+        N_dict (dict): dictionary created in the get transceivingEP2 function in ep_utils
 
     RETURNS:
         A dictionary with nodes as keys and a set of their in-edge neighbors as values.
     """
     # this assumes undirected because we need to use predecessors for the directed case
     # TODO: refer to above comment
-    N = {label: Node.successors for label,Node in N.items()}
+    N = {label:Node.successors for label,Node in N_dict.items()}
     return N
 
-def initFromNx(G: nx.Graph | nx.DiGraph) -> Dict[Any, Set[Any]]:
+def initializeFromNx(G: nx.Graph | nx.DiGraph) -> Dict[Any, Set[Any]]:
     """Initializes the inverted neighbor dictionary required to compute leps.
     PAS's Code
     ARGUMENTS:
@@ -37,32 +36,37 @@ def initFromNx(G: nx.Graph | nx.DiGraph) -> Dict[Any, Set[Any]]:
         A dictionary with nodes as keys and a set of their in-edge neighbors as values.
     """
 
+    g_rev = G.reverse() if G.is_directed() else G
+
     # NOTE: N stores the in-edge neighbors, i.e. N[v] returns all nodes w with an edge w -> v.
     #    Thus, it is different than just calling G.neighbors(v); (hence, we use G.reverse())
-    N = {node: set(G.predecessors(node) if G.is_directed() else G.neighbors(node)) for node in G.nodes()}
+    N = { node:set(g_rev.neighbors(node)) for node in G.nodes() }
     return N
 
-def initFromSparse(mat: sparse.csc_array) -> Dict[Any, Set[Any]]:
+def initFromSparse(mat: sparse.sparray) -> Dict[Any, Set[Any]]:
     """Initializes the inverted neighbor dictionary required to compute leps.
-    
+   
     ARGUMENTS:
         G : The graph to analyzed
     
     RETURNS:
         A dictionary with nodes as keys and a set of their in-edge neighbors as values.
     """
-
-    # ensure that matrix is in csc format (csr format will create an out-edge neighbor mapping)
-    # mat = mat.tocsc()
- 
+    rows, cols = mat.transpose().nonzero()
+    start = 0
     # NOTE: we should revert to using arrays/lists where possible instead of dictionaries to reduce spatial complexity
-    N = {i: set(mat.indices[mat.indptr[i]:mat.indptr[i + 1]]) for i in range(mat.shape[0])}
-    
+    N = {i: None for i in range(mat.shape[0])}
+    while start < len(rows):
+        curr_row = rows[start]
+        end = start + 1
+        while end < len(rows) and rows[end] == curr_row:
+            end += 1
+        N[curr_row] = set(cols[start:end])
+        start = end
     return N
         
 
-def initFromFile(file_path: str, num_nodes: int=None, delim: str=',', 
-                 comments: str='#', directed: bool=False, rev: bool=False) -> Dict[int, Set[int]]:
+def initFromFile(file_path: str, num_nodes: int=None, delim: str=',', comments: str='#', directed: bool=False, rev: bool=False) -> Dict[int, Set[int]]:
     """Initializes the inverted neighbor dictionary required to compute leps.
    
     ARGUMENTS:
@@ -104,8 +108,7 @@ def initFromFile(file_path: str, num_nodes: int=None, delim: str=',',
                 N.update({i: set()})
     return N
 
-def getLocalEquitablePartitions(N: Dict[Any, Set[Any]], 
-                                ep: Dict[int, Set[Any]],progress_bar: bool=False) -> List[List[int]]:
+def getLocalEquitablePartitions(N: Dict[Any, Set[Any]], ep: Dict[int, Set[Any]], progress_bar: bool=False) -> List[Set[int]]:
     """Finds the local equitable partitions of a graph.
    
     ARGUMENTS:
@@ -118,14 +121,16 @@ def getLocalEquitablePartitions(N: Dict[Any, Set[Any]],
             that can be grouped together in the same local equitable partition
     """
     retval = None
+    # if progress_bar:
+    #     title = "COMPUTING LEPS"
+    #     print("{0}\n{1}".format(title, '=' * len(title)))
     with alive_bar(3 * len(ep) + 1, title="COMPUTING LEPS...\n", disable=not progress_bar) as bar:
         for i in __computeLocalEquitablePartitions(N, ep):
             bar()
             retval = i
     return retval
 
-def __computeLocalEquitablePartitions(N: Dict[Any, Set[Any]], pi: Dict[int, List[Any]]) \
-                                                              -> Generator[None, None, List[List[int]]]:
+def __computeLocalEquitablePartitions(N: Dict[Any, Set[Any]], pi: Dict[int, Set[Any]]) -> None | List[Set[int]]:
     """Finds the local equitable partitions of a graph.
    
     ARGUMENTS:
@@ -137,31 +142,29 @@ def __computeLocalEquitablePartitions(N: Dict[Any, Set[Any]], pi: Dict[int, List
             grouped together in the same local equitable partition
     """
 
-    # dict that maps nodes to their partition element
-    partition_dict = dict()
-    for i, V in pi.items():
-        for node in V:
-            partition_dict[node] = i
+    # array that maps nodes (indices) to their partition element
+    partition_dict = dict() #np.empty(len(N), int)
+    for (element, nodes) in pi.items():
+        for node in nodes:
+            partition_dict[node] = element
         yield
 
     # keeps track of which partition elements are stuck together by internal cohesion,
     #   with partition element index as key and internally cohesive elements as values
     lep_network = dict()
 
-    for i, V in pi.items():
+    for (index, V) in pi.items():
         common_neighbors = set(N[V[0]])
         for v in V:
             common_neighbors.intersection_update(N[v])
         yield
         for v in V:
             for unique_neighbor in set(N[v]).difference(common_neighbors):
-                __link(i, partition_dict[unique_neighbor], lep_network)
+                __link(index, partition_dict[unique_neighbor], lep_network)
         yield
 
     leps = __extractConnectedComponents(lep_network, len(pi))
-    # convert to List of Lists to be consistent with EPFinder
-    lep_list = [list(lep) for lep in leps]
-    yield lep_list
+    yield leps
 
 def __link(i: int, j: int, edge_dict: Dict[int, Set[int]]) -> None:
     if i not in edge_dict:
