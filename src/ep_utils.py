@@ -21,7 +21,7 @@ import graphs
 # TODO: update naming to match paper
 # TODO: use child processes for finding EP and LEP to release memory after computation.
 
-EPSILON = 1e-4
+EPSILON = 1e-2
 
 
 def timeme(func):
@@ -52,7 +52,7 @@ def getEigenvaluesSparse(mat: sparse.sparray) -> List[float | complex]:
     #       b. Calculate spectrum
     #TODO: look at optimizing the 
     divisor_matrix = getDivisorMatrixSparse(csc, pi)
-    globals = scipy.linalg.eigvals(divisor_matrix.todense()) # if hermetian, use eigvalsh here instead (and below)
+    globals = np.linalg.eigvals(divisor_matrix) # if hermetian, use eigvalsh here instead (and below)
     # print(f"{divisor_matrix.todense() = }")
 
     # 2. Find Monad LEP Set
@@ -81,8 +81,8 @@ def getEigenvaluesSparse(mat: sparse.sparray) -> List[float | complex]:
         # divisor_submatrix = getDivisorMatrixSparse(subgraph, pi_i)
         #TODO: figure out how do sparse matrix conversion as infrequently as possible
         #   (e.g., at a minimum, moving .toscr to outside the for loop...)
-        divisor_submatrix = divisor_matrix.tocsr()[lep,:].tocsc()[:,lep]
-        subgraph_globals = scipy.linalg.eigvals(divisor_submatrix.todense())
+        divisor_submatrix = divisor_matrix[lep,:][:,lep]
+        subgraph_globals = scipy.linalg.eigvals(divisor_submatrix)
         subgraph_locals = scipy.linalg.eigvals(subgraph.todense())
 
         locals.append(getSymmetricDifference(subgraph_locals, subgraph_globals)[0])
@@ -106,11 +106,12 @@ def getDivisorMatrixSparse(mat_csc: sparse.csc_array, pi: Dict[int, List[int]]) 
     #TODO: convert this method to use predecessors as the neighbors for the directed case
 
     node2ep = { node: i for i, V in pi.items() for node in V }
-    div_mat = sparse.dok_array((len(pi), len(pi)), dtype=int)
+    # div_mat = sparse.dok_array((len(pi), len(pi)), dtype=int)
+    div_mat = np.zeros((len(pi), len(pi)), dtype=int)
 
     for i, V in pi.items():
         node = V[0]
-        neighbors = mat_csc[:,[node]].nonzero()[0]
+        neighbors = mat_csc.indices[mat_csc.indptr[node]:mat_csc.indptr[node + 1]] #mat_csc[:,[node]].nonzero()[0]
         for neighbor in neighbors: #TODO: change this to be predecessors in the directed case
             div_mat[i, node2ep[neighbor]] += 1 # perhaps += weight for weighted graphs...
     
@@ -592,6 +593,7 @@ def ValidateMethod(G):
     return Counter(our_spec) == Counter(their_spec)
 
 if __name__ == "__main__":
-    G = nx.erdos_renyi_graph(800, .01, directed=True, seed=0)
+    G = nx.erdos_renyi_graph(800, .005, directed=True, seed=0)
     sparse_array = nx.adjacency_matrix(G)
     getEigenvaluesSparse(sparse_array)
+    getEigenvaluesNx(G)
