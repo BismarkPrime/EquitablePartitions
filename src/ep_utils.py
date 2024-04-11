@@ -2,7 +2,6 @@ import cmath
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
-import time
 from functools import reduce, wraps
 import sys
 import gc
@@ -11,28 +10,16 @@ from scipy import sparse
 import itertools
 from typing import Dict, List, Set, Tuple
 import graphs
-# from line_profiler import profile
 
 from collections import Counter
 import ep_finder, lep_finder
-# import ep_finder2
 import graphs
 
 # TODO: update naming to match paper
 # TODO: use child processes for finding EP and LEP to release memory after computation.
 
-EPSILON = 1e-2
+EPSILON = 1e-4
 
-
-def timeme(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        start_time = time.time()
-        result = func(*args, **kwargs)
-        end_time = time.time()
-        print(f"Time: {end_time - start_time}s")
-        return result
-    return wrapper
 
 @profile
 def getEigenvaluesSparse(mat: sparse.sparray) -> List[float | complex]:
@@ -50,7 +37,6 @@ def getEigenvaluesSparse(mat: sparse.sparray) -> List[float | complex]:
     # 2. Find Global Eigenvalues
     #       a. Compute Divisor Matrix
     #       b. Calculate spectrum
-    #TODO: look at optimizing the 
     divisor_matrix = getDivisorMatrixSparse(csc, pi)
     globals = np.linalg.eigvals(divisor_matrix) # if hermetian, use eigvalsh here instead (and below)
     # print(f"{divisor_matrix.todense() = }")
@@ -74,20 +60,12 @@ def getEigenvaluesSparse(mat: sparse.sparray) -> List[float | complex]:
             continue
         #TODO: consider if this logic can be optimized (is it faster to convert to csc if we only perform one column-slice?)
         subgraph = csr[nodes,:].tocsc()[:,nodes]
-        # mat2subgraph = {n: i for i, n in enumerate(nodes)} # to convert matrix indices -> subgraph indices
-        # reindex = lambda i: mat2subgraph[i]
-        # pi_i = [list(map(reindex, pi[V])) for V in lep]
-        #TODO: optimize this by using values already computed in the divisor_matrix
-        # divisor_submatrix = getDivisorMatrixSparse(subgraph, pi_i)
-        #TODO: figure out how do sparse matrix conversion as infrequently as possible
-        #   (e.g., at a minimum, moving .toscr to outside the for loop...)
         divisor_submatrix = divisor_matrix[lep,:][:,lep]
+
         subgraph_globals = scipy.linalg.eigvals(divisor_submatrix)
         subgraph_locals = scipy.linalg.eigvals(subgraph.todense())
 
         locals.append(getSymmetricDifference(subgraph_locals, subgraph_globals)[0])
-    
-    # print(f"{globals = }, {locals = }")
     
     spectrum = list(itertools.chain.from_iterable((globals, *locals)))
     # TODO: compare runtime with:
@@ -98,27 +76,19 @@ def getEigenvaluesSparse(mat: sparse.sparray) -> List[float | complex]:
 
 @profile
 def getDivisorMatrixSparse(mat_csc: sparse.csc_array, pi: Dict[int, List[int]]) -> sparse.sparray:
-    # the note below is not true
-    # NOTE: this method uses pi to determine the size of the resulting divisor matrix; as such,
-    #   it is fine if mat is larger than the subgraph defined by pi; in fact, this may be simpler
-    #   to use, since the indices in pi must match the indices of mat
-
-    #TODO: convert this method to use predecessors as the neighbors for the directed case
 
     node2ep = { node: i for i, V in pi.items() for node in V }
-    # div_mat = sparse.dok_array((len(pi), len(pi)), dtype=int)
     div_mat = np.zeros((len(pi), len(pi)), dtype=int)
 
     for i, V in pi.items():
         node = V[0]
-        neighbors = mat_csc.indices[mat_csc.indptr[node]:mat_csc.indptr[node + 1]] #mat_csc[:,[node]].nonzero()[0]
-        for neighbor in neighbors: #TODO: change this to be predecessors in the directed case
+        neighbors = mat_csc.indices[mat_csc.indptr[node]:mat_csc.indptr[node + 1]]
+        for neighbor in neighbors:
             div_mat[i, node2ep[neighbor]] += 1 # perhaps += weight for weighted graphs...
     
     return div_mat
 
 @profile
-# maybe start with NetworkX graphs for simplicity, then convert to adjacency dict
 def getDivisorMatrixNx(G: nx.Graph | nx.DiGraph, pi: Dict[int, Set[int]]) -> sparse.sparray: # [int, set[int]]:
     """Finds the divisor matrix of a graph with respect to its coarsest equitable partition.
    
@@ -139,7 +109,6 @@ def getDivisorMatrixNx(G: nx.Graph | nx.DiGraph, pi: Dict[int, Set[int]]) -> spa
     ep_to_div = {ep_id: div_index for div_index, ep_id in enumerate(pi.keys())}
     # create divisor matrix
     div_mat = np.zeros((len(pi), len(pi)), dtype=int)
-        # sparse.dok_matrix((len(pi), len(pi)), dtype=int)
     
     # label nodes with their ep element
     for ep_id, ep in pi.items():
@@ -149,15 +118,13 @@ def getDivisorMatrixNx(G: nx.Graph | nx.DiGraph, pi: Dict[int, Set[int]]) -> spa
     # populate divisor matrix by sampling one node from each ep and counting 
     #   the number of connections between the sampled node and its neighbors
     for ep_id, ep in pi.items():
-        # for node in ep:
-            node = ep[0]
-            predecessors = G.predecessors(node) if G.is_directed() else G.neighbors(node)
-            for neighbor in predecessors:
-                neighbor_ep = G.nodes[neighbor]['ep']
-                div_mat[ep_to_div[ep_id], ep_to_div[neighbor_ep]] += 1
+        node = ep[0]
+        predecessors = G.predecessors(node) if G.is_directed() else G.neighbors(node)
+        for neighbor in predecessors:
+            neighbor_ep = G.nodes[neighbor]['ep']
+            div_mat[ep_to_div[ep_id], ep_to_div[neighbor_ep]] += 1
     return div_mat
 
-# @timeme
 @profile
 def getEigenStuffsNx(G: nx.Graph | nx.DiGraph) -> Tuple[List[complex], Dict[int, List[complex]], Dict[int, List[complex]]]:
     """Finds the eigenvalues of the divisor matrix of a graph with respect to its coarsest equitable partition.
@@ -175,12 +142,6 @@ def getEigenStuffsNx(G: nx.Graph | nx.DiGraph) -> Tuple[List[complex], Dict[int,
             of the LEP submatrices (dict[int -> list[complex]]), and the eigenvalues of the divisor 
             matrices of the LEPs (dict[int -> list[complex]])
     """
-    # hint: use numpy.linalg.eigvals
-    # hint: use getDivisorMatrix to get the divisor matrix of the graph and of each LEP
-
-    # np.linalg.eigvals(nx.adjacency_matrix(div))
-    # PROBLEM: getDivisorMatrix returns a sparse scipy dok matrix, not sure which function to use to get eigenvalues
-    # so that we can concatenate numpy arrays of complex eigenvalues
 
     # STEPS:
     # 1. get EP and LEPs
@@ -197,21 +158,15 @@ def getEigenStuffsNx(G: nx.Graph | nx.DiGraph) -> Tuple[List[complex], Dict[int,
     for lep in leps:
         # 4a. induce subgraph of G on each LEP
         subgraph_nodeset = set() # reduce(lambda sum, x: sum.union(pi[x]), lep, set())
-        # pi_i = dict() # previously used to compute subgraphs; see line above 4b
         for ep_el in lep:
             subgraph_nodeset.update(pi[ep_el])
-            # pi_i[ep_el] = pi[ep_el]
         subgraph = G.subgraph(subgraph_nodeset)
-        # faster (supposedly) than the line below, because it doesn't have
-        #   to iterate over all nodes in pi
-        # pi_i = {k: v for k, v in pi.items() if k in lep}
+
         # 4b. get divisor matrix of induced subgraph
         if len(lep) < 2:
             # globals = locals for 1x1 lep, so skip this iteration
             continue
 
-        # TODO: compare the speed of this method vs:
-        # subgraph_div = getDivisorMatrixNx(subgraph, pi_i)
         subgraph_div = np.empty((len(lep), len(lep)), dtype=int)
         for i in range(len(lep)):
             for j in range(len(lep)):
@@ -294,7 +249,7 @@ def getSymmetricDifferenceMatching(list1: List[complex], list2: List[complex]) -
     '''
     # 1. create a bipartite graph with edges between each complex number in list1 and all 
     #   complex numbers in list2 that are sufficiently close to be considered equal
-    #   (within some floating point tolerance)
+    #   (within some floating-point tolerance)
     sparse_graph = sparse.dok_matrix((len(list1), len(list2)), dtype=bool)
     for i, cnum1 in enumerate(list1):
         for j, cnum2 in enumerate(list2):
@@ -329,7 +284,7 @@ def compareEigenvalues(G: nx.Graph | nx.DiGraph) -> None:
         G : NetworkX Graph
             The graph to analyze
     '''
-    # TODO:
+    # STEPS:
     # 1. get eigenvalues of the graph using the complete equitable partitions method
     cep_eigs = getEigenvaluesSparse(nx.adjacency_matrix(G))
     # for checking the networkx implimentation, use
@@ -337,7 +292,7 @@ def compareEigenvalues(G: nx.Graph | nx.DiGraph) -> None:
     # 2. get eigenvalues of the graph using networkx
     np_eigs = np.linalg.eigvals(nx.adjacency_matrix(G).toarray())
 
-    # use getSymmetricDifferenceMatching for complex eigs
+    # use getSymmetricDifferenceMatching for slower, but more robust, performance
     rem_cep, rem_np = getSymmetricDifferenceMatching(cep_eigs, np_eigs)
 
     if len(rem_cep) != 0 or len(rem_np) != 0:
@@ -346,46 +301,8 @@ def compareEigenvalues(G: nx.Graph | nx.DiGraph) -> None:
         return False
     return True
 
-def getDivisorMatrix(N: dict[int, set[int]], pi: Dict[int, Set[int]]) -> sparse.sparray: # [int, set[int]]:
-    """Finds the divisor matrix of a graph with respect to its coarsest equitable partition.
-   
-    ARGUMENTS:
-        N : dict
-            The graph to analyze, with nodes as keys and a set of their neighbors as values.
-            (The inverse of N as returned by lep_finder.initialize)
-        pi : dict
-            The coarsest equitable partition of the graph, as returned by ep_finder
-        leps : list
-            The local equitable partitions of the graph, as returned by lep_finder
-    
-    RETURNS:
-        The divisor matrix with weights representing the number of connections between LEPs (sparse)
-    """
-    pass
 
-def getEigenvalues(N: dict[int, set[int]], pi: dict[int, set[int]], leps: list[set[int]]) \
-        -> tuple[list[complex], dict[int, list[complex]], dict[int, list[complex]]]:
-    """Finds the eigenvalues of the divisor matrix of a graph with respect to its coarsest equitable partition.
-   
-    ARGUMENTS:
-        N : dict
-            The graph to analyze, with nodes as keys and a set of their neighbors as values.
-            (The inverse of N as returned by lep_finder.initialize)
-        pi : dict
-            The coarsest equitable partition of the graph, as returned by ep_finder
-        leps : list
-            The local equitable partitions of the graph, as returned by lep_finder
-    
-    RETURNS:
-        A three-tuple of the (global) eigenvalues of the divisor matrix (list[complex]]), the eigenvalues 
-            of the LEP submatrices (dict[int -> list[complex]]), and the eigenvalues of the divisor 
-            matrices of the LEPs (dict[int -> list[complex]])
-    """
-    # hint: use numpy.linalg.eigvals
-    # hint: use getDivisorMatrix to get the divisor matrix of the graph and of each LEP
-    pass
-
-def getEquitablePartitions(G, progress_bars = True, ret_adj_dict = False, rev = False,plot_graph=False):
+def getEquitablePartitions(G, progress_bars=True, rev=False):
     """Finds the coarsest equitable partition and local equitable partitions of a graph.
    
     ARGUMENTS:
@@ -406,8 +323,6 @@ def getEquitablePartitions(G, progress_bars = True, ret_adj_dict = False, rev = 
     N_G = lep_finder.initFromNx(G)
     leps = lep_finder.getLocalEquitablePartitions(N_G, ep, progress_bar=progress_bars)
     
-    if plot_graph:
-        plotEquitablePartition(G,ep)
     return ep, leps
 
 def getEquitablePartitionsFromFile(file_path, num_nodes=None, delim=',', comments='#', directed=False, progress_bars=True, ret_adj_dict=False, rev=False):
@@ -434,6 +349,7 @@ def getEquitablePartitionsFromFile(file_path, num_nodes=None, delim=',', comment
     if ret_adj_dict:
         return ep, leps, {node: N[node].neighbors for node in N}
     return ep, leps
+
 
 def plotEquitablePartition(G, pi, pos_dict=None):
     """Plots the equitable partition of a graph, with each element in its own color.

@@ -430,25 +430,11 @@ def initFromNx(G: nx.Graph | nx.DiGraph | sp.coo_matrix, sparse_alg=False) -> Di
 
     # initialize Node list -- all start with ColorClass index of 0
     N = dict()
-    # TODO: move this out of initFromNx and into some initFromSparse method or similar
-    # TODO: determine best way to intialize (maybe one initialize function that does type-checking
-    #   and delegates initialization to the corresponding function; raise error if argument type is
-    #   not supported?)
-    if sparse_alg:
-        #CGPT warning, if errors, check this.
-        if G.format == 'csr':
-            for node in range(G.shape[0]):
-                successors = G.indices[G.indptr[node]:G.indptr[node + 1]].astype(str)
-                N[str(node)] = Node(str(node), 0, successors)
-        elif G.format == 'coo':
-            for node in [n for n in range(G.shape[0])]:
-                successors = G.col[G.row == node].astype(str)   # outgoing edges
-                N[str(node)] = Node(str(node),0, successors)
-    else:
-        for node in G.nodes():
-            # in DiGraphs, neighbors() is the same as successors()
-            neighbors = list(G.neighbors(node))
-            N[node] = Node(node, 0, neighbors)
+
+    for node in G.nodes():
+        # in DiGraphs, neighbors() is the same as successors()
+        neighbors = list(G.neighbors(node))
+        N[node] = Node(node, 0, neighbors)
 
     return N
 
@@ -472,19 +458,7 @@ def initFromSparse(mat: sp.csr_array) -> Dict[Any, Node]:
     """
 
     # initialize Node list -- all start with ColorClass index of 0
-    # TODO: this is very similar to the initialization in lep_finder.initFromSparse
-    #   we should probably reuse shared logic instead of duplicating it here
-    # rows, cols = mat.nonzero()
-    # start = 0
     N = {i: Node(i, 0, list(mat.indices[mat.indptr[i]:mat.indptr[i + 1]])) for i in range(mat.shape[0])}
-    # N = {i: Node(i, 0) for i in range(mat.shape[0])}
-    # while start < len(rows):
-    #     curr_row = rows[start]
-    #     end = start + 1
-    #     while end < len(rows) and rows[end] == curr_row:
-    #         end += 1
-    #     N[curr_row].neighbors = cols[start:end]
-    #     start = end
 
     return N
 
