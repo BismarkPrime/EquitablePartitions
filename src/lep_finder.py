@@ -42,6 +42,7 @@ def initFromNx(G: nx.Graph | nx.DiGraph) -> Dict[Any, Set[Any]]:
     N = {node: set(G.predecessors(node) if G.is_directed() else G.neighbors(node)) for node in G.nodes()}
     return N
 
+@profile
 def initFromSparse(mat: sparse.csc_array) -> Dict[Any, Set[Any]]:
     """Initializes the inverted neighbor dictionary required to compute leps.
     
@@ -104,8 +105,8 @@ def initFromFile(file_path: str, num_nodes: int=None, delim: str=',',
                 N.update({i: set()})
     return N
 
-def getLocalEquitablePartitions(N: Dict[Any, Set[Any]], 
-                                ep: Dict[int, Set[Any]],progress_bar: bool=False) -> List[List[int]]:
+@profile
+def getLocalEquitablePartitions(N: Dict[Any, Set[Any]], ep: Dict[int, Set[Any]]) -> List[List[int]]:
     """Finds the local equitable partitions of a graph.
    
     ARGUMENTS:
@@ -117,13 +118,10 @@ def getLocalEquitablePartitions(N: Dict[Any, Set[Any]],
         A list of sets, with each set containing the indices/keys of partition elements
             that can be grouped together in the same local equitable partition
     """
-    retval = None
-    with alive_bar(3 * len(ep) + 1, title="COMPUTING LEPS...\n", disable=not progress_bar) as bar:
-        for i in __computeLocalEquitablePartitions(N, ep):
-            bar()
-            retval = i
-    return retval
+    
+    return __computeLocalEquitablePartitions(N, ep)
 
+@profile
 def __computeLocalEquitablePartitions(N: Dict[Any, Set[Any]], pi: Dict[int, List[Any]]) \
                                                               -> Generator[None, None, List[List[int]]]:
     """Finds the local equitable partitions of a graph.
@@ -142,7 +140,6 @@ def __computeLocalEquitablePartitions(N: Dict[Any, Set[Any]], pi: Dict[int, List
     for i, V in pi.items():
         for node in V:
             partition_dict[node] = i
-        yield
 
     # keeps track of which partition elements are stuck together by internal cohesion,
     #   with partition element index as key and internally cohesive elements as values
@@ -152,16 +149,14 @@ def __computeLocalEquitablePartitions(N: Dict[Any, Set[Any]], pi: Dict[int, List
         common_neighbors = set(N[V[0]])
         for v in V:
             common_neighbors.intersection_update(N[v])
-        yield
         for v in V:
             for unique_neighbor in set(N[v]).difference(common_neighbors):
                 __link(i, partition_dict[unique_neighbor], lep_network)
-        yield
 
     leps = __extractConnectedComponents(lep_network, len(pi))
     # convert to List of Lists to be consistent with EPFinder
     lep_list = [list(lep) for lep in leps]
-    yield lep_list
+    return lep_list
 
 def __link(i: int, j: int, edge_dict: Dict[int, Set[int]]) -> None:
     if i not in edge_dict:

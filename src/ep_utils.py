@@ -10,6 +10,7 @@ from scipy import sparse
 import itertools
 from typing import Dict, List, Set, Tuple
 import graphs
+import timeit
 
 from collections import Counter
 import ep_finder, lep_finder
@@ -18,7 +19,7 @@ import graphs
 # TODO: update naming to match paper
 # TODO: use child processes for finding EP and LEP to release memory after computation.
 
-EPSILON = 1e-4
+EPSILON = 1e-2
 
 
 @profile
@@ -38,8 +39,9 @@ def getEigenvaluesSparse(mat: sparse.sparray) -> List[float | complex]:
     #       a. Compute Divisor Matrix
     #       b. Calculate spectrum
     divisor_matrix = getDivisorMatrixSparse(csc, pi)
-    globals = np.linalg.eigvals(divisor_matrix) # if hermetian, use eigvalsh here instead (and below)
-    # print(f"{divisor_matrix.todense() = }")
+    # in practice, np.linalg.eigvals, scipy.linalg.eigvals, and scipy.linalg.eigvals(..., overwrite_a=True) run
+    #   in roughly the same amount of time
+    globals = np.linalg.eigvals(divisor_matrix)
 
     # 2. Find Monad LEP Set
     L = lep_finder.getLocalEquitablePartitions(lep_finder.initFromSparse(csc), pi)
@@ -58,19 +60,16 @@ def getEigenvaluesSparse(mat: sparse.sparray) -> List[float | complex]:
         # skip iterations for which globals = locals
         if len(nodes) < 2:
             continue
-        #TODO: consider if this logic can be optimized (is it faster to convert to csc if we only perform one column-slice?)
-        subgraph = csr[nodes,:].tocsc()[:,nodes]
+        
+        subgraph = csr[nodes,:][:,nodes]
         divisor_submatrix = divisor_matrix[lep,:][:,lep]
 
-        subgraph_globals = scipy.linalg.eigvals(divisor_submatrix)
-        subgraph_locals = scipy.linalg.eigvals(subgraph.todense())
+        subgraph_globals = np.linalg.eigvals(divisor_submatrix)
+        subgraph_locals = np.linalg.eigvals(subgraph.todense())
 
         locals.append(getSymmetricDifference(subgraph_locals, subgraph_globals)[0])
     
     spectrum = list(itertools.chain.from_iterable((globals, *locals)))
-    # TODO: compare runtime with:
-    # spectrum = []
-    # map(spectrum.extend, (globals, *locals))
 
     return spectrum
 
@@ -509,7 +508,7 @@ def ValidateMethod(G):
     return Counter(our_spec) == Counter(their_spec)
 
 if __name__ == "__main__":
-    G = nx.erdos_renyi_graph(800, .005, directed=True, seed=0)
+    G = nx.erdos_renyi_graph(3000, .005, directed=True, seed=0)
     sparse_array = nx.adjacency_matrix(G)
     getEigenvaluesSparse(sparse_array)
     getEigenvaluesNx(G)
