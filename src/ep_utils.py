@@ -144,7 +144,7 @@ def getEigenStuffsNx(G: nx.Graph | nx.DiGraph) -> Tuple[List[complex], Dict[int,
 
     # STEPS:
     # 1. get EP and LEPs
-    pi, leps = getEquitablePartitions(G, progress_bars=False)
+    pi, leps = getEquitablePartitions(G)
     
     # 2. get divisor matrix of graph
     div = getDivisorMatrixNx(G, pi)
@@ -320,7 +320,7 @@ def getEquitablePartitions(G, progress_bars=True, rev=False):
     ep = ep_finder.getEquitablePartition(ep_finder.initFromNx(G))
 
     N_G = lep_finder.initFromNx(G)
-    leps = lep_finder.getLocalEquitablePartitions(N_G, ep, progress_bar=progress_bars)
+    leps = lep_finder.getLocalEquitablePartitions(N_G, ep)
     
     return ep, leps
 
@@ -511,4 +511,4 @@ if __name__ == "__main__":
     G = nx.erdos_renyi_graph(3000, .005, directed=True, seed=0)
     sparse_array = nx.adjacency_matrix(G)
     getEigenvaluesSparse(sparse_array)
-    getEigenvaluesNx(G)
+    # getEigenvaluesNx(G)

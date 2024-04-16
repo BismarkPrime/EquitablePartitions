@@ -236,7 +236,7 @@ class ColorClass(LinkedList):
             node = node.next
         return nodes
 
-    def computeColorStructure(self, C: List['ColorClass'], N: Dict[Any, Node]) -> None:
+    def computeColorStructure(self, C: List['ColorClass'], N: List[Node]) -> None:
         """
         Computes the number of edges and color of neighbors of each node in this 
             color class. These metrics are used in splitColor to determine which 
@@ -409,7 +409,7 @@ def bucketSort(objs: List[Any], attribute: str, attr_min_val: int, attr_max_val:
                 objs[i] = obj
                 i += 1
    
-def initFromNx(G: nx.Graph | nx.DiGraph | sp.coo_matrix, sparse_alg=False) -> Dict[Any, Node]:
+def initFromNx(G: nx.Graph | nx.DiGraph) -> List[Node]:
     """
     Initializes the Node list necessary for equitablePartition.
 
@@ -429,16 +429,12 @@ def initFromNx(G: nx.Graph | nx.DiGraph | sp.coo_matrix, sparse_alg=False) -> Di
     """
 
     # initialize Node list -- all start with ColorClass index of 0
-    N = dict()
-
-    for node in G.nodes():
-        # in DiGraphs, neighbors() is the same as successors()
-        neighbors = list(G.neighbors(node))
-        N[node] = Node(node, 0, neighbors)
+    # in DiGraphs, neighbors() is the same as successors()
+    N = [Node(node, 0, list(G.neighbors(node))) for node in G.nodes()]
 
     return N
 
-def initFromSparse(mat: sp.csr_array) -> Dict[Any, Node]:
+def initFromSparse(mat: sp.csr_array) -> List[Node]:
     """
     Initializes the Node list necessary for equitablePartition.
 
@@ -458,7 +454,7 @@ def initFromSparse(mat: sp.csr_array) -> Dict[Any, Node]:
     """
 
     # initialize Node list -- all start with ColorClass index of 0
-    N = {i: Node(i, 0, list(mat.indices[mat.indptr[i]:mat.indptr[i + 1]])) for i in range(mat.shape[0])}
+    N = [Node(i, 0, list(mat.indices[mat.indptr[i]:mat.indptr[i + 1]])) for i in range(mat.shape[0])]
 
     return N
 
@@ -493,6 +489,14 @@ def initFromFile(file_path: str, num_nodes: int=None, delim: str=',',
     Space: Linear with number of nodes and with number of edges
 
     """
+
+    # TODO: update this to create a list (not dict) 
+    #                   -or-
+    # remove it entirely and only use sparse initialization
+    # KEEP IN MIND THAT ORIGINALLY THIS WAS A LIST, BUT IT CAUSED ISSUES BECAUSE NOT 
+    # ALL VERTICES WERE CONSECUTIVE INTEGERS. IF WE CONTINUE TO INIT FROM FILE, WE MUST 
+    # VERIFY THAT THESE CONDITIONS ARE MET. PROBABLY EASIER JUST TO MAKE SPARSE AND USE
+    # INIT FROM SPARSE
 
     N = dict()
     
@@ -559,7 +563,7 @@ def recolor(C: List[ColorClass], L: Set[Node]) -> None:
         v.old_color = v.new_color
 
 
-def getEquitablePartition(N: Dict[Any, Node], progress_bar: bool=False) -> Dict[int, List[Any]]:
+def getEquitablePartition(N: List[Node], progress_bar: bool=False) -> Dict[int, List[Any]]:
     """
     Finds the coarsest equitable partition of a network. In the case of a directed graph, it
     computes the coarsest receiving equitable partition.
@@ -589,7 +593,7 @@ def getEquitablePartition(N: Dict[Any, Node], progress_bar: bool=False) -> Dict[
     C = [ColorClass()]
     
     # add all nodes to their correspnding ColorClass
-    for n in N.values():
+    for n in N:
         C[0].append(n)
 
     C[0].size = len(N)

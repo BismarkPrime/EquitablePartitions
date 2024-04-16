@@ -13,20 +13,6 @@ import ep_finder
 #   Using Disjoint Set data structures to store partitions
 #   Initialize using csv files
 
-def initFromN(N: Dict[Any, ep_finder.Node]) -> Dict[Any, Set[Any]]: 
-    """Initializes the inverted neighbor dictionary required to compute leps.
-   
-    ARGUMENTS:
-        N (dict): dictionary created used by 
-
-    RETURNS:
-        A dictionary with nodes as keys and a set of their in-edge neighbors as values.
-    """
-    # this assumes undirected because we need to use predecessors for the directed case
-    # TODO: refer to above comment
-    N = {label: Node.successors for label,Node in N.items()}
-    return N
-
 def initFromNx(G: nx.Graph | nx.DiGraph) -> Dict[Any, Set[Any]]:
     """Initializes the inverted neighbor dictionary required to compute leps.
     PAS's Code
@@ -39,7 +25,7 @@ def initFromNx(G: nx.Graph | nx.DiGraph) -> Dict[Any, Set[Any]]:
 
     # NOTE: N stores the in-edge neighbors, i.e. N[v] returns all nodes w with an edge w -> v.
     #    Thus, it is different than just calling G.neighbors(v); (hence, we use G.reverse())
-    N = {node: set(G.predecessors(node) if G.is_directed() else G.neighbors(node)) for node in G.nodes()}
+    N = [set(G.predecessors(node) if G.is_directed() else G.neighbors(node)) for node in G.nodes()]
     return N
 
 @profile
@@ -57,7 +43,7 @@ def initFromSparse(mat: sparse.csc_array) -> Dict[Any, Set[Any]]:
     # mat = mat.tocsc()
  
     # NOTE: we should revert to using arrays/lists where possible instead of dictionaries to reduce spatial complexity
-    N = {i: set(mat.indices[mat.indptr[i]:mat.indptr[i + 1]]) for i in range(mat.shape[0])}
+    N = [set(mat.indices[mat.indptr[i]:mat.indptr[i + 1]]) for i in range(mat.shape[0])]
     
     return N
         
@@ -122,8 +108,8 @@ def getLocalEquitablePartitions(N: Dict[Any, Set[Any]], ep: Dict[int, Set[Any]])
     return __computeLocalEquitablePartitions(N, ep)
 
 @profile
-def __computeLocalEquitablePartitions(N: Dict[Any, Set[Any]], pi: Dict[int, List[Any]]) \
-                                                              -> Generator[None, None, List[List[int]]]:
+def __computeLocalEquitablePartitions(N: List[Set[int]], pi: Dict[int, List[Any]]) \
+                                                              -> List[List[int]]:
     """Finds the local equitable partitions of a graph.
    
     ARGUMENTS:
@@ -136,7 +122,7 @@ def __computeLocalEquitablePartitions(N: Dict[Any, Set[Any]], pi: Dict[int, List
     """
 
     # dict that maps nodes to their partition element
-    partition_dict = dict()
+    partition_dict = np.empty(len(N), dtype=int)
     for i, V in pi.items():
         for node in V:
             partition_dict[node] = i
@@ -150,7 +136,7 @@ def __computeLocalEquitablePartitions(N: Dict[Any, Set[Any]], pi: Dict[int, List
         for v in V:
             common_neighbors.intersection_update(N[v])
         for v in V:
-            for unique_neighbor in set(N[v]).difference(common_neighbors):
+            for unique_neighbor in set(N[v]) - common_neighbors:
                 __link(i, partition_dict[unique_neighbor], lep_network)
 
     leps = __extractConnectedComponents(lep_network, len(pi))
