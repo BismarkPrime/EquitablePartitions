@@ -18,7 +18,7 @@ def time_this(func,args,store_in=None,ret_output=False,label="result"):
     ---------
     RETURNS
     ---------
-    t (flaot): time required to run
+    t (float): time required to run
     out (varies): returns this if specified. It is the output of the function
         that was timed
     """

@@ -30,6 +30,7 @@ TODO:
 from typing import Any, List, Set, Dict
 import scipy.sparse as sp
 import networkx as nx
+import operator
 
 class LinkedListNode:
     """Base class for doubly-linked list nodes"""
@@ -236,6 +237,7 @@ class ColorClass(LinkedList):
             node = node.next
         return nodes
 
+    #@profile
     def computeColorStructure(self, C: List['ColorClass'], N: List[Node]) -> None:
         """
         Computes the number of edges and color of neighbors of each node in this 
@@ -273,12 +275,13 @@ class ColorClass(LinkedList):
                     C[v.new_color].curr_color_neighbors += 1   # if not, increment out-edge neighbor count for its color
                     self.out_edge_neighbors.append(v)                   # and add v to this color class's out-edge neighbors
                 v.out_edge_count += 1                                   # increment count of out-edges from this color class to v
-                # track largest number of outgoing edges to a single node
+                # track largest number of outgoing edges to a single node (for bucket sorting)
                 if v.out_edge_count > self.max_out_edge_count:
                     self.max_out_edge_count = v.out_edge_count
 
             w = w.next # move to next node in the color class
 
+    #@profile
     def splitColor(self, C: List['ColorClass'], L: Set[Node]) -> None:
         """
         Uses metrics collected in computeColorStructure to determine which nodes 
@@ -379,6 +382,7 @@ class ColorClass(LinkedList):
             v = v.next
             data += f', {v}'
 
+#@profile
 def bucketSort(objs: List[Any], attribute: str, attr_min_val: int, attr_max_val: int) -> None:
     """
     Initializes the Node list necessary for equitablePartition.
@@ -434,6 +438,7 @@ def initFromNx(G: nx.Graph | nx.DiGraph) -> List[Node]:
 
     return N
 
+#@profile
 def initFromSparse(mat: sp.csr_array) -> List[Node]:
     """
     Initializes the Node list necessary for equitablePartition.
@@ -526,7 +531,7 @@ def initFromFile(file_path: str, num_nodes: int=None, delim: str=',',
 
     return N
 
-
+#@profile
 def recolor(C: List[ColorClass], L: Set[Node]) -> None:
     """
     Updates color classes to reflect the coloring stored in each node's 
@@ -552,7 +557,7 @@ def recolor(C: List[ColorClass], L: Set[Node]) -> None:
     # make sure largest new color retains old color label (for a more efficient next iteration)
     for c in {v.old_color for v in L}:
         # get index of largest new colorclass from same previous colorclass
-        d = max({(C[c].size, c) for v in L if v.old_color == c})[1]
+        d = max({(C[v.new_color].size, v.new_color) for v in L if v.old_color == c})[1]
         # if color d has more nodes than the original, switch their coloring
         if C[c].size < C[d].size:
             C[c].relabel(d)
@@ -562,7 +567,7 @@ def recolor(C: List[ColorClass], L: Set[Node]) -> None:
     for v in L:
         v.old_color = v.new_color
 
-
+#@profile
 def getEquitablePartition(N: List[Node], progress_bar: bool=False) -> Dict[int, List[Any]]:
     """
     Finds the coarsest equitable partition of a network. In the case of a directed graph, it
