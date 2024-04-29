@@ -87,13 +87,13 @@ def GetLocalSpec(G,ep_dict,lep_list):
         
     return spec_dict, orig_spec
 
-def GenBerthaSparse(n):
+def GenBerthaSparse(n, parallel=False):
     """
     NOTE: this function could be a near-exact copy of GenBertha, but returning `mat` instead of using
     `nx.from_scipy_sparse_array`. However, writing it from scratch may prove more readable and efficient.
     """
     e = 2.36 # exponent of the current fastest algorithm (e.g., we hope that np.eigs is in O(n^e))
-    num_leps = int(n ** (e / (2 * e - 1)))
+    num_leps = int(n ** .5) if parallel else int(n ** (e / (2 * e - 1)))
     lep_size = n // num_leps
     num_larger_leps = n - num_leps * lep_size
 
@@ -107,6 +107,8 @@ def GenBerthaSparse(n):
             width = lep_size
         if i == num_larger_leps - 1:
             height = lep_size
+        if i == 0:
+            mat[:width, :height] = np.eye(width, dtype=int)
         mat[start:start + width, start + width:start + width + height] = np.ones((width, height), dtype=int)
         mat[start + width:start + width + height, start:start + width] = np.ones((height, width), dtype=int)
         start += width
