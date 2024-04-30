@@ -10,6 +10,7 @@ from scipy import sparse
 import itertools
 from typing import Dict, List, Set, Tuple
 import graphs
+import time
 import timeit
 
 from collections import Counter
@@ -19,32 +20,41 @@ import graphs
 # TODO: update naming to match paper
 # TODO: use child processes for finding EP and LEP to release memory after computation.
 
-EPSILON = 1e-2
+EPSILON = 1e-4
 
 
-@profile
+#@profile
 def getEigenvaluesSparse(mat: sparse.sparray) -> List[float | complex]:
     # NOTE: despite using sparse matrices where possible, eigenvalue calculations 
     #   are still performed on dense matrices. If possible, it would be good to hook 
     #   into a library designed for finding eigenvalues of sparse matrices specifically
     # see https://scicomp.stackexchange.com/questions/7369/what-is-the-fastest-way-to-compute-all-eigenvalues-of-a-very-big-and-sparse-adja
 
+    start = time.time()
     csr = mat.tocsr()
     csc = mat.tocsc()
 
+
+    print(f"{time.time() - start}: converted to csr, csc")
+
     # 1. Find Coarsest Equitable Partition
     pi = ep_finder.getEquitablePartition(ep_finder.initFromSparse(csr))
+
+    print(f"{time.time() - start}: found ep")
 
     # 2. Find Global Eigenvalues
     #       a. Compute Divisor Matrix
     #       b. Calculate spectrum
     divisor_matrix = getDivisorMatrixSparse(csc, pi)
+    print(f"{time.time() - start}: computed divisor matrix")
     # in practice, np.linalg.eigvals, scipy.linalg.eigvals, and scipy.linalg.eigvals(..., overwrite_a=True) run
     #   in roughly the same amount of time
     globals = np.linalg.eigvals(divisor_matrix)
+    print(f"{time.time() - start}: got globals")
 
     # 2. Find Monad LEP Set
     L = lep_finder.getLocalEquitablePartitions(lep_finder.initFromSparse(csc), pi)
+    print(f"{time.time() - start}: got LEPs")
 
     # 3. Find Local Eigenvalues
     #    For each LEP:
@@ -67,13 +77,15 @@ def getEigenvaluesSparse(mat: sparse.sparray) -> List[float | complex]:
         subgraph_globals = np.linalg.eigvals(divisor_submatrix)
         subgraph_locals = np.linalg.eigvals(subgraph.todense())
 
-        locals.append(getSymmetricDifference(subgraph_locals, subgraph_globals)[0])
+        locals.append(getSetDifference(subgraph_locals, subgraph_globals))
+    print(f"{time.time() - start}: got locals")
     
     spectrum = list(itertools.chain.from_iterable((globals, *locals)))
+    print(f"{time.time() - start}: combined globals + locals")
 
     return spectrum
 
-@profile
+#@profile
 def getDivisorMatrixSparse(mat_csc: sparse.csc_array, pi: Dict[int, List[int]]) -> sparse.sparray:
 
     node2ep = { node: i for i, V in pi.items() for node in V }
@@ -87,7 +99,7 @@ def getDivisorMatrixSparse(mat_csc: sparse.csc_array, pi: Dict[int, List[int]]) 
     
     return div_mat
 
-@profile
+#@profile
 def getDivisorMatrixNx(G: nx.Graph | nx.DiGraph, pi: Dict[int, Set[int]]) -> sparse.sparray: # [int, set[int]]:
     """Finds the divisor matrix of a graph with respect to its coarsest equitable partition.
    
@@ -124,7 +136,7 @@ def getDivisorMatrixNx(G: nx.Graph | nx.DiGraph, pi: Dict[int, Set[int]]) -> spa
             div_mat[ep_to_div[ep_id], ep_to_div[neighbor_ep]] += 1
     return div_mat
 
-@profile
+#@profile
 def getEigenStuffsNx(G: nx.Graph | nx.DiGraph) -> Tuple[List[complex], Dict[int, List[complex]], Dict[int, List[complex]]]:
     """Finds the eigenvalues of the divisor matrix of a graph with respect to its coarsest equitable partition.
    
@@ -183,7 +195,7 @@ def getEigenStuffsNx(G: nx.Graph | nx.DiGraph) -> Tuple[List[complex], Dict[int,
     return globals, lep_locals, lep_globals
 
 
-@profile
+#@profile
 def getEigenvaluesNx(G: nx.Graph | nx.DiGraph) -> List[complex]:
     '''
     Extracts eigenvalues from graph using the complete equitable partitions method.
@@ -201,42 +213,53 @@ def getEigenvaluesNx(G: nx.Graph | nx.DiGraph) -> List[complex]:
     #   may have to be performed as a bipartite-matching problem. Solved via max-flow, this can 
     #   theoretically be almost linear with respect to the number of edges in the bipartite graph,
     #   though most algorithms are significantly slower (https://en.wikipedia.org/wiki/Maximum_flow_problem)
-    lifting_counter, _ = getSymmetricDifference(lifting_counter, lep_globals)
+    lifting_counter = getSetDifference(lifting_counter, lep_globals)
 
     return lifting_counter
     
 
-def getSymmetricDifference(list1: List[complex], list2: List[complex]) -> Tuple[List, List]:
+def getSetDifference(list1: List[complex], list2: List[complex], epsilon_start=EPSILON, epsilon_max=1e-1) -> List[complex]:
     '''
-        Gets the symmetric difference of two lists. Returns two lists: list1 - list2,
-        and list2 - list1
+        Gets the difference of two lists. (Returns list1 - list2)
+        Assumes that two elements are equal if they are within epsilon of one another.
+        Increases the value of epsilon by an order of magnitude, up to epsilon_max, until all elements of list2 can be removed from list1.
+        If elements remain in list2 after reaching epsilon_max, throws and error.
     '''
     # NOTE: since maximum bipartite matching is generally solved as a max-flow problem, it
     #   may be comparable in speed to this naive method (n^2), and is more robust to edge cases.
     #   (Note, however, that the current implementation in NetworkX is quite slow.)
     #   Consider defaulting to the bipartite method in getSymmetricDifferenceMatching
-    skipIndices1 = set()
-    skipIndices2 = set()
+    
     res1 = []
-    res2 = []
-    for i, cnum1 in enumerate(list1):
+
+    skip_indices1 = set()
+    skip_indices2 = set()
+    epsilon = epsilon_start
+
+    while len(skip_indices2) < len(list2):
         for j, cnum2 in enumerate(list2):
-            if j in skipIndices2:
+            if j in skip_indices2:
                 continue
-            if cmath.isclose(cnum1, cnum2, abs_tol=EPSILON):
-                skipIndices1.add(i)
-                skipIndices2.add(j)
-                break
+            for i, cnum1 in enumerate(list1):
+                if i in skip_indices1:
+                    continue
+                if cmath.isclose(cnum2, cnum1, abs_tol=epsilon):
+                    skip_indices1.add(i)
+                    skip_indices2.add(j)
+                    break
+        # if, with epsilon = epsilon_max, we still can't perform the operation, raise an error
+        if epsilon == epsilon_max and len(skip_indices2) < len(list2):
+            raise Exception("Elements of list2 not present in list1:\n" +
+                            f"{[cnum for i, cnum in enumerate(list2) if i not in skip_indices2]}")
+        # increase epsilon by an order of magnitude
+        epsilon = min(epsilon * 10, epsilon_max)
+        
 
     for i, cnum in enumerate(list1):
-        if i not in skipIndices1:
+        if i not in skip_indices1:
             res1.append(cnum)
-    
-    for j, cnum in enumerate(list2):
-        if j not in skipIndices2:
-            res2.append(cnum)
 
-    return res1, res2
+    return res1
 
 def getSymmetricDifferenceMatching(list1: List[complex], list2: List[complex]) -> Tuple[List, List]:
     '''
@@ -375,7 +398,7 @@ def plotEquitablePartition(G, pi, pos_dict=None):
     
     if pos_dict is None:
         # other layout options include: random, circular, spiral, spring, kamada_kawai, etc
-        pos_dict = nx.shell_layout(G)
+        pos_dict = nx.spring_layout(G)# nx.shell_layout(G)
 
     # set plot as non-blocking
     plt.ion()
@@ -508,7 +531,14 @@ def ValidateMethod(G):
     return Counter(our_spec) == Counter(their_spec)
 
 if __name__ == "__main__":
-    G = nx.erdos_renyi_graph(3000, .005, directed=True, seed=0)
-    sparse_array = nx.adjacency_matrix(G)
-    getEigenvaluesSparse(sparse_array)
+    # G = nx.erdos_renyi_graph(3000, .005, directed=True, seed=0)
+    # sparse_array = nx.adjacency_matrix(G)
+    # getEigenvaluesSparse(sparse_array)
     # getEigenvaluesNx(G)
+    mat = graphs.GenBerthaSparse(10000)
+    
+    csr = mat.tocsr()
+    
+    pi = ep_finder.getEquitablePartition(ep_finder.initFromSparse(csr), progress_bar=True)
+    
+    print("Done")

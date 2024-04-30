@@ -28,7 +28,7 @@ def initFromNx(G: nx.Graph | nx.DiGraph) -> Dict[Any, Set[Any]]:
     N = [set(G.predecessors(node) if G.is_directed() else G.neighbors(node)) for node in G.nodes()]
     return N
 
-@profile
+#@profile
 def initFromSparse(mat: sparse.csc_array) -> Dict[Any, Set[Any]]:
     """Initializes the inverted neighbor dictionary required to compute leps.
     
@@ -91,7 +91,7 @@ def initFromFile(file_path: str, num_nodes: int=None, delim: str=',',
                 N.update({i: set()})
     return N
 
-@profile
+#@profile
 def getLocalEquitablePartitions(N: Dict[Any, Set[Any]], ep: Dict[int, Set[Any]]) -> List[List[int]]:
     """Finds the local equitable partitions of a graph.
    
@@ -107,7 +107,7 @@ def getLocalEquitablePartitions(N: Dict[Any, Set[Any]], ep: Dict[int, Set[Any]])
     
     return __computeLocalEquitablePartitions(N, ep)
 
-@profile
+#@profile
 def __computeLocalEquitablePartitions(N: List[Set[int]], pi: Dict[int, List[Any]]) \
                                                               -> List[List[int]]:
     """Finds the local equitable partitions of a graph.
