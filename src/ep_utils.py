@@ -340,9 +340,9 @@ def getEquitablePartitions(G, progress_bars=True, rev=False):
 
     G = G if not rev else G.reverse()
 
-    ep = ep_finder.getEquitablePartition(ep_finder.initFromNx(G))
+    ep = ep_finder.getEquitablePartition(ep_finder.initFromNx(nx.convert_node_labels_to_integers(G)))
 
-    N_G = lep_finder.initFromNx(G)
+    N_G = lep_finder.initFromNx(nx.convert_node_labels_to_integers(G))
     leps = lep_finder.getLocalEquitablePartitions(N_G, ep)
     
     return ep, leps

@@ -355,14 +355,16 @@ def NetworkxToMathematica(graph,filename='exported_graph'):
     """
     nx.write_graphml(graph,'./Mathematica/' + filename + '.graphml')
 
-def NumpyToMathematica(graph,filename='numpy_to_mathematica.txt'):
-    g_s = str(graph)
-    g_s = g_s.replace('[','{')
-    g_s = g_s.replace(']','}')
-    g_s = g_s.replace(' ',',')
-    g_s = g_s.replace('\n,','\n')
-    with open(filename,'w') as file:
-        file.write(g_s)
+def NumpyToMathematica(adjacency_matrix,filename='numpy_to_mathematica.txt'):
+    for row in adjacency_matrix:
+        row_s = str(row)
+        row_s = row_s.replace('[','{')
+        row_s = row_s.replace(']','}')
+        row_s = row_s.replace('.',',')
+        #row_s = row_s.replace(' ','')
+        #row_s = row_s.replace('\n,','\n')
+        with open(filename,'a') as file:
+            file.write(row_s + ',\n')
 
 def relabel(G):
     mapping = {old_label: new_label for new_label, old_label in enumerate(G.nodes())}
