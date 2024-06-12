@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import networkx as nx
 import random
 from scipy import sparse as sp
@@ -6,6 +7,39 @@ from matplotlib import pyplot as plt
 from time import perf_counter as pc
 import ep_utils
 from collections import Counter
+import helper as h
+import pandas as pd
+
+def oneGraphToRuleThemAll(graph_file: str) -> sp.coo_array:
+    """detects the type of input graph. Reads it in and outputs it as a sparse matrix 
+    relaying any problems along the way
+    PARAMETERS
+    ---------------------------------------------
+        graph_file (str): name of the file to load into the graph
+    """
+    tag = graph_file.split('.')[-1]
+    if tag == 'csv': 
+        h.start_section("CSV FILE DETECTED")
+        print("ASSUMPTIONS:\n\twe are assuming that this csv file contains edge data of the form where the first column "
+              "is the origin node and the second column is the destination node. The metrics calculated on this graph "
+              "will not be accurate if this is false.\n\tWe are assuming the node labels start at 0")
+        
+        df = pd.read_csv(graph_file)
+        # get connections, size, 
+        origin = df.iloc[:,0].values
+        dest = df.iloc[:,1].values
+        # get the node offset (if the nodes are labeled starting at 0 then num_nodes may be innacurate without adjustment)
+        node_offset = 1 if 0 in origin or 0 in dest else 0
+        num_nodes = max(origin.max(),dest.max()) + node_offset
+        prompt = h.parse_input(f"Inferred graph size is {num_nodes}. Is this accurate (yes/no): ")
+        # assuming directed but unweighted
+        weights = np.ones(origin.size)
+        # create the sparse matrix with these values. 'b' is for byte to make the storage EVEN SMALLER!
+        G_sparse = sp.coo_array((weights,(origin,dest)),shape=(num_nodes,num_nodes),dtype='b')
+    elif tag == 'txt':
+        pass
+
+    return G_sparse
 
 def getCharacteristicMatrix(partition):
     """
