@@ -38,6 +38,15 @@ def oneGraphToRuleThemAll(graph_file: str) -> sp.coo_array:
         G_sparse = sp.coo_array((weights,(origin,dest)),shape=(num_nodes,num_nodes),dtype='b')
     elif tag == 'txt':
         pass
+    elif tag == 'graphml':
+        pass
+    elif tag == 'json':
+        pass
+    elif tag == 'gexf':
+        pass
+    elif tag == 'edges':
+            pass
+
 
     return G_sparse
 
