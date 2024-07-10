@@ -10,14 +10,30 @@ from collections import Counter
 import helper as h
 import pandas as pd
 
-def oneGraphToRuleThemAll(graph_file: str) -> sp.coo_array:
+def oneGraphToRuleThemAll(file_name: str) -> sp.coo_array:
     """detects the type of input graph. Reads it in and outputs it as a sparse matrix 
     relaying any problems along the way
     PARAMETERS
     ---------------------------------------------
         graph_file (str): name of the file to load into the graph
     """
-    extension = graph_file.split('.')[-1]
+    
+    # note: pandas.read_csv automatically detects compression for the following extensions: 
+    # ‘.gz’, ‘.bz2’, ‘.zip’, ‘.xz’, ‘.zst’, ‘.tar’, ‘.tar.gz’, ‘.tar.xz’ or ‘.tar.bz2’
+    
+    # note: perhaps useable when we consider cases for compressed files
+    # split_name = file_name.split('.')[-1]
+    
+    # tar_compression_extensions = {'gz', 'xz', 'bz2'}
+    # compression_extensions = {'gz', 'bz2', 'zip', 'xz', 'zst', 'tar'}
+    # extension = split_name[-1]
+    # if extension in compression_extensions:
+    #     if extension in tar_compression_extensions and split_name[-2] == 'tar':
+    #         extension = split_name[-3]
+    #     else:
+    #         extension = split_name[-2]
+    
+    extension = file_name.split()[-1]
     match extension:
         case 'csv': 
             h.start_section("CSV FILE DETECTED")
@@ -25,7 +41,7 @@ def oneGraphToRuleThemAll(graph_file: str) -> sp.coo_array:
                 "is the origin node and the second column is the destination node. The metrics calculated on this graph "
                 "will not be accurate if this is false.\n\tWe are assuming the node labels start at 0")
             
-            df = pd.read_csv(graph_file)
+            df = pd.read_csv(file_name)
             # get connections, size, 
             origin = df.iloc[:,0].values
             dest = df.iloc[:,1].values
@@ -38,7 +54,20 @@ def oneGraphToRuleThemAll(graph_file: str) -> sp.coo_array:
             # create the sparse matrix with these values. 'b' is for byte to make the storage EVEN SMALLER!
             G_sparse = sp.coo_array((weights,(origin,dest)),shape=(num_nodes,num_nodes),dtype='b')
         case 'txt':
-            pass
+            df = pd.read_csv(file_name,
+                             sep=None, 
+                             skip_blank_lines=True, 
+                             dtype=int, 
+                             skipinitialspace=True
+                             )
+            src = df.iloc[:,0].values
+            dst = df.iloc[:,1].values
+            zero_indexed = 0 in df
+            num_nodes = df.max(axis=None) + zero_indexed
+            weights = np.ones(src.size)
+            mat = sp.coo_array((weights, (src, dst)), shape=(num_nodes, num_nodes), dtype='b')
+            
+            # TODO: test this function for correctness; compare with other methods of reading in for speed
         case 'graphml':
             h.start_section("GRAPHML FILE DETECTED")
 
