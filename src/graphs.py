@@ -40,7 +40,8 @@ def oneGraphToRuleThemAll(graph_file: str) -> sp.coo_array:
         case 'txt':
             pass
         case 'graphml':
-            pass
+            h.start_section("GRAPHML FILE DETECTED")
+
         case 'json':
             pass
         case 'gexf':

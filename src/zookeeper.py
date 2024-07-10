@@ -12,7 +12,7 @@ UNSUPPORTED_TYPES = ['txt','graphml','json','gexf','edges']
 if __name__=="__main__":
     # get the graph as a sparse graph
     file_path = sys.argv[1]
-    tag = file_path.split('.')
+    tag = file_path.split('.')[-1]
     # type is supported
     if tag in SUPPORTED_TYPES: G = g.oneGraphToRuleThemAll(file_path)
     else:    # type is not
