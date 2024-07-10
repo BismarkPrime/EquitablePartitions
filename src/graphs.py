@@ -65,16 +65,19 @@ def oneGraphToRuleThemAll(file_name: str) -> sp.coo_array:
             zero_indexed = 0 in df
             num_nodes = df.max(axis=None) + zero_indexed
             weights = np.ones(src.size)
-            mat = sp.coo_array((weights, (src, dst)), shape=(num_nodes, num_nodes), dtype='b')
+            G_sparse = sp.coo_array((weights, (src, dst)), shape=(num_nodes, num_nodes), dtype='b')
             
             # TODO: test this function for correctness; compare with other methods of reading in for speed
         case 'graphml':
             h.start_section("GRAPHML FILE DETECTED")
-
+            G = nx.read_graphml(file_name)
+            G_sparse = nx.to_scipy_sparse_array(G,format='coo')
         case 'json':
             pass
         case 'gexf':
-            pass
+            h.start_section("GEXF FILE DETECTED")
+            G = nx.read_gexf(file_name)
+            G_sparse = nx.to_scipy_sparse_array(G,format='coo')
         case 'edges':
             pass
         case _:
