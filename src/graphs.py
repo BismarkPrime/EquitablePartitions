@@ -10,7 +10,7 @@ from collections import Counter
 import helper as h
 import pandas as pd
 
-def oneGraphToRuleThemAll(file_name: str) -> sp.coo_array:
+def oneGraphToRuleThemAll(file_name: str, visualize=False) -> sp.coo_array:
     """detects the type of input graph. Reads it in and outputs it as a sparse matrix 
     relaying any problems along the way
     PARAMETERS
@@ -33,7 +33,7 @@ def oneGraphToRuleThemAll(file_name: str) -> sp.coo_array:
     #     else:
     #         extension = split_name[-2]
     
-    extension = file_name.split()[-1]
+    extension = file_name.split('.')[-1]
     match extension:
         case 'csv': 
             h.start_section("CSV FILE DETECTED")
@@ -72,18 +72,29 @@ def oneGraphToRuleThemAll(file_name: str) -> sp.coo_array:
             h.start_section("GRAPHML FILE DETECTED")
             G = nx.read_graphml(file_name)
             G_sparse = nx.to_scipy_sparse_array(G,format='coo')
+            #TODO: test this
         case 'json':
             pass
         case 'gexf':
             h.start_section("GEXF FILE DETECTED")
             G = nx.read_gexf(file_name)
             G_sparse = nx.to_scipy_sparse_array(G,format='coo')
+            #TODO: test this
         case 'edges':
             pass
         case _:
             # default case, if no other case matches
             pass
 
+    rows, cols, values = G_sparse.row, G_sparse.col, G_sparse.data
+
+    print(visualize)
+    if visualize:
+        print('ENTERED HERE')
+        plt.figure(figsize=(8, 8))
+        plt.scatter(cols, rows, s=100, c=values, cmap='viridis', marker='s')
+        plt.colorbar(label='Value')
+        plt.show()
 
     return G_sparse
 

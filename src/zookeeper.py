@@ -4,8 +4,8 @@ import numpy as np
 import graphs as g
 import helper as h
 
-SUPPORTED_TYPES = ['csv']
-UNSUPPORTED_TYPES = ['txt','graphml','json','gexf','edges']
+SUPPORTED_TYPES = ['csv','txt','graphml','gexf']
+UNSUPPORTED_TYPES = ['json','edges']
 
 
 
@@ -14,7 +14,11 @@ if __name__=="__main__":
     file_path = sys.argv[1]
     tag = file_path.split('.')[-1]
     # type is supported
-    if tag in SUPPORTED_TYPES: G = g.oneGraphToRuleThemAll(file_path)
+    if tag in SUPPORTED_TYPES: 
+        #TODO: make this an argparser
+        if 'visualize' in sys.argv: visualize = True
+        else: visualize = False
+        G = g.oneGraphToRuleThemAll(file_path,visualize=visualize)
     else:    # type is not
         if tag in UNSUPPORTED_TYPES: print("This type is not yet supported. Maybe you could do it...")
         else: print("We haven't heard of that graph type. Or at least haven't thought about it... Sorry.")
