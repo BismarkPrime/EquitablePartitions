@@ -30,31 +30,31 @@ def getEigenvaluesSparse(mat: sparse.sparray) -> List[float | complex]:
     #   into a library designed for finding eigenvalues of sparse matrices specifically
     # see https://scicomp.stackexchange.com/questions/7369/what-is-the-fastest-way-to-compute-all-eigenvalues-of-a-very-big-and-sparse-adja
 
-    start = time.time()
+    # start = time.time()
     csr = mat.tocsr()
     csc = mat.tocsc()
 
 
-    print(f"{time.time() - start}: converted to csr, csc")
+    # print(f"{time.time() - start}: converted to csr, csc")
 
     # 1. Find Coarsest Equitable Partition
     pi = ep_finder.getEquitablePartition(ep_finder.initFromSparse(csr))
 
-    print(f"{time.time() - start}: found ep")
+    # print(f"{time.time() - start}: found ep")
 
     # 2. Find Global Eigenvalues
     #       a. Compute Divisor Matrix
     #       b. Calculate spectrum
     divisor_matrix = getDivisorMatrixSparse(csc, pi)
-    print(f"{time.time() - start}: computed divisor matrix")
+    # print(f"{time.time() - start}: computed divisor matrix")
     # in practice, np.linalg.eigvals, scipy.linalg.eigvals, and scipy.linalg.eigvals(..., overwrite_a=True) run
     #   in roughly the same amount of time
     globals = np.linalg.eigvals(divisor_matrix)
-    print(f"{time.time() - start}: got globals")
+    # print(f"{time.time() - start}: got globals")
 
     # 2. Find Monad LEP Set
     L = lep_finder.getLocalEquitablePartitions(lep_finder.initFromSparse(csc), pi)
-    print(f"{time.time() - start}: got LEPs")
+    # print(f"{time.time() - start}: got LEPs")
 
     # 3. Find Local Eigenvalues
     #    For each LEP:
@@ -78,10 +78,10 @@ def getEigenvaluesSparse(mat: sparse.sparray) -> List[float | complex]:
         subgraph_locals = np.linalg.eigvals(subgraph.todense())
 
         locals.append(getSetDifference(subgraph_locals, subgraph_globals))
-    print(f"{time.time() - start}: got locals")
+    # print(f"{time.time() - start}: got locals")
     
     spectrum = list(itertools.chain.from_iterable((globals, *locals)))
-    print(f"{time.time() - start}: combined globals + locals")
+    # print(f"{time.time() - start}: combined globals + locals")
 
     return spectrum
 

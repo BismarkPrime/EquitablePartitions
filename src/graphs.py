@@ -9,6 +9,7 @@ import ep_utils
 from collections import Counter
 import helper as h
 import pandas as pd
+import json
 
 def oneGraphToRuleThemAll(file_name: str, visualize=False) -> sp.coo_array:
     """detects the type of input graph. Reads it in and outputs it as a sparse matrix 
@@ -17,6 +18,17 @@ def oneGraphToRuleThemAll(file_name: str, visualize=False) -> sp.coo_array:
     ---------------------------------------------
         graph_file (str): name of the file to load into the graph
     """
+    
+    def fromNx(G: nx.Graph | nx.DiGraph) -> sp.coo_array:
+        return nx.to_scipy_sparse_array(nx.convert_node_labels_to_integers(G), format='coo')
+
+    def fromDf(df: pd.DataFrame) -> sp.coo_array:
+        src = df.iloc[:,0].values
+        dst = df.iloc[:,1].values
+        zero_indexed = 0 in df
+        num_nodes = df.max(axis=None) + zero_indexed
+        weights = np.ones(src.size)
+        return sp.coo_array((weights, (src, dst)), shape=(num_nodes, num_nodes), dtype='b')
     
     # note: pandas.read_csv automatically detects compression for the following extensions: 
     # ‘.gz’, ‘.bz2’, ‘.zip’, ‘.xz’, ‘.zst’, ‘.tar’, ‘.tar.gz’, ‘.tar.xz’ or ‘.tar.bz2’
@@ -34,9 +46,9 @@ def oneGraphToRuleThemAll(file_name: str, visualize=False) -> sp.coo_array:
     #         extension = split_name[-2]
     
     extension = file_name.split('.')[-1]
-    match extension:
+    match extension.lower():
         case 'csv': 
-            h.start_section("CSV FILE DETECTED")
+            h.start_section("CSV File Detected")
             print("ASSUMPTIONS:\n\twe are assuming that this csv file contains edge data of the form where the first column "
                 "is the origin node and the second column is the destination node. The metrics calculated on this graph "
                 "will not be accurate if this is false.\n\tWe are assuming the node labels start at 0")
@@ -53,35 +65,57 @@ def oneGraphToRuleThemAll(file_name: str, visualize=False) -> sp.coo_array:
             weights = np.ones(origin.size)
             # create the sparse matrix with these values. 'b' is for byte to make the storage EVEN SMALLER!
             G_sparse = sp.coo_array((weights,(origin,dest)),shape=(num_nodes,num_nodes),dtype='b')
+
+        # [ ] Tested
         case 'txt':
-            df = pd.read_csv(file_name,
+            df = pd.read_csv(file_name, 
                              sep=None, 
                              skip_blank_lines=True, 
                              dtype=int, 
                              skipinitialspace=True
                              )
-            src = df.iloc[:,0].values
-            dst = df.iloc[:,1].values
-            zero_indexed = 0 in df
-            num_nodes = df.max(axis=None) + zero_indexed
-            weights = np.ones(src.size)
-            G_sparse = sp.coo_array((weights, (src, dst)), shape=(num_nodes, num_nodes), dtype='b')
+            G_sparse = fromDf(df)
             
-            # TODO: test this function for correctness; compare with other methods of reading in for speed
         case 'graphml':
-            h.start_section("GRAPHML FILE DETECTED")
-            G = nx.read_graphml(file_name)
-            G_sparse = nx.to_scipy_sparse_array(G,format='coo')
+            h.start_section("GraphML File Detected")
+            G_sparse = fromNx(nx.read_graphml(file_name))
             #TODO: test this
+
+        # [ ] Tested
         case 'json':
-            pass
+            def confirmFormat(format_name: str) -> None:
+                if input(f"Assuming {format_name} format. Is this correct? (Y/n)  > ").startswith('n'):
+                    print("Unrecognized format. Exiting...")
+                    exit()
+                    
+            h.start_section("JSON File Detected")
+            with json.load(file_name) as graph_dict:
+                # node/link format
+                # (https://networkx.org/documentation/stable/reference/readwrite/generated/networkx.readwrite.json_graph.node_link_graph.html)
+                if {'node', 'link'} <= graph_dict.keys():
+                    confirmFormat('node/link json')
+                    G = nx.node_link_graph(graph_dict)
+                # cytoscape format
+                # (https://networkx.org/documentation/stable/reference/readwrite/generated/networkx.readwrite.json_graph.cytoscape_graph.html)
+                elif 'elements' in graph_dict:
+                    confirmFormat('cytoscape json')
+                    G = nx.cytoscape_graph(graph_dict)
+                # dist-of-lists format
+                # (https://networkx.org/documentation/stable/reference/generated/networkx.convert.from_dict_of_lists.html)
+                else:
+                    confirmFormat('adjacency dict (dict of lists)')
+                    G = nx.from_dict_of_lists(graph_dict)
+                G_sparse = fromNx(G)
+
         case 'gexf':
-            h.start_section("GEXF FILE DETECTED")
+            h.start_section("GEXF File Detected")
             G = nx.read_gexf(file_name)
             G_sparse = nx.to_scipy_sparse_array(G,format='coo')
             #TODO: test this
+            
         case 'edges':
             pass
+        
         case _:
             # default case, if no other case matches
             pass

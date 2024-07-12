@@ -28,7 +28,7 @@ def parse_input(prompt):
         else:
             inp = input(f"Not valid input. You must choose one of -> {keywords}: ")
 
-def start_section(content):
+def start_section(content: str) -> None:
     border = '#' * os.get_terminal_size().columns
-    pad_left = (os.get_terminal_size().columns - len(content))//2
-    print(f"{border}\n\n{' ' * pad_left}{content}\n\n{border}")
+    pad_left = (os.get_terminal_size().columns - len(content)) // 2
+    print(f"{border}\n\n{' ' * pad_left}{content.upper()}\n\n{border}")
