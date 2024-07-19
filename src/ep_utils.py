@@ -34,7 +34,6 @@ def getEigenvaluesSparse(mat: sparse.sparray) -> List[float | complex]:
     csr = mat.tocsr()
     csc = mat.tocsc()
 
-
     # print(f"{time.time() - start}: converted to csr, csc")
 
     # 1. Find Coarsest Equitable Partition
