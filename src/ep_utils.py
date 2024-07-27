@@ -84,6 +84,41 @@ def getEigenvaluesSparse(mat: sparse.sparray) -> List[float | complex]:
 
     return spectrum
 
+def getEigenvaluesSparse(csc: sparse.csc_array, pi: Dict[int, List[int]], leps: List[List[int]]) -> List[float | complex]:
+    
+    divisor_matrix = getDivisorMatrixSparse(csc, pi)
+
+    # in practice, np.linalg.eigvals, scipy.linalg.eigvals, and scipy.linalg.eigvals(..., overwrite_a=True) run
+    #   in roughly the same amount of time
+    globals = np.linalg.eigvals(divisor_matrix)
+
+    # 3. Find Local Eigenvalues
+    #    For each LEP:
+    #       a. Create subgraph
+    #       b. Compute divisor graph of subgraph
+    #       c. Calculate spectrum of subgraph, divisor graph
+    #       d. Compute difference eigs(SG) - eigs(DG)
+    locals = []
+    for lep in leps:
+        nodes = []
+        for V in lep:
+            nodes.extend(pi[V])
+        # skip iterations for which globals = locals
+        if len(nodes) < 2:
+            continue
+        
+        subgraph = csr[nodes,:][:,nodes]
+        divisor_submatrix = divisor_matrix[lep,:][:,lep]
+
+        subgraph_globals = np.linalg.eigvals(divisor_submatrix)
+        subgraph_locals = np.linalg.eigvals(subgraph.todense())
+
+        locals.append(getSetDifference(subgraph_locals, subgraph_globals))
+    
+    spectrum = list(itertools.chain.from_iterable((globals, *locals)))
+
+    return spectrum
+
 #@profile
 def getDivisorMatrixSparse(mat_csc: sparse.csc_array, pi: Dict[int, List[int]]) -> sparse.sparray:
 
@@ -218,11 +253,14 @@ def getEigenvaluesNx(G: nx.Graph | nx.DiGraph) -> List[complex]:
     
 
 def getSetDifference(list1: List[complex], list2: List[complex], epsilon_start=EPSILON, epsilon_max=1e-1) -> List[complex]:
+    return getSymmetricDifference(list1, list2, epsilon_start=epsilon_start, epsilon_max=epsilon_max)[0]
+    
+def getSymmetricDifference(list1: List[complex], list2: List[complex], epsilon_start=EPSILON, epsilon_max=1e-1) -> Tuple[List[complex], List[complex]]:
     '''
-        Gets the difference of two lists. (Returns list1 - list2)
+        Gets the symmetric difference of two lists. (Returns list1 - list2, list2 - list1)
         Assumes that two elements are equal if they are within epsilon of one another.
         Increases the value of epsilon by an order of magnitude, up to epsilon_max, until all elements of list2 can be removed from list1.
-        If elements remain in list2 after reaching epsilon_max, throws and error.
+        If elements remain in list2 after reaching epsilon_max, throws an error.
     '''
     # NOTE: since maximum bipartite matching is generally solved as a max-flow problem, it
     #   may be comparable in speed to this naive method (n^2), and is more robust to edge cases.
@@ -230,6 +268,7 @@ def getSetDifference(list1: List[complex], list2: List[complex], epsilon_start=E
     #   Consider defaulting to the bipartite method in getSymmetricDifferenceMatching
     
     res1 = []
+    res2 = []
 
     skip_indices1 = set()
     skip_indices2 = set()
@@ -257,8 +296,12 @@ def getSetDifference(list1: List[complex], list2: List[complex], epsilon_start=E
     for i, cnum in enumerate(list1):
         if i not in skip_indices1:
             res1.append(cnum)
+    
+    for j, cnum in enumerate(list2):
+        if j not in skip_indices2:
+            res2.append(cnum)
 
-    return res1
+    return res1, res2
 
 def getSymmetricDifferenceMatching(list1: List[complex], list2: List[complex]) -> Tuple[List, List]:
     '''
