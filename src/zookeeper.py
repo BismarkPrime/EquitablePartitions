@@ -4,8 +4,8 @@ import numpy as np
 import graphs as g
 import helper as h
 
-SUPPORTED_TYPES = ['csv','txt','graphml','gexf']
-UNSUPPORTED_TYPES = ['json','edges']
+SUPPORTED_TYPES = ['csv','txt','graphml','gexf','json']
+UNSUPPORTED_TYPES = ['edges']
 
 
 
