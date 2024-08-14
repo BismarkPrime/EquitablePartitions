@@ -11,7 +11,7 @@ import helper as h
 import pandas as pd
 import json
 
-def oneGraphToRuleThemAll(file_name: str, visualize=False) -> sp.coo_array:
+def oneGraphToRuleThemAll(file_name: str, visualize: bool=False) -> sp.coo_array:
     """detects the type of input graph. Reads it in and outputs it as a sparse matrix 
     relaying any problems along the way
     PARAMETERS
