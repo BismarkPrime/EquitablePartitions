@@ -24,7 +24,7 @@ EPSILON = 1e-4
 
 
 #@profile
-def getEigenvaluesSparse(mat: sparse.sparray) -> List[float | complex]:
+def getEigenvaluesSparse(mat: sparse.sparray,return_all=False) -> List[float | complex]:
     # NOTE: despite using sparse matrices where possible, eigenvalue calculations 
     #   are still performed on dense matrices. If possible, it would be good to hook 
     #   into a library designed for finding eigenvalues of sparse matrices specifically
@@ -48,7 +48,11 @@ def getEigenvaluesSparse(mat: sparse.sparray) -> List[float | complex]:
     # print(f"{time.time() - start}: computed divisor matrix")
     # in practice, np.linalg.eigvals, scipy.linalg.eigvals, and scipy.linalg.eigvals(..., overwrite_a=True) run
     #   in roughly the same amount of time
-    globals = np.linalg.eigvals(divisor_matrix)
+    if return_all: 
+        globals, global_vecs = np.linalg.eig(divisor_matrix)    
+        eig_dict = {'global':{'vals':Counter(globals),'vecs':global_vecs}}
+    else:
+        globals = np.linalg.eigvals(divisor_matrix)
     # print(f"{time.time() - start}: got globals")
 
     # 2. Find Monad LEP Set
@@ -62,7 +66,7 @@ def getEigenvaluesSparse(mat: sparse.sparray) -> List[float | complex]:
     #       c. Calculate spectrum of subgraph, divisor graph
     #       d. Compute difference eigs(SG) - eigs(DG)
     locals = []
-    for lep in L:
+    for i,lep in enumerate(L):
         nodes = []
         for V in lep:
             nodes.extend(pi[V])
@@ -73,8 +77,16 @@ def getEigenvaluesSparse(mat: sparse.sparray) -> List[float | complex]:
         subgraph = csr[nodes,:][:,nodes]
         divisor_submatrix = divisor_matrix[lep,:][:,lep]
 
-        subgraph_globals = np.linalg.eigvals(divisor_submatrix)
-        subgraph_locals = np.linalg.eigvals(subgraph.todense())
+        if return_all: 
+            subgraph_globals, sbg_global_vecs = np.linalg.eig(divisor_submatrix)
+            subgraph_locals, sbg_local_vecs = np.linalg.eig(subgraph.todense())
+            eig_dict[f"LEP{i+1}"] = {'globals': Counter(subgraph_globals),
+                                      'global_vecs': sbg_global_vecs,
+                                      'locals': Counter(subgraph_locals),
+                                      'local_vecs': sbg_local_vecs}
+        else:
+            subgraph_globals = np.linalg.eigvals(divisor_submatrix)
+            subgraph_locals = np.linalg.eigvals(subgraph.todense())
 
         locals.append(getSetDifference(subgraph_locals, subgraph_globals))
     # print(f"{time.time() - start}: got locals")
@@ -82,6 +94,7 @@ def getEigenvaluesSparse(mat: sparse.sparray) -> List[float | complex]:
     spectrum = list(itertools.chain.from_iterable((globals, *locals)))
     # print(f"{time.time() - start}: combined globals + locals")
 
+    if return_all: return eig_dict
     return spectrum
 
 def getEigenvaluesSparse(csc: sparse.csc_array, pi: Dict[int, List[int]], leps: List[List[int]]) -> List[float | complex]:
