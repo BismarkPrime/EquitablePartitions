@@ -6,6 +6,7 @@ from scipy import sparse
 from time import time
 import networkx as nx
 from scipy import stats
+import pickle
 
 import ep_utils
 import graphs as g
@@ -16,58 +17,70 @@ import lep_finder
 SUPPORTED_TYPES = ['csv','txt','graphml','gexf','json']
 UNSUPPORTED_TYPES = ['edges']
 
+class MetaMetrics(NamedTuple):
+    m_source_file: str
+    m_ep_file: str
+    m_lep_file: str
+    m_ep_time: float
+    m_lep_time: float
+    m_eig_time: float
+    m_total_time: float
+
+
 class GraphMetrics(NamedTuple):
-    avg_node_degree: float
-    diameter: int
-    order: int  # num nodes
-    size: int  # num edges
-    directed: bool
-    radius: int  # min eccentricity
-    average_path_length: float
-    edge_connectivity: int
-    vertex_connectivity: int
-    density: float
-    connected_components: int
-    assortativity: float
-    clustering_coefficient: float
-    transitivity: float
+    g_avg_node_degree: float
+    g_diameter: int
+    g_order: int  # num nodes
+    g_size: int  # num edges
+    g_directed: bool
+    g_radius: int  # min eccentricity
+    g_average_path_length: float
+    g_edge_connectivity: int
+    g_vertex_connectivity: int
+    g_density: float
+    g_connected_components: int
+    g_assortativity: float
+    g_clustering_coefficient: float
+    g_transitivity: float
 
 class EPMetrics(NamedTuple):
-    percent_nt_vertices: int  # percent of vertices in non-trivial equitable partition elements
-    percent_nt_elements: int  # percent of equitable partition elements that are non-trivial (size > 1)
-    num_elements: int
-    size_max: int  # size of the largest partition element
-    size_min: int  # size of the smallest partition element
-    size_avg: float
-    size_variance: float
-    size_std_dev: float
-    size_median: int
-    size_mode: int
-    size_range: int
-    size_iqr: int
-    size_skewness: float
-    size_kurtosis: float
+    ep_percent_nt_vertices: int  # percent of vertices in non-trivial equitable partition elements
+    ep_percent_nt_elements: int  # percent of equitable partition elements that are non-trivial (size > 1)
+    ep_num_elements: int
+    ep_size_max: int  # size of the largest partition element
+    ep_size_min: int  # size of the smallest partition element
+    ep_size_avg: float
+    ep_size_variance: float
+    ep_size_std_dev: float
+    ep_size_median: int
+    ep_size_mode: int
+    ep_size_range: int
+    ep_size_iqr: int
+    ep_size_skewness: float
+    ep_size_kurtosis: float
     
 class LEPMetrics(NamedTuple):
-    percent_vnt_leps: int  # percent of LEPs that are vertex-non-trivial (LEPs with more than one vertex)
+    lep_percent_vnt_leps: int  # percent of LEPs that are vertex-non-trivial (LEPs with more than one vertex)
     # NOTE: since vertices are in vertex-non-trivial LEPs iff they are in vertex-non-trivial EP elements,
     #       percent_vnt_vertices is the same as percent_nt_vertices in EPMetrics, so we don't need to repeat it here
-    percent_ent_leps: int  # percent of LEPs that are element-non-trivial (LEPs with more than one element)
-    percent_ent_vertices: int  # percent of vertices in element-non-trivial LEPs
-    num_leps: int
-    size_max: int  # size of the largest LEP (in terms of elements)
-    size_min: int  # size of the smallest LEP (in terms of elements)
-    size_avg: float
-    size_variance: float
-    size_std_dev: float
-    size_median: int
-    size_mode: int
-    size_range: int
-    size_iqr: int
-    size_skewness: float
-    size_kurtosis: float
+    lep_percent_ent_leps: int  # percent of LEPs that are element-non-trivial (LEPs with more than one element)
+    lep_percent_ent_vertices: int  # percent of vertices in element-non-trivial LEPs
+    lep_num_leps: int
+    lep_size_max: int  # size of the largest LEP (in terms of elements)
+    lep_size_min: int  # size of the smallest LEP (in terms of elements)
+    lep_size_avg: float
+    lep_size_variance: float
+    lep_size_std_dev: float
+    lep_size_median: int
+    lep_size_mode: int
+    lep_size_range: int
+    lep_size_iqr: int
+    lep_size_skewness: float
+    lep_size_kurtosis: float
 
 def main(file_path: str):
+    meta_metrics = MetaMetrics()
+    meta_metrics.m_source_file = file_path
     # 1a Get the graph as a sparse graph
     tag = file_path.split('.')[-1]
     # type is supported
@@ -91,6 +104,9 @@ def main(file_path: str):
     start_time = time()
     pi = ep_finder.getEquitablePartition(ep_finder.initFromSparse(csr))
     ep_time = time() - start_time
+    meta_metrics.m_ep_time = ep_time
+
+    ep_filepath = '../Results/'
     
     # 4. Compute EP metrics
     ep_metrics = getEPMetrics(pi)
@@ -100,6 +116,7 @@ def main(file_path: str):
     start_time = time()
     leps = lep_finder.getLocalEquitablePartitions(lep_finder.initFromSparse(csc), pi)
     lep_time = time() - start_time
+    meta_metrics.m_lep_time = lep_time
     
     # 6. Compute LEP metrics
     lep_metrics = getLEPMetrics(leps, pi)
@@ -107,12 +124,14 @@ def main(file_path: str):
     # 7. Compute eigenvalues
     start_time = time()
     eigenvalues = ep_utils.getEigenvalues(csr, pi, leps)
-    eigen_time = time() - start_time
+    eig_time = time() - start_time
+    meta_metrics.m_eig_time = eig_time
+    meta_metrics.m_total_time = ep_time + lep_time + eig_time
     
     # 7b. Verify that the eigenvalues are correct
     np_eigenvalues = np.linalg.eigvals(csr.toarray())
     our_unique_eigs, their_unique_eigs = ep_utils.getSetDifference(eigenvalues, np_eigenvalues)
-    if len(lepard_unique_eigs) > 0:
+    if len(our_unique_eigs) > 0:
         print(f"Error: Some eigenvalues are unique to the LEPARD eigenvalues")
         prompt = "Would you like to compare LEParD eigenvalues to numpy eigenvalues? (Y/n) > "
         view_eigs = input(prompt)[0].lower() != 'n'
@@ -121,7 +140,27 @@ def main(file_path: str):
             print(f"Numpy eigenvalues: {their_unique_eigs}")
     
     # 8. Store metrics in dataframe
-    
+    df = pd.read_csv("MetricWarden.csv", index_col='Name')
+
+    file_name = file_path.split('/')[-1].split('.')[0]
+    network_path = '../Results/' + file_name
+
+    # make a directory for the network in results
+    os.mkdir(network_path)
+
+    with open(network_path + '/ep_data.pkl','wb') as f:
+        pickle.dump(pi, f, protocol=pickle.HIGHEST_PROTOCOL)
+    with open(network_path + '/lep_data.pkl','wb') as f:
+        pickle.dump(leps, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+    meta_metrics.m_ep_file = 'ep_data.pkl'
+    meta_metrics.m_lep_file = 'lep_data.pkl'
+
+    new_info = list(meta_metrics) + list(graph_metrics) + list(ep_metrics) + list(lep_metrics)
+    new_info = ','.join(map(str, new_info))
+
+    with open('MetricWarden.csv','a') as file:
+        file.write(new_info)
 
 def getGraphMetrics(sparseMatrix: sparse.sparray) -> GraphMetrics:
     # Convert sparse matrix to NetworkX graph
