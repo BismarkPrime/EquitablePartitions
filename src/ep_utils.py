@@ -97,7 +97,7 @@ def getEigenvaluesSparse(mat: sparse.sparray,return_all=False) -> List[float | c
     if return_all: return eig_dict
     return spectrum
 
-def getEigenvaluesSparse(csc: sparse.csc_array, pi: Dict[int, List[int]], leps: List[List[int]]) -> List[float | complex]:
+def _getEigenvaluesSparse(csc: sparse.csc_array, csr: sparse.csr_array, pi: Dict[int, List[int]], leps: List[List[int]]) -> List[float | complex]:
     
     divisor_matrix = getDivisorMatrixSparse(csc, pi)
 
@@ -363,14 +363,14 @@ def compareEigenvalues(G: nx.Graph | nx.DiGraph) -> None:
     '''
     # STEPS:
     # 1. get eigenvalues of the graph using the complete equitable partitions method
-    cep_eigs = getEigenvaluesSparse(nx.adjacency_matrix(G))
+    cep_eigs = getEigenvaluesSparse(G)#nx.adjacency_matrix(G))
     # for checking the networkx implimentation, use
     # cep_eigs = getEigenvaluesNx(G)
     # 2. get eigenvalues of the graph using networkx
     np_eigs = np.linalg.eigvals(nx.adjacency_matrix(G).toarray())
 
     # use getSymmetricDifferenceMatching for slower, but more robust, performance
-    rem_cep, rem_np = getSymmetricDifferenceMatching(cep_eigs, np_eigs)
+    rem_cep, rem_np = getSymmetricDifference(cep_eigs, np_eigs)
 
     if len(rem_cep) != 0 or len(rem_np) != 0:
         print(f"Eigenvalues do not match!\nUnique to CEP: \n{np.asarray(rem_cep)}\nUnique to NP: \n{np.asarray(rem_np)}")

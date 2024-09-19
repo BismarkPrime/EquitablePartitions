@@ -1,13 +1,14 @@
 import sys,os
 import pandas as pd
 import numpy as np
-from typing import NamedTuple, Dict, List, Any
+from typing import NamedTuple, Dict, List, Any, Callable
 from scipy import sparse
 from time import time
 import networkx as nx
 from scipy import stats
 import pickle
 import statistics
+import shutil
 
 import ep_utils
 import graphs as g
@@ -18,18 +19,14 @@ import lep_finder
 SUPPORTED_TYPES = ['csv','txt','graphml','gexf','json','edgelist']
 UNSUPPORTED_TYPES = ['edges']
 
-class MetaMetrics():
-    def __init__(self,m_source_file: str = None, m_ep_file: str = None, m_lep_file: str = None, 
-                 m_ep_time: float = None, m_lep_time: float = None, m_eig_time: float = None,
-                 m_total_time: float = None):
-
-        self.m_source_file = m_source_file
-        self.m_ep_file = m_ep_file 
-        self.m_lep_file = m_lep_file 
-        self.m_ep_time = m_ep_time 
-        self.m_lep_time = m_lep_time 
-        self.m_eig_time = m_eig_time 
-        self.m_total_time = m_total_time 
+class MetaMetrics(NamedTuple):
+    m_source_file: str
+    m_ep_file: str
+    m_lep_file: str
+    m_ep_time: float
+    m_lep_time: float
+    m_eig_time: float
+    m_total_time: float
 
 
 class GraphMetrics(NamedTuple):
@@ -84,8 +81,7 @@ class LEPMetrics(NamedTuple):
     lep_size_kurtosis: float
 
 def main(file_path: str):
-    meta_metrics = MetaMetrics()
-    meta_metrics.m_source_file = file_path
+    m_source_file = file_path
     # 1a Get the graph as a sparse graph
     tag = file_path.split('.')[-1]
     # type is supported
@@ -109,7 +105,7 @@ def main(file_path: str):
     start_time = time()
     pi = ep_finder.getEquitablePartition(ep_finder.initFromSparse(csr))
     ep_time = time() - start_time
-    meta_metrics.m_ep_time = ep_time
+    m_ep_time = ep_time
 
     ep_filepath = '../Results/'
     
@@ -121,21 +117,21 @@ def main(file_path: str):
     start_time = time()
     leps = lep_finder.getLocalEquitablePartitions(lep_finder.initFromSparse(csc), pi)
     lep_time = time() - start_time
-    meta_metrics.m_lep_time = lep_time
+    m_lep_time = lep_time
     
     # 6. Compute LEP metrics
     lep_metrics = getLEPMetrics(leps, pi)
     
     # 7. Compute eigenvalues
     start_time = time()
-    eigenvalues = ep_utils.getEigenvaluesSparse(csr, pi, leps)
+    eigenvalues = ep_utils._getEigenvaluesSparse(csc, csr, pi, leps)
     eig_time = time() - start_time
-    meta_metrics.m_eig_time = eig_time
-    meta_metrics.m_total_time = ep_time + lep_time + eig_time
+    m_eig_time = eig_time
+    m_total_time = ep_time + lep_time + eig_time
     
     # 7b. Verify that the eigenvalues are correct
     np_eigenvalues = np.linalg.eigvals(csr.toarray())
-    our_unique_eigs, their_unique_eigs = ep_utils.getSetDifference(eigenvalues, np_eigenvalues)
+    our_unique_eigs, their_unique_eigs = ep_utils.getSymmetricDifference(eigenvalues, np_eigenvalues)
     if len(our_unique_eigs) > 0:
         print(f"Error: Some eigenvalues are unique to the LEPARD eigenvalues")
         prompt = "Would you like to compare LEParD eigenvalues to numpy eigenvalues? (Y/n) > "
@@ -145,11 +141,14 @@ def main(file_path: str):
             print(f"Numpy eigenvalues: {their_unique_eigs}")
     
     # 8. Store metrics in dataframe
-    df = pd.read_csv("MetricWarden.csv", index_col='Name')
+    df = pd.read_csv("src/MetricWarden.csv", index_col='name')
 
     file_name = file_path.split('/')[-1].split('.')[0]
-    network_path = '../Results/' + file_name
+    network_path = 'Results/' + file_name
 
+    # remove and replace directory for results (consider warning the user also)
+    if os.path.exists(network_path):
+        shutil.rmtree(network_path)
     # make a directory for the network in results
     os.mkdir(network_path)
 
@@ -158,27 +157,35 @@ def main(file_path: str):
     with open(network_path + '/lep_data.pkl','wb') as f:
         pickle.dump(leps, f, protocol=pickle.HIGHEST_PROTOCOL)
 
-    meta_metrics.m_ep_file = 'ep_data.pkl'
-    meta_metrics.m_lep_file = 'lep_data.pkl'
+    m_ep_file = 'ep_data.pkl'
+    m_lep_file = 'lep_data.pkl'
 
-    new_info = list(meta_metrics) + list(graph_metrics) + list(ep_metrics) + list(lep_metrics)
+    meta_metrics = MetaMetrics(m_source_file, m_ep_file, m_lep_file, m_ep_time, m_lep_time, m_eig_time, m_total_time)
+
+    new_info = [file_name] + list(meta_metrics) + list(graph_metrics) + list(ep_metrics) + list(lep_metrics)
     new_info = ','.join(map(str, new_info))
 
-    with open('MetricWarden.csv','a') as file:
+    with open('src/MetricWarden.csv','a') as file:
         file.write(new_info)
+
+def try_or(func: Callable, default=None, expected_exc=(Exception,)):
+    try:
+        return func()
+    except expected_exc:
+        return default
 
 def getGraphMetrics(sparseMatrix: sparse.sparray) -> GraphMetrics:
     # Convert sparse matrix to NetworkX graph
     G = nx.from_scipy_sparse_array(sparseMatrix)
 
     # Compute graph metrics
-    avg_node_degree = nx.average_degree_connectivity(G)
-    diameter = nx.diameter(G)
+    avg_node_degree = G.number_of_edges() / G.number_of_nodes()
+    diameter = try_or(lambda: nx.diameter(G), -1, nx.exception.NetworkXError) # TODO: consider what default makes the most sense here
     order = G.order()
     size = G.size()
     directed = nx.is_directed(G)
-    radius = nx.radius(G)
-    average_path_length = nx.average_shortest_path_length(G)
+    radius = try_or(lambda: nx.radius(G), -1, nx.exception.NetworkXError)
+    average_path_length = try_or(lambda: nx.average_shortest_path_length(G), -1, nx.exception.NetworkXError)
     edge_connectivity = nx.edge_connectivity(G)
     vertex_connectivity = nx.node_connectivity(G)
     density = nx.density(G)
@@ -264,5 +271,6 @@ def getLEPMetrics(leps: List[List[int]], pi: Dict[int, List[Any]]) -> LEPMetrics
     return metrics
 
 if __name__=="__main__":
-    file_path = sys.argv[1]
+    file_path = sys.argv[1] if len(sys.argv) > 1 else input("File path > ")
+
     main(file_path)
