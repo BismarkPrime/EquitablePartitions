@@ -7,6 +7,7 @@ from time import time
 import networkx as nx
 from scipy import stats
 import pickle
+import statistics
 
 import ep_utils
 import graphs as g
@@ -14,17 +15,21 @@ import graphs as g
 import ep_finder
 import lep_finder
 
-SUPPORTED_TYPES = ['csv','txt','graphml','gexf','json']
+SUPPORTED_TYPES = ['csv','txt','graphml','gexf','json','edgelist']
 UNSUPPORTED_TYPES = ['edges']
 
-class MetaMetrics(NamedTuple):
-    m_source_file: str
-    m_ep_file: str
-    m_lep_file: str
-    m_ep_time: float
-    m_lep_time: float
-    m_eig_time: float
-    m_total_time: float
+class MetaMetrics():
+    def __init__(self,m_source_file: str = None, m_ep_file: str = None, m_lep_file: str = None, 
+                 m_ep_time: float = None, m_lep_time: float = None, m_eig_time: float = None,
+                 m_total_time: float = None):
+
+        self.m_source_file = m_source_file
+        self.m_ep_file = m_ep_file 
+        self.m_lep_file = m_lep_file 
+        self.m_ep_time = m_ep_time 
+        self.m_lep_time = m_lep_time 
+        self.m_eig_time = m_eig_time 
+        self.m_total_time = m_total_time 
 
 
 class GraphMetrics(NamedTuple):
@@ -123,7 +128,7 @@ def main(file_path: str):
     
     # 7. Compute eigenvalues
     start_time = time()
-    eigenvalues = ep_utils.getEigenvalues(csr, pi, leps)
+    eigenvalues = ep_utils.getEigenvaluesSparse(csr, pi, leps)
     eig_time = time() - start_time
     meta_metrics.m_eig_time = eig_time
     meta_metrics.m_total_time = ep_time + lep_time + eig_time
@@ -164,7 +169,7 @@ def main(file_path: str):
 
 def getGraphMetrics(sparseMatrix: sparse.sparray) -> GraphMetrics:
     # Convert sparse matrix to NetworkX graph
-    G = nx.from_scipy_sparse_matrix(sparseMatrix)
+    G = nx.from_scipy_sparse_array(sparseMatrix)
 
     # Compute graph metrics
     avg_node_degree = nx.average_degree_connectivity(G)
@@ -197,8 +202,8 @@ def getEPMetrics(pi: Dict[int, List[Any]]) -> EPMetrics:
     size_avg = sizes.mean()
     size_variance = sizes.var()
     size_std_dev = sizes.std()
-    size_median = sizes.median()
-    size_mode = stats.mode(sizes).mode[0]
+    size_median = statistics.median(sizes)
+    size_mode = stats.mode(sizes).mode
     size_range = size_max - size_min
     q75, q25 = np.percentile(sizes, [75 ,25])
     size_iqr = q75 - q25
@@ -213,7 +218,7 @@ def getEPMetrics(pi: Dict[int, List[Any]]) -> EPMetrics:
             nt_elements += 1
             nt_vertices += len(pi[i])
             
-    percent_nt_vertices = len(nt_vertices) / sizes.sum()
+    percent_nt_vertices = nt_vertices / sizes.sum()
     percent_nt_elements = nt_elements / num_elements
 
     metrics = EPMetrics(percent_nt_vertices, percent_nt_elements, num_elements, size_max, size_min, size_avg,
@@ -232,7 +237,7 @@ def getLEPMetrics(leps: List[List[int]], pi: Dict[int, List[Any]]) -> LEPMetrics
     size_variance = sizes.var()
     size_std_dev = sizes.std()
     size_median = np.median(sizes)
-    size_mode = stats.mode(sizes).mode[0]
+    size_mode = stats.mode(sizes).mode
     size_range = size_max - size_min
     q75, q25 = np.percentile(sizes, [75 ,25])
     size_iqr = q75 - q25

@@ -113,6 +113,11 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False) -> sp.coo_array
             G_sparse = nx.to_scipy_sparse_array(G,format='coo')
             #TODO: test this
             
+        case 'edgelist':
+            h.start_section("EDGELIST File Detected")
+            G = nx.read_edgelist(file_name)
+            G_sparse = nx.to_scipy_sparse_array(G,format='coo')
+
         case 'edges':
             pass
         
