@@ -209,7 +209,7 @@ def getEigenStuffsNx(G: nx.Graph | nx.DiGraph) -> Tuple[List[complex], Dict[int,
     div = getDivisorMatrixNx(G, pi)
     # 3. get eigenvalues of divisor matrix of graph
     globals = list(np.linalg.eigvals(div))
-    print(globals)
+    # print(globals)
 
     # 4. get divisor matrix of each LEP
     lep_globals = []
@@ -255,7 +255,7 @@ def getEigenvaluesNx(G: nx.Graph | nx.DiGraph) -> List[complex]:
         A list of the eigenvalues of the graph
     '''
     lifting_counter, lep_eigs, lep_globals = getEigenStuffsNx(G)
-    print(lep_globals, lep_eigs, lifting_counter)
+    # print(lep_globals, lep_eigs, lifting_counter)
     lifting_counter += lep_eigs
     # NOTE: set differences are non-trivial with floating point error, especially in the complex
     #   plane. In considering the complexity of the LEParD algorithm, note that this difference 
