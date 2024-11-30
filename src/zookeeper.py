@@ -16,6 +16,26 @@ import graphs as g
 import ep_finder
 import lep_finder
 
+def profile(fnc):
+    """
+    Profiles any function in following class just by adding @profile above function
+    """
+    import cProfile, pstats, io
+    def inner (*args, **kwargs):
+        pr = cProfile.Profile()
+        pr.enable()
+        retval = fnc (*args, **kwargs)
+        pr.disable()
+        s = io.StringIO()
+        sortby = 'cumulative'   #Ordered
+        ps = pstats.Stats(pr,stream=s).strip_dirs().sort_stats(sortby)
+        n=10                    #reduced the list to be monitored
+        ps.print_stats(n)
+        #ps.dump_stats("profile.prof")
+        print(s.getvalue())
+        return retval
+    return inner 
+
 SUPPORTED_TYPES = ['csv','txt','graphml','gexf','json','edgelist']
 UNSUPPORTED_TYPES = ['edges']
 
@@ -37,8 +57,8 @@ class GraphMetrics(NamedTuple):
     g_directed: bool
     g_radius: int  # min eccentricity
     g_average_path_length: float
-    g_edge_connectivity: int
-    g_vertex_connectivity: int
+    # g_edge_connectivity: int
+    # g_vertex_connectivity: int
     g_density: float
     g_connected_components: int
     g_assortativity: float
@@ -80,6 +100,7 @@ class LEPMetrics(NamedTuple):
     lep_size_skewness: float
     lep_size_kurtosis: float
 
+@profile
 def main(file_path: str):
     m_source_file = file_path
     # 1a Get the graph as a sparse graph
@@ -95,8 +116,12 @@ def main(file_path: str):
         else: print("We haven't heard of that graph type. Or at least haven't thought about it... Sorry.")
         sys.exit(1)
     
+    start_time = time()
+
     # 2. Compute desired graph metrics
     graph_metrics = getGraphMetrics(G)
+    print(f"Graph metrics computed in {time() - start_time} seconds")
+    start_time = time()
     
     # 3. Compute coarsest EP, save and time to file
     # (remember to track computation time for dataframe!)
@@ -106,6 +131,8 @@ def main(file_path: str):
     pi = ep_finder.getEquitablePartition(ep_finder.initFromSparse(csr))
     ep_time = time() - start_time
     m_ep_time = ep_time
+
+    print(f"Coarsest EP computed in {ep_time} seconds")
 
     ep_filepath = '../Results/'
     
@@ -118,6 +145,8 @@ def main(file_path: str):
     leps = lep_finder.getLocalEquitablePartitions(lep_finder.initFromSparse(csc), pi)
     lep_time = time() - start_time
     m_lep_time = lep_time
+
+    print(f"Monad set of LEPs computed in {lep_time} seconds")
     
     # 6. Compute LEP metrics
     lep_metrics = getLEPMetrics(leps, pi)
@@ -128,6 +157,9 @@ def main(file_path: str):
     eig_time = time() - start_time
     m_eig_time = eig_time
     m_total_time = ep_time + lep_time + eig_time
+
+    print(f"Eigenvalues computed in {eig_time} seconds")
+    start_time = time()
     
     # 7b. Verify that the eigenvalues are correct
     np_eigenvalues = np.linalg.eigvals(csr.toarray())
@@ -140,8 +172,10 @@ def main(file_path: str):
             print(f"LEParD eigenvalues: {our_unique_eigs}")
             print(f"Numpy eigenvalues: {their_unique_eigs}")
     
+    print(f"Eigenvalues verified in {time() - start_time} seconds")
+
     # 8. Store metrics in dataframe
-    df = pd.read_csv("src/MetricWarden.csv", index_col='name')
+    df = pd.read_csv("MetricWarden.csv", index_col='name')
 
     file_name = file_path.split('/')[-1].split('.')[0]
     network_path = 'Results/' + file_name
@@ -165,7 +199,7 @@ def main(file_path: str):
     new_info = [file_name] + list(meta_metrics) + list(graph_metrics) + list(ep_metrics) + list(lep_metrics)
     new_info = ','.join(map(str, new_info))
 
-    with open('src/MetricWarden.csv','a') as file:
+    with open('MetricWarden.csv','a') as file:
         file.write(new_info)
 
 def try_or(func: Callable, default=None, expected_exc=(Exception,)):
@@ -174,28 +208,49 @@ def try_or(func: Callable, default=None, expected_exc=(Exception,)):
     except expected_exc:
         return default
 
+# TODO: consider tracking computation time for each metric
+
 def getGraphMetrics(sparseMatrix: sparse.sparray) -> GraphMetrics:
     # Convert sparse matrix to NetworkX graph
     G = nx.from_scipy_sparse_array(sparseMatrix)
+
+    start_time = time()
 
     # Compute graph metrics
     avg_node_degree = G.number_of_edges() / G.number_of_nodes()
     diameter = try_or(lambda: nx.diameter(G), -1, nx.exception.NetworkXError) # TODO: consider what default makes the most sense here
     order = G.order()
     size = G.size()
+
+    print(f"found first metrics in ${time() - start_time}")
+    start_time = time()
+
     directed = nx.is_directed(G)
     radius = try_or(lambda: nx.radius(G), -1, nx.exception.NetworkXError)
     average_path_length = try_or(lambda: nx.average_shortest_path_length(G), -1, nx.exception.NetworkXError)
-    edge_connectivity = nx.edge_connectivity(G)
-    vertex_connectivity = nx.node_connectivity(G)
+    # NOTE: removed edge and vertex connectivity because they are computationally expensive
+    # and take longer than the LEParD algorithm itself
+    # edge_connectivity = 0 #nx.edge_connectivity(G)
+
+    print(f"found next metrics in ${time() - start_time}")
+    start_time = time()
+
+    # vertex_connectivity = 0 #nx.node_connectivity(G)
     density = nx.density(G)
     connected_components = nx.number_connected_components(G)
+
+    print(f"found next next metrics in ${time() - start_time}")
+    start_time = time()
+
     assortativity = nx.degree_assortativity_coefficient(G)
     clustering_coefficient = nx.average_clustering(G)
     transitivity = nx.transitivity(G)
 
+    print(f"found final metrics in ${time() - start_time}")
+    start_time = time()
+
     metrics = GraphMetrics(avg_node_degree, diameter, order, size, directed, radius, average_path_length,
-                           edge_connectivity, vertex_connectivity, density, connected_components, assortativity,
+                           density, connected_components, assortativity,
                            clustering_coefficient, transitivity)
 
     return metrics
