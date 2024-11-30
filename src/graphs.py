@@ -68,6 +68,10 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False) -> sp.coo_array
 
         # [ ] Tested
         case 'txt':
+            h.start_section("TXT File Detected")
+            print("ASSUMPTIONS:\n\twe are assuming that this txt file contains edge data of the form where the first column "
+                "is the origin node and the second column is the destination node. The metrics calculated on this graph "
+                "will not be accurate if this is false.\n\tWe are assuming the node labels start at 0")
             df = pd.read_csv(file_name, 
                              sep=None, 
                              engine='python',
@@ -129,7 +133,6 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False) -> sp.coo_array
 
     rows, cols, values = G_sparse.row, G_sparse.col, G_sparse.data
 
-    print(visualize)
     if visualize:
         print('ENTERED HERE')
         plt.figure(figsize=(8, 8))

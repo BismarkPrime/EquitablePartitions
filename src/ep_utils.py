@@ -277,7 +277,7 @@ def getSymmetricDifference(list1: List[complex], list2: List[complex], epsilon_s
     '''
     # NOTE: since maximum bipartite matching is generally solved as a max-flow problem, it
     #   may be comparable in speed to this naive method (n^2), and is more robust to edge cases.
-    #   (Note, however, that the current implementation in NetworkX is quite slow.)
+    #   (Note, however, that the current implementation of max flow in NetworkX is quite slow.)
     #   Consider defaulting to the bipartite method in getSymmetricDifferenceMatching
     
     res1 = []
