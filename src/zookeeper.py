@@ -15,6 +15,8 @@ import graphs as g
 import ep_finder
 import lep_finder
 
+# TODO: consider tracking computation time for each metric
+
 def profile(fnc):
     """
     Profiles any function in following class just by adding @profile above function
@@ -206,8 +208,6 @@ def try_or(func: Callable, default=None, expected_exc=(Exception,)):
         return func()
     except expected_exc:
         return default
-
-# TODO: consider tracking computation time for each metric
 
 def getGraphMetrics(sparseMatrix: sparse.sparray) -> GraphMetrics:
     # Convert sparse matrix to NetworkX graph

@@ -43,7 +43,7 @@ class NumpyEncoder(json.JSONEncoder):
 def testSlots():
     ns = list(range(250, 2750, 250))
     print("Generating Graphs...", end='\r')
-    Gs = [graphs.GenBertha(n) for n in ns]
+    Gs = [graphs.genBertha(n) for n in ns]
     print("Computing Coarsest EP w/Dict...", end='\r')
     dict_times = [min(timeit.Timer(partial(runEP, G)).repeat(repeat=10, number=20)) / 10 for G in Gs]
     print("Computing Coarsest EP w/Slots...", end='\r')

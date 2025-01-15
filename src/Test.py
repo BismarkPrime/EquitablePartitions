@@ -14,7 +14,7 @@ def runTime(func, *args):
 labels = ["diameter", "radius", "averageShortestPathLength"]#, "edgeConnectivity", "nodeConnectivity"]
 
 print("Generating Berthas...")
-berthas = [graphs.GenBertha(size) for size in sizes]
+berthas = [graphs.genBertha(size) for size in sizes]
 
 # diameter, radius, and average_shortest_path_length took about 1.2 seconds for 750 nodes and 120 seconds for 6000 nodes
 print("Calculating diameters...")
