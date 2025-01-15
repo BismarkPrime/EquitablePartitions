@@ -2,7 +2,7 @@ import sys
 sys.path.append("/home/jrhmc1/Desktop/EquitablePartitions/src/")
 import pandas as pd
 import numpy as np
-import helper as h
+import slurm_helper as h
 import subprocess, os
 from matplotlib import pyplot as plt
 import argparse
