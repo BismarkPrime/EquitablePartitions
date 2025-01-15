@@ -46,6 +46,7 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=
     #         extension = split_name[-2]
     extension = file_name.split('.')[-1]
     match extension.lower():
+        # [ ] Tested
         case 'csv': 
             h.start_section("CSV File Detected")
             print("ASSUMPTIONS:\n\twe are assuming that this csv file contains edge data of the form where the first column "
@@ -81,6 +82,7 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=
                              )
             G_sparse = fromDf(df)
             
+        # [ ] Tested
         case 'graphml':
             h.start_section("GraphML File Detected")
             G_sparse = fromNx(nx.read_graphml(file_name))
@@ -113,18 +115,21 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=
                     else: G = nx.from_dict_of_lists(graph_dict)
                 G_sparse = fromNx(G)
 
+        # [ ] Tested
         case 'gexf':
             h.start_section("GEXF File Detected")
             G = nx.read_gexf(file_name)
             G_sparse = nx.to_scipy_sparse_array(G,format='coo')
             #TODO: test this
             
+        # [ ] Tested
         case 'edgelist':
             h.start_section("EDGELIST File Detected")
             if directed: G = nx.read_edgelist(file_name,create_using=nx.DiGraph)
             else: G = nx.read_edgelist(file_name)
             G_sparse = nx.to_scipy_sparse_array(G,format='coo')
 
+        # [ ] Tested
         case 'edges':
             pass
         
@@ -223,7 +228,7 @@ def GetLocalSpec(G,ep_dict,lep_list):
         
     return spec_dict, orig_spec
 
-def GenBerthaSparse(n, parallel=False):
+def genBerthaSparse(n, parallel=False):
     """
     NOTE: this function could be a near-exact copy of GenBertha, but returning `mat` instead of using
     `nx.from_scipy_sparse_array`. However, writing it from scratch may prove more readable and efficient.
@@ -256,7 +261,7 @@ def GenBerthaSparse(n, parallel=False):
     
     return mat
 
-def GenBertha(size,show_graph=False,parallelize=False):
+def genBertha(size,show_graph=False,parallelize=False):
     """ constructs a Bertha graph of the size indicated (size=number of nodes) organized in such a way that it 
     has the optimal amount of LEP's for eigenvalue catching
     INPUTS:
@@ -316,8 +321,7 @@ def GenBertha(size,show_graph=False,parallelize=False):
 
         return bertha
 
-        
-
+# Graveyard?
 def NontrivialityData(G,ep_dict,lep_list, return_vals=False,plot=True,show_progress=True,verbose=False,include_pairs=False, n=None):
     """
     Gets the percentage of nodes in nontrivial eps and creates and returns a dictionary 
@@ -459,6 +463,7 @@ def NontrivialityData(G,ep_dict,lep_list, return_vals=False,plot=True,show_progr
     if return_vals:
         return nontrivEp_dict, nontrivLep_list,hist_list,totalNontrivNodes/num_nodes
 
+# Graveyard?
 def DuelOfMethods(bertha):
     """compares networkx's normal eigenvalue catching method to our method
     PARAMETERS:
@@ -510,6 +515,7 @@ def randomRelabel(G):
     mapping = {old_label: new_labels[i] for i, old_label in enumerate(G.nodes())}
     return nx.relabel_nodes(G, mapping)#, copy=False)
 
+# Graveyard?
 def getFacebookGraph():
     # NUM_NODES = 4039
 
@@ -585,6 +591,7 @@ def is_orthogonal(Q,verbose=True):
     return True
 
 
+# Graveyard?
 def getDolores(retMat=False):
     #                 1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17 18 19 20 21 22 23 24
     mat =  np.array([[0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0], # 1
@@ -688,6 +695,7 @@ def getDirectedDogboneCE():
                      
     return nx.DiGraph(mat)
 
+# Graveyard?
 def getDirectedDogboneLEP0():
     #                 0  1  2  3  4  5  6  7
     mat =  np.array([[0, 0, 1, 0, 1, 0, 1, 0], # 0
@@ -700,18 +708,21 @@ def getDirectedDogboneLEP0():
                      [0, 0, 0, 1, 0, 0, 0, 0]])# 7
     return nx.DiGraph(mat)
 
+# Graveyard?
 def getDirectedDogboneLEP1():
     #                 0  1
     mat =  np.array([[0, 1], # 0
                      [1, 0]])# 1
     return nx.DiGraph(mat)
 
+# Graveyard?
 def getDirectedDogboneDivisorGraph():
     mat = np.array([[0, 3, 2],
                     [0, 1, 0],
                     [0, 0, 1]])
     return nx.DiGraph(mat)
 
+# Graveyard?
 def getBerthaJr():
     #                 0  1  2  3  4  5  6  7  8  9
     mat =  np.array([[0, 1, 1, 1, 1, 1, 0, 0, 0], # 0
@@ -726,6 +737,7 @@ def getBerthaJr():
                      
     return nx.Graph(mat)
 
+# Graveyard?
 def getGeometricGraph():
     return np.array(
         [[0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 1,
@@ -909,6 +921,7 @@ def getGeometricGraph():
         0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]])
 
+# Graveyard?
 def getGeometricGraph2():
     return np.array([[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
