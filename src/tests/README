@@ -1,0 +1,6 @@
+Unit tests for correctness of the EP Finder, LEP Finder, and LEParD algorithm generally.
+
+See [unittest framework](https://docs.python.org/3/library/unittest.html) for how to add to and update these tests.
+
+Run these tests like so (from `src` directory):
+python3.12 -m unittest -v tests.test_eigenvalues_sparse
