@@ -355,14 +355,15 @@ def plotEquitablePartition(G, pi, pos_dict=None):
             color_list[vertex] = c
     
     if pos_dict is None:
-        # other layout options include: random, circular, spiral, spring, kamada_kawai, etc
-        pos_dict = nx.spring_layout(G)# nx.shell_layout(G)
+        # layout options include: spring, random, circular, spiral, spring, kamada_kawai, etc
+        pos_dict = nx.kamada_kawai_layout(G)
 
     # set plot as non-blocking
     plt.ion()
 
     nx.draw_networkx(G, pos=pos_dict, node_color=color_list)
     plt.show()
+    noop = 1
     # need to pause briefly because GUI events (e.g., drawing) happen when the main loop sleeps
     plt.pause(.001)
 
