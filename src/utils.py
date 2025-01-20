@@ -3,6 +3,9 @@ from scipy import sparse
 
 from typing import List, Tuple
 
+# for debugging purposes
+from matplotlib import pyplot as plt
+
 def getSymmetricDifference(list1: List[complex], list2: List[complex], epsilon_start=1e-4, epsilon_max=1e-1) -> Tuple[List[complex], List[complex]]:
     '''
         Gets the symmetric difference of two lists. (Returns list1 - list2, list2 - list1)
@@ -33,12 +36,41 @@ def getSymmetricDifference(list1: List[complex], list2: List[complex], epsilon_s
                     skip_indices1.add(i)
                     skip_indices2.add(j)
                     break
+        #TODO:nomerge should raise exception if trying to remove globals from total spectrum, but should
+        # not raise exception if doing general copmparison (e.g., for testing). Consider splitting this function
+        
         # if, with epsilon = epsilon_max, we still can't perform the operation, raise an error
-        if epsilon == epsilon_max and len(skip_indices2) < len(list2):
-            raise Exception("Elements of list2 not present in list1:\n" +
-                            f"{[cnum for i, cnum in enumerate(list2) if i not in skip_indices2]}")
-        # increase epsilon by an order of magnitude
-        epsilon = min(epsilon * 10, epsilon_max)
+        if epsilon >= epsilon_max and len(skip_indices2) < len(list2):
+            unique_to_list1 = [cnum for i, cnum in enumerate(list1) if i not in skip_indices1]
+            unique_to_list2 = [cnum for i, cnum in enumerate(list2) if i not in skip_indices2]
+            print("Elements of list2 not present in list1:\n" +
+                            f"{unique_to_list2}\n" +
+                            "Elements of list1 not present in list2:\n" +
+                            f"{unique_to_list1}" +
+                            "Consider increasing epsilon_max.")
+            
+            # for debugging purposes
+            # plot all points in list1 and list2
+            plt.plot([cnum.real for cnum in list1], [cnum.imag for cnum in list1], 'ro')
+            # don't fill in these points so we can see the overlap
+            plt.plot([cnum.real for cnum in list2], [cnum.imag for cnum in list2], 'bo', fillstyle='none')
+            plt.show()
+
+            noop = 1 # breakpoint here
+            # plot points in list1 that are not in list2 and vice versa
+            plt.plot(*zip(*[(cnum.real, cnum.imag) for cnum in unique_to_list1]), 'ro')
+            plt.plot(*zip(*[(cnum.real, cnum.imag) for cnum in unique_to_list2]), 'bo', fillstyle='none')
+            plt.show()
+            
+            # raise Exception("set diff exception")
+            break
+            # raise Exception("Elements of list2 not present in list1:\n" +
+            #                 f"{[cnum for i, cnum in enumerate(list2) if i not in skip_indices2]}\n" +
+            #                 "Elements of list1 not present in list2:\n" +
+            #                 f"{[cnum for i, cnum in enumerate(list1) if i not in skip_indices1]}" +
+            #                 "Consider increasing epsilon_max.")
+        # double epsilon until we reach epsilon_max
+        epsilon = min(epsilon * 2, epsilon_max)
         
 
     for i, cnum in enumerate(list1):
@@ -51,7 +83,7 @@ def getSymmetricDifference(list1: List[complex], list2: List[complex], epsilon_s
 
     return res1, res2
 
-def getSymmetricDifferenceMatching(list1: List[complex], list2: List[complex], abs_tol=1e-2) -> Tuple[List, List]:
+def getSymmetricDifferenceMatching(list1: List[complex], list2: List[complex], abs_tol=5e-2) -> Tuple[List, List]:
     '''
         Gets the symmetric difference of two lists of complex numbers using a bipartite 
         matching algorithm to find the maximum number of complex pairs (c1, c2), where 
