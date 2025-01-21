@@ -11,7 +11,7 @@ import helper as h
 import pandas as pd
 import json
 
-def oneGraphToRuleThemAll(file_name: str, visualize: bool=False) -> sp.coo_array:
+def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=False) -> sp.coo_array:
     """detects the type of input graph. Reads it in and outputs it as a sparse matrix 
     relaying any problems along the way
     PARAMETERS
@@ -44,7 +44,6 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False) -> sp.coo_array
     #         extension = split_name[-3]
     #     else:
     #         extension = split_name[-2]
-    
     extension = file_name.split('.')[-1]
     match extension.lower():
         case 'csv': 
@@ -100,7 +99,7 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False) -> sp.coo_array
                 # (https://networkx.org/documentation/stable/reference/readwrite/generated/networkx.readwrite.json_graph.node_link_graph.html)
                 if {'node', 'link'} <= graph_dict.keys():
                     confirmFormat('node/link json')
-                    G = nx.node_link_graph(graph_dict)
+                    G = nx.node_link_graph(graph_dict,directed=directed)
                 # cytoscape format
                 # (https://networkx.org/documentation/stable/reference/readwrite/generated/networkx.readwrite.json_graph.cytoscape_graph.html)
                 elif 'elements' in graph_dict:
@@ -110,7 +109,8 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False) -> sp.coo_array
                 # (https://networkx.org/documentation/stable/reference/generated/networkx.convert.from_dict_of_lists.html)
                 else:
                     confirmFormat('adjacency dict (dict of lists)')
-                    G = nx.from_dict_of_lists(graph_dict)
+                    if directed: G = nx.from_dict_of_lists(graph_dict,create_using=nx.DiGraph)
+                    else: G = nx.from_dict_of_lists(graph_dict)
                 G_sparse = fromNx(G)
 
         case 'gexf':
@@ -121,7 +121,8 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False) -> sp.coo_array
             
         case 'edgelist':
             h.start_section("EDGELIST File Detected")
-            G = nx.read_edgelist(file_name)
+            if directed: G = nx.read_edgelist(file_name,create_using=nx.DiGraph)
+            else: G = nx.read_edgelist(file_name)
             G_sparse = nx.to_scipy_sparse_array(G,format='coo')
 
         case 'edges':

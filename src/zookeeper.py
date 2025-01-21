@@ -9,6 +9,7 @@ from scipy import stats
 import pickle
 import statistics
 import shutil
+import argparse
 
 import ep_utils
 import graphs as g
@@ -63,7 +64,6 @@ class GraphMetrics(NamedTuple):
     g_connected_components: int
     g_assortativity: float
     g_clustering_coefficient: float
-    g_transitivity: float
 
 class EPMetrics(NamedTuple):
     ep_percent_nt_vertices: int  # percent of vertices in non-trivial equitable partition elements
@@ -101,7 +101,7 @@ class LEPMetrics(NamedTuple):
     lep_size_kurtosis: float
 
 @profile
-def main(file_path: str):
+def main(file_path: str, directed: bool):
     m_source_file = file_path
     # 1a Get the graph as a sparse graph
     tag = file_path.split('.')[-1]
@@ -110,7 +110,7 @@ def main(file_path: str):
         #TODO: make this an argparser
         if 'visualize' in sys.argv: visualize = True
         else: visualize = False
-        G = g.oneGraphToRuleThemAll(file_path,visualize=visualize)
+        G = g.oneGraphToRuleThemAll(file_path,visualize=visualize,directed=directed)
     else:    # type is not
         if tag in UNSUPPORTED_TYPES: print("This type is not yet supported. Maybe you could do it...")
         else: print("We haven't heard of that graph type. Or at least haven't thought about it... Sorry.")
@@ -175,7 +175,8 @@ def main(file_path: str):
     print(f"Eigenvalues verified in {time() - start_time} seconds")
 
     # 8. Store metrics in dataframe
-    df = pd.read_csv("MetricWarden.csv", index_col='name')
+    # why do we this if we file open it??? JRH, commenting out for now.
+    # df = pd.read_csv("MetricWarden.csv", index_col='name')
 
     file_name = file_path.split('/')[-1].split('.')[0]
     network_path = 'Results/' + file_name
@@ -213,6 +214,13 @@ def try_or(func: Callable, default=None, expected_exc=(Exception,)):
 def getGraphMetrics(sparseMatrix: sparse.sparray) -> GraphMetrics:
     # Convert sparse matrix to NetworkX graph
     G = nx.from_scipy_sparse_array(sparseMatrix)
+    size = G.size()
+    directed = nx.is_directed(G)
+    print(f"\n\n\n\n\n{directed}\n\n\n\n\n\n\n")
+    # currently getting only the size because the others take really long.
+    metrics = GraphMetrics(0, 0, 0, size, directed, 0, 0, 0, 0, 0, 0)
+
+    return metrics
 
     start_time = time()
 
@@ -220,12 +228,10 @@ def getGraphMetrics(sparseMatrix: sparse.sparray) -> GraphMetrics:
     avg_node_degree = G.number_of_edges() / G.number_of_nodes()
     diameter = try_or(lambda: nx.diameter(G), -1, nx.exception.NetworkXError) # TODO: consider what default makes the most sense here
     order = G.order()
-    size = G.size()
 
     print(f"found first metrics in ${time() - start_time}")
     start_time = time()
 
-    directed = nx.is_directed(G)
     radius = try_or(lambda: nx.radius(G), -1, nx.exception.NetworkXError)
     average_path_length = try_or(lambda: nx.average_shortest_path_length(G), -1, nx.exception.NetworkXError)
     # NOTE: removed edge and vertex connectivity because they are computationally expensive
@@ -326,6 +332,12 @@ def getLEPMetrics(leps: List[List[int]], pi: Dict[int, List[Any]]) -> LEPMetrics
     return metrics
 
 if __name__=="__main__":
-    file_path = sys.argv[1] if len(sys.argv) > 1 else input("File path > ")
+    parser = argparse.ArgumentParser(description="runs a graph through all outr metrics and test and stores"
+                                     "The attributes in a .csv file called MatricWarden.csv")
+    
+    parser.add_argument("--directed","-d", action='store_true',help="Necessary if graph is directed.")
+    parser.add_argument("--file",type=str, help="Path to the graph")
+    args = parser.parse_args()
+    # file_path = sys.argv[1] if len(sys.argv) > 1 else input("File path > ")
 
-    main(file_path)
+    main(args.file,args.directed)
