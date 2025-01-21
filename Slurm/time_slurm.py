@@ -18,7 +18,7 @@ import ep_utils
 import subprocess
 from time import perf_counter as pc
 import scipy.sparse as sp
-import helper as h
+import slurm_helper as h
 
 if __name__ == "__main__":
     start_script = '/home/jrhmc1/Desktop/EquitablePartitions/Slurm/_LEP_slurm.py'

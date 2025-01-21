@@ -31,11 +31,11 @@ def getTradEigenvaluesNx(G: nx.Graph | nx.DiGraph):
 
 @timer_decorator
 def getBertha(n):
-    return graphs.GenBertha(n)
+    return graphs.genBertha(n)
 
 @timer_decorator
 def getBertha2(n):
-    return nx.from_scipy_sparse_array(graphs.GenBerthaSparse(n))
+    return nx.from_scipy_sparse_array(graphs.genBerthaSparse(n))
 
 # testing relative sizes of data structures if N is stored as a list or a dict
 def sizeTest(Gs: nx.Graph | nx.DiGraph) -> None:
@@ -90,7 +90,7 @@ def status(msg: str, prevlen:List[int]=[0]) -> None:
 def epFinderInitSpeedTest(sizes):
     # status = partial(print, end='\r')
     status("Generating Sparse Berthas...")
-    sparseBerthas = [graphs.GenBerthaSparse(size) for size in sizes]
+    sparseBerthas = [graphs.genBerthaSparse(size) for size in sizes]
     status("Generating Nx Berthas...")
     nxBerthas = [nx.from_scipy_sparse_array(mat) for mat in sparseBerthas]
     status("Initializing EP Finder with Sparse Berthas...")

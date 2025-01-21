@@ -18,7 +18,7 @@ def birthBertha(size_id):
     sizes = np.array([2**i for i in range(19,21)])#[2**i for i in range(17,19)])
     sizes = np.floor(np.sqrt(sizes))**2
     sizes = sizes.astype(int)
-    bertha = graphs.GenBertha(sizes[size_id])
+    bertha = graphs.genBertha(sizes[size_id])
     nx.write_graphml(bertha,f"/home/jrhmc1/Desktop/EquitablePartitions/Networks/bertha_{sizes[size_id]}.graphml")
 
 

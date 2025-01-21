@@ -1,19 +1,245 @@
-
-# Graveyard?
 import math
+from pprint import pprint
+from timeit import Timer
+from typing import Iterable
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib
+import json
 import random
+import timeit
+from functools import partial
+import pdb
 
 import ep_finder
+import ep_finder2
 import lep_finder
 import graphs
 import ep_utils
+from graphs import GetLocalSpec
 
 # TODO: update naming to match paper
 # TODO: add LEP verification tests
+
+import matplotlib.pyplot as plt
+import networkx as nx
+import numpy.linalg
+
+class NumpyEncoder(json.JSONEncoder):
+    """ Special json encoder for numpy types """
+    def default(self, obj):
+        if isinstance(obj, (np.int_, np.intc, np.intp, np.int8,
+                            np.int16, np.int32, np.int64, np.uint8,
+                            np.uint16, np.uint32, np.uint64)):
+            return int(obj)
+        elif isinstance(obj, (np.float_, np.float16, np.float32,
+                              np.float64)):
+            return float(obj)
+        elif isinstance(obj, (np.ndarray,)):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
+
+def testSlots():
+    ns = list(range(250, 2750, 250))
+    print("Generating Graphs...", end='\r')
+    Gs = [graphs.genBertha(n) for n in ns]
+    print("Computing Coarsest EP w/Dict...", end='\r')
+    dict_times = [min(timeit.Timer(partial(runEP, G)).repeat(repeat=10, number=20)) / 10 for G in Gs]
+    print("Computing Coarsest EP w/Slots...", end='\r')
+    slot_times = [min(timeit.Timer(partial(runEPSlots, G)).repeat(repeat=10, number=20)) / 10 for G in Gs]
+    print("Plotting Results...", end='\r')
+    plt.plot(ns, list(zip(dict_times, slot_times)))
+    plt.xlabel("Size of Bertha")
+    plt.ylabel("Time to Compute Coarsest EP")
+    plt.title("Slots vs Dicts Runtime in EP Finder")
+    plt.legend(("Dictionary", "Slots"))
+    plt.show()
+
+def runEP(G):
+    ep_finder.equitablePartition(*ep_finder.initialize(G), False)
+
+def runEPSlots(G):
+    # for testing, ep_finder1 had slots and ep_finder didn't. Since slots are faster, they have now been added to ep_finder
+    # ep_finder1.equitablePartition(*ep_finder1.initialize(G), False)
+    pass
+
+def genDivGraph(G,ep_dict,retMat=False):
+    """calculates and returns the divisor graph of the input graph
+    INPUTS:
+        G (networkx graph): the graph whose divisor graph you want
+        ep_dict (dict): the dictionary defining the equitable partition on G
+        retMat (bool): whether or not the function returns the divisor graph as a matrix
+        
+    RETURNS:
+        divMat (array): the divisor matrix
+        OR
+        nx.Graph(divMat): divisor matrix as nx graph object"""
+    # helper function to get key given a value
+    def get_key(val,my_dict):
+        for key, value_list in list(my_dict.items()):
+            if val in value_list:
+                return key
+        print("they key does not exist")
+        
+    # create empty divisor to fill
+    n = len(ep_dict)
+    divMat = np.zeros((n,n))
+    
+    # cycle through one node in each partition element to get connections for the Divisor Graph
+    for curPartElInd, node_list in enumerate(ep_dict.values()):
+        # always get the first one since the partition is equitable and all connection 
+        # will be the same within the partition elements.
+        node = node_list[0]
+        #print(f"this is the input node: {node}") # debugging statement
+        # count connection to partitions and update divisor matrix accordingly
+        for connection in G.edges(node):
+            connNode = connection[1]
+            #print(curPartElInd,get_key(connNode,ep_dict)) # debugging statement
+            divMat[curPartElInd][get_key(connNode,ep_dict)]+=1
+    # return matrix if desired
+    if retMat:
+        return divMat
+    # otherwise return the divisor graph as a networkx object
+    return nx.DiGraph(divMat)
+
+def GetLocalSpec(G,ep_dict,lep_list):
+    """return the spectrum of each LEP along with its divisor spectrum in a dictionary"""
+    orig_spec = np.round(nx.adjacency_spectrum(G),3)
+    GDiv = genDivGraph(G,ep_dict)
+    GDivSpec = np.round(nx.adjacency_spectrum(GDiv),3)
+    spec_dict = {} # dictionary to hold spectrums
+    
+    for lep in list(lep_list): # cycle through each lep
+        node_list = []   # place to get all nodes in lep
+        temp_ep_dict = {} # make a place for the original ep partitions
+        
+        # iterate through each partition element in that lep.
+        for partElInd, partEl in enumerate(lep):
+            node_list += ep_dict[partEl] # after this loop node_list has all nodes in the lep
+            temp_ep_dict[partElInd] = ep_dict[partEl] # make the temporary ep_dict
+                        
+        subgraph = nx.subgraph(G,node_list) # make a subgraph
+        spec_dict[f"{lep}"] = np.round(nx.adjacency_spectrum(subgraph),3)  # store its spectrum in dictionary
+       
+        spec_dict[f"{lep} Divisor"] = np.round(nx.adjacency_spectrum(genDivGraph(subgraph,temp_ep_dict)),3)
+    # spec_dict["Original Graph Divisor"] = GDivSpec
+        
+    return spec_dict, GDivSpec, orig_spec
+
+# test code
+def test(p=.04, iters=500, nodes=40):
+    for nodes in range(20, 160, 20):
+        print(f"\nChecking graphs with {nodes} nodes")
+        for i in range(iters):
+            print(f'\r{i}', end='')
+            G = nx.random_internet_as_graph(nodes, seed=i)
+            if not ep_utils.compareEigenvalues(G):
+                print("ERROR")
+                if (input() == 'v'):
+                    print(nx.adjacency_matrix(G, dtype=int).todense())
+                    ep_dict = ep_utils.getTransceivingEP(G)
+                    ep_utils.plotEquitablePartition(G, ep_dict)
+                    input()
+
+    # G = nx.random_geometric_graph(40, .15)
+    # pi, leps = lep_finder.getEquitablePartitions(G, False, False)
+    # lep_finder.plotEquitablePartition(G, pi, nx.get_node_attributes(G, "pos"))
+
+def testCorrectness(p=.04, iters=3000, nodes=40):
+    for nodes in range(20, 80, 20):
+        print(f"\nChecking graphs with {nodes} nodes")
+        for i in range(iters):
+            print(f'\r{i}', end='')
+            G = nx.erdos_renyi_graph(nodes, 3.2 / nodes, directed=True, seed=i)
+            pi1 = list(ep_utils.getTransceivingEP(G)[0].values())
+            pi2 = list(ep_utils.getTransceivingEP2(G)[0].values())
+            for l in pi1:
+                l.sort()
+            for l in pi2:
+                l.sort()
+            pi1.sort()
+            pi3 = sorted(pi2)
+            if pi1 != pi3:
+                print("ERROR")
+                if (input() == 'v'):
+                    print(nx.adjacency_matrix(G, dtype=int).todense())
+                    pprint(f"EP from ep_finder:\n{pi1}")
+                    pprint(f"EP from ep_finder2:\n{pi3}")
+                    pprint(f"EP2 orig: {pi2}")
+                    input()
+
+# function to test runtime complexity
+def complexityTest():
+    num_nodes = list()
+    ep_comp_time = list()
+    ep2_comp_time = list()
+    for nodes in range(200, 4000, 200):
+        print(f"\rComputing iteration w/ {nodes} nodes.", end='')
+        num_nodes.append(nodes)
+        # G = nx.erdos_renyi_graph(nodes, 2.4 / nodes, directed=True)
+        G = nx.random_internet_as_graph(nodes)
+        func = lambda: ep_utils.getTransceivingEP(G)
+        func2 = lambda: ep_utils.getTransceivingEP2(G)
+        t = Timer(func)
+        t2 = Timer(func2)
+        ep_comp_time.append(t.timeit(15))
+        ep2_comp_time.append(t2.timeit(15))
+
+    
+    plt.scatter(num_nodes, ep_comp_time, color='b', label="ep_finder")
+    plt.scatter(num_nodes, ep2_comp_time, color='r', label="ep_finder2")
+    plt.title("EP vs EP2 Computation Time")
+    plt.xlabel('Number of Nodes')
+    plt.ylabel('Computation Time')
+    plt.legend(loc="upper left")
+    plt.show()
+
+def compareEPEigenvalues(G: nx.Graph | nx.DiGraph, pi, leps) -> None:
+    spec_dict, div_spec, orig_spec = GetLocalSpec(G, pi, leps)
+    print("EP Eigenvalues:")
+    # pprint(getEigenvalues(G))
+    pprint(orig_spec)
+
+    print("LEP Eigenvalues:")
+    lep_eigs = []
+    for key, value in list(spec_dict.items()):
+        if "Divisor" not in key:
+            lep_eigs.append(value)
+    pprint(lep_eigs)
+    print("Divisor Eigenvalues:")
+    pprint(div_spec)
+    # pprint(GetLocalSpec(G, pi, leps)[0])
+    # pprint(list(filter(lambda x: len(x) > 1, getEPEigenvalues(G).values())))
+
+
+def getEPEigenvalues(G: nx.Graph | nx.DiGraph) -> Iterable[numpy.ndarray]:
+    ep, leps = ep_utils.getEquitablePartitions(G, progress_bars=False)
+    for lep in leps:
+        if len(lep) > 1:
+            lep = list(lep)
+            for i in lep[1:]:
+                ep[lep[0]] += ep[i]
+                del ep[i]
+    eigen_dict = {}
+    for index, partition_element in ep.items():
+        eigen_dict[index] = getEigenvalues(G.subgraph(partition_element))
+    return eigen_dict
+
+def getEigenvalues(G: nx.Graph | nx.DiGraph) -> Iterable[numpy.ndarray]:
+    L = nx.to_numpy_array(G)
+    return numpy.linalg.eigvals(L)
+
+def findInterestingGraphs():
+    while True:
+        G = nx.gnp_random_graph(20, .1, directed=True)
+        vals = test.getEPEigenvalues(G).values()
+        for l in vals:
+                if np.any(l):
+                        pprint(vals)
+                        input()
+                        break
+
 
 def hasAllNodesOnce(G, start, end):
     for i in range(start, end):
@@ -30,32 +256,18 @@ def graphIsUndirected(G):
     return True
 
 def plotIfInvalid(G):
-    ep, leps, time = lep_finder.getEquitablePartitions(G)
+    ep, leps = lep_finder.getEquitablePartitions(G)
     if not isPartition(ep, G) or not isEquitable(ep, G):
         print(ep)
         lep_finder.plotEquitablePartition(G, ep)
 
-# test code
-def test():
-    while True:
-        G = nx.gnp_random_graph(10, .15, directed=True)
-        pi, leps = lep_finder.getEquitablePartitions(G, timed=False, progress_bars=False)
-        if len(leps) != len(pi):
-            print(pi)
-            print(leps)
-            lep_finder.plotEquitablePartition(G, pi)
-            input()
-
-    G = nx.random_geometric_graph(40, .15)
-    pi, leps = lep_finder.getEquitablePartitions(G, False, False)
-    lep_finder.plotEquitablePartition(G, pi, nx.get_node_attributes(G, "pos"))
 
 # generates random geometric graphs until it finds ep_finder problems
 def findBadEPs():
     i = 0
     while (True):
         G = nx.gnp_random_graph(20, .14, seed=i, directed=False)
-        graphs.randomRelabel(G)
+        G = graphs.randomRelabel(G)
         if not validEpResults(G):
             print("Current seed: {}".format(i))
             print("Press <Enter> to continue...")
@@ -79,20 +291,25 @@ def validEpResults(G):
     return True
 
 def isPartition(pi, G):
-    vertex_count = np.ones(G.number_of_nodes())
+    # vertex_count = np.ones(G.number_of_nodes())
+    vertices = set()
     # verify that each vertex shows up exactly once in pi
     for V_i in pi.values():
         for vertex in V_i:
-            vertex_count[vertex] -= 1
+            if vertex in vertices:
+                return False
+            vertices.add(vertex)
     
-    return not np.any(vertex_count)
+    return len(vertices) == G.number_of_nodes()
 
 def isEquitable(pi, G):
     # create table for fast node-to-partition lookups
-    partition_dict = np.empty(G.number_of_nodes(), int)
+    partition_dict = dict() #np.empty(G.number_of_nodes(), int)
     for (element, nodes) in pi.items():
         for node in nodes:
             partition_dict[node] = element
+
+    g_rev = G.reverse() if G.is_directed() else G
     
     for V_i in pi.values():
         if len(V_i) > 1:
@@ -101,10 +318,10 @@ def isEquitable(pi, G):
             for i, vertex in enumerate(V_i):
                 # construct rule
                 if i == 0:
-                    rule = getPartitionNeighbors(vertex, G, partition_dict)
+                    rule = getPartitionNeighbors(vertex, G, partition_dict, g_rev)
                 # test other vertices against the rule
                 else:
-                    conns = getPartitionNeighbors(vertex, G, partition_dict)
+                    conns = getPartitionNeighbors(vertex, G, partition_dict, g_rev)
                     if conns != rule:
                         print(V_i)
                         print("last call{}getPartitionNeighbors({}, {}, part)".format('-'*30, vertex, G))
@@ -113,9 +330,9 @@ def isEquitable(pi, G):
     return True
 
 # specifically, we are getting the in-edge neighbors
-def getPartitionNeighbors(vertex, G, partition_dict):
+def getPartitionNeighbors(vertex, G, partition_dict, g_rev):
     conns = {}
-    for neighbor in (G.reverse() if G.is_directed() else G).neighbors(vertex):
+    for neighbor in g_rev.neighbors(vertex):
         part_el = partition_dict[neighbor]
         if part_el not in conns:
             conns.update({ part_el: 0 })
@@ -179,7 +396,7 @@ def graphWithColoredPartEl(adj_mat, ep):
     =========
     ep (dict): containts the nodes in each partition element"""
     hexColors = list(matplotlib.colors.cnames.values())  #get hex colors
-    colorArr = [0 for i in range(max(ep.values())[0]+1)] #create place to store node colors
+    colorArr = [0 for i in range(max(max(ep.values()))+1)] #create place to store node colors
     index = 0    #start node index as 9
     for partEl in ep.values():   #cycle through each partition element
         color = random.randint(0,148)   #get a random color to assign to this partition element
@@ -188,30 +405,6 @@ def graphWithColoredPartEl(adj_mat, ep):
             index+=1   #use this to get different colorArr position each time
     
     nx.draw_networkx(nx.from_numpy_array(adj_mat),node_color=colorArr)    #graph it with colors
-
-# outdated function to test runtime complexity
-def complexityTest():
-    num_nodes = list()
-    ep_comp_time = list()
-    lep_comp_time = list()
-    for i in range(2000, 50000, 2000):
-        num_nodes.append(i)
-        G = nx.random_internet_as_graph(i)
-        # func = lambda: getEquitablePartitions(G)
-        # t = Timer(func)
-        # computation_time.append(t.timeit(1))
-        coarsest, local = lep_finder.getEquitablePartitions(G)
-        ep_comp_time.append(coarsest)
-        lep_comp_time.append(local)
-
-    
-    plt.scatter(num_nodes, ep_comp_time, color='b', label="ep_finder")
-    plt.scatter(num_nodes, lep_comp_time, color='r', label="LEP Algorithm")
-    plt.title("EP vs LEP Computation Time")
-    plt.xlabel('Number of Nodes')
-    plt.ylabel('Computation Time')
-    plt.legend(loc="upper left")
-    plt.show()
 
 def getLocalEquitablePartitions(ep, adjMat, print_subgraphs = False, verbose = False):
     """This function finds the local equitable partitions of a graph.
@@ -745,3 +938,8 @@ def relabel(G):
     # if mapping is None:
     mapping = {old_label: new_label for new_label, old_label in enumerate(G.nodes())}
     nx.relabel_nodes(G, mapping, copy=False)
+
+
+
+
+

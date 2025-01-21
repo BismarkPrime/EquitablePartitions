@@ -1,5 +1,4 @@
-import os,sys
-import numpy as np
+import os
 
 def PrepSlurmScript(slurm_paste,start_script):
     """puts the slurm details into the beginning of the slurm script that's about to run

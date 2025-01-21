@@ -8,8 +8,6 @@ import numpy as np
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 import pickle
-#import profile
-#import pstats
 
 def create_berthas(top_power2=13):
     print("Creating Graphs")
@@ -27,7 +25,7 @@ def create_berthas(top_power2=13):
             continue
         try:
             print(f"Generating for size {n}")
-            G = graphs.GenBertha(n)
+            G = graphs.genBertha(n)
             berthas[n] = G
         except:
             print(f"failed for size {n}")

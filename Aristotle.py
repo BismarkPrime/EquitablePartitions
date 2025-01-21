@@ -13,7 +13,7 @@ sys.path.append("/home/jrhmc1/Desktop/EquitablePartitions/src/")
 import timing as tim
 from time import perf_counter as pc
 import networkx as nx
-import helper as h
+import slurm_helper as h
 import pandas as pd
 import re
 
