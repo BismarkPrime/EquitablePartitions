@@ -131,7 +131,9 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=
 
         # [ ] Tested
         case 'edges':
-            pass
+            h.start_section("EDGES File Detected")
+            G = nx.read_edgelist(file_name,create_using=nx.DiGraph if directed else nx.Graph)
+            G_sparse = nx.to_scipy_sparse_array(G,format='coo')
         
         case _:
             # default case, if no other case matches

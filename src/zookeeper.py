@@ -38,8 +38,8 @@ def profile(fnc):
         return retval
     return inner 
 
-SUPPORTED_TYPES = ['csv','txt','graphml','gexf','json','edgelist']
-UNSUPPORTED_TYPES = ['edges']
+SUPPORTED_TYPES = ['csv','txt','graphml','gexf','json','edgelist','edges']
+UNSUPPORTED_TYPES = []
 
 class MetaMetrics(NamedTuple):
     m_source_file: str
@@ -101,7 +101,7 @@ class LEPMetrics(NamedTuple):
     lep_size_skewness: float
     lep_size_kurtosis: float
 
-@profile
+# @profile
 def main(file_path: str, directed: bool):
     m_source_file = file_path
     # 1a Get the graph as a sparse graph
@@ -202,7 +202,7 @@ def main(file_path: str, directed: bool):
     new_info = ','.join(map(str, new_info))
 
     with open('MetricWarden.csv','a') as file:
-        file.write(new_info)
+        file.write(f'{new_info}\n')
 
 def try_or(func: Callable, default=None, expected_exc=(Exception,)):
     try:
@@ -215,7 +215,6 @@ def getGraphMetrics(sparseMatrix: sparse.sparray) -> GraphMetrics:
     G = nx.from_scipy_sparse_array(sparseMatrix)
     size = G.size()
     directed = nx.is_directed(G)
-    print(f"\n\n\n\n\n{directed}\n\n\n\n\n\n\n")
     # currently getting only the size because the others take really long.
     metrics = GraphMetrics(0, 0, 0, size, directed, 0, 0, 0, 0, 0, 0)
 
