@@ -11,6 +11,10 @@ import slurm_helper as h
 import pandas as pd
 import json
 
+def toSymmetric(A: sp.coo_array) -> sp.coo_array:
+    """Converts a sparse matrix to a symmetric matrix"""
+    return A + A.T - sp.diags(A.diagonal())
+
 def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=False) -> sp.coo_array:
     """detects the type of input graph. Reads it in and outputs it as a sparse matrix 
     relaying any problems along the way
@@ -30,20 +34,6 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=
         weights = np.ones(src.size)
         return sp.coo_array((weights, (src, dst)), shape=(num_nodes, num_nodes), dtype='b')
     
-    # note: pandas.read_csv automatically detects compression for the following extensions: 
-    # ‘.gz’, ‘.bz2’, ‘.zip’, ‘.xz’, ‘.zst’, ‘.tar’, ‘.tar.gz’, ‘.tar.xz’ or ‘.tar.bz2’
-    
-    # note: perhaps useable when we consider cases for compressed files
-    # split_name = file_name.split('.')[-1]
-    
-    # tar_compression_extensions = {'gz', 'xz', 'bz2'}
-    # compression_extensions = {'gz', 'bz2', 'zip', 'xz', 'zst', 'tar'}
-    # extension = split_name[-1]
-    # if extension in compression_extensions:
-    #     if extension in tar_compression_extensions and split_name[-2] == 'tar':
-    #         extension = split_name[-3]
-    #     else:
-    #         extension = split_name[-2]
     extension = file_name.split('.')[-1]
     match extension.lower():
         # [ ] Tested
@@ -132,7 +122,7 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=
         # [ ] Tested
         case 'edges':
             h.start_section("EDGES File Detected")
-            G = nx.read_edgelist(file_name,create_using=nx.DiGraph if directed else nx.Graph)
+            G = nx.read_edgelist(file_name, create_using=nx.DiGraph if directed else nx.Graph)
             G_sparse = nx.to_scipy_sparse_array(G,format='coo')
         
         case _:

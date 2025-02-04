@@ -59,12 +59,12 @@ class GraphMetrics(NamedTuple):
     g_directed: bool
     g_radius: int  # min eccentricity
     g_average_path_length: float
-    # g_edge_connectivity: int
-    # g_vertex_connectivity: int
     g_density: float
     g_connected_components: int
     g_assortativity: float
     g_clustering_coefficient: float
+    g_transitivity: float
+    # NOTE: removed edge and vertex connectivity because they are computationally expensive
 
 class EPMetrics(NamedTuple):
     ep_percent_nt_vertices: int  # percent of vertices in non-trivial equitable partition elements
@@ -102,7 +102,7 @@ class LEPMetrics(NamedTuple):
     lep_size_kurtosis: float
 
 # @profile
-def main(file_path: str, directed: bool):
+def main(file_path: str, directed: bool, verify_eigenvalues: bool=False):
     m_source_file = file_path
     # 1a Get the graph as a sparse graph
     tag = file_path.split('.')[-1]
@@ -111,7 +111,7 @@ def main(file_path: str, directed: bool):
         #TODO: make this an argparser
         if 'visualize' in sys.argv: visualize = True
         else: visualize = False
-        G = g.oneGraphToRuleThemAll(file_path,visualize=visualize,directed=directed)
+        G = g.oneGraphToRuleThemAll(file_path, visualize=visualize, directed=directed)
     else:    # type is not
         if tag in UNSUPPORTED_TYPES: print("This type is not yet supported. Maybe you could do it...")
         else: print("We haven't heard of that graph type. Or at least haven't thought about it... Sorry.")
@@ -134,8 +134,6 @@ def main(file_path: str, directed: bool):
     m_ep_time = ep_time
 
     print(f"Coarsest EP computed in {ep_time} seconds")
-
-    ep_filepath = '../Results/'
     
     # 4. Compute EP metrics
     ep_metrics = getEPMetrics(pi)
@@ -163,21 +161,20 @@ def main(file_path: str, directed: bool):
     start_time = time()
     
     # 7b. Verify that the eigenvalues are correct
-    np_eigenvalues = np.linalg.eigvals(csr.toarray())
-    our_unique_eigs, their_unique_eigs = ep_utils.getSymmetricDifference(eigenvalues, np_eigenvalues)
-    if len(our_unique_eigs) > 0:
-        print(f"Error: Some eigenvalues are unique to the LEPARD eigenvalues")
-        prompt = "Would you like to compare LEParD eigenvalues to numpy eigenvalues? (Y/n) > "
-        view_eigs = input(prompt)[0].lower() != 'n'
-        if view_eigs:
-            print(f"LEParD eigenvalues: {our_unique_eigs}")
-            print(f"Numpy eigenvalues: {their_unique_eigs}")
-    
-    print(f"Eigenvalues verified in {time() - start_time} seconds")
+    if verify_eigenvalues:
+        np_eigenvalues = np.linalg.eigvals(csr.toarray())
+        our_unique_eigs, their_unique_eigs = ep_utils.getSymmetricDifference(eigenvalues, np_eigenvalues)
+        if len(our_unique_eigs) > 0:
+            print(f"Error: Some eigenvalues are unique to the LEPARD eigenvalues")
+            prompt = "Would you like to compare LEParD eigenvalues to numpy eigenvalues? (Y/n) > "
+            view_eigs = input(prompt)[0].lower() != 'n'
+            if view_eigs:
+                print(f"LEParD eigenvalues: {our_unique_eigs}")
+                print(f"Numpy eigenvalues: {their_unique_eigs}")
+        
+        print(f"Eigenvalues verified in {time() - start_time} seconds")
 
     # 8. Store metrics in dataframe
-    # why do we this if we file open it??? JRH, commenting out for now.
-    # df = pd.read_csv("MetricWarden.csv", index_col='name')
 
     file_name = file_path.split('/')[-1].split('.')[0]
     network_path = 'Results/' + file_name
@@ -188,13 +185,13 @@ def main(file_path: str, directed: bool):
     # make a directory for the network in results
     os.mkdir(network_path)
 
-    with open(network_path + '/ep_data.pkl','wb') as f:
-        pickle.dump(pi, f, protocol=pickle.HIGHEST_PROTOCOL)
-    with open(network_path + '/lep_data.pkl','wb') as f:
-        pickle.dump(leps, f, protocol=pickle.HIGHEST_PROTOCOL)
-
     m_ep_file = 'ep_data.pkl'
     m_lep_file = 'lep_data.pkl'
+
+    with open(f"{network_path}/{m_ep_file}", 'wb') as f:
+        pickle.dump(pi, f, protocol=pickle.HIGHEST_PROTOCOL)
+    with open(f"{network_path}/{m_lep_file}", 'wb') as f:
+        pickle.dump(leps, f, protocol=pickle.HIGHEST_PROTOCOL)
 
     meta_metrics = MetaMetrics(m_source_file, m_ep_file, m_lep_file, m_ep_time, m_lep_time, m_eig_time, m_total_time)
 
@@ -204,7 +201,7 @@ def main(file_path: str, directed: bool):
     with open('MetricWarden.csv','a') as file:
         file.write(f'{new_info}\n')
 
-def try_or(func: Callable, default=None, expected_exc=(Exception,)):
+def try_or[T](func: Callable[[], T], default: T, expected_exc: Exception=Exception) -> T:
     try:
         return func()
     except expected_exc:
@@ -215,10 +212,7 @@ def getGraphMetrics(sparseMatrix: sparse.sparray) -> GraphMetrics:
     G = nx.from_scipy_sparse_array(sparseMatrix)
     size = G.size()
     directed = nx.is_directed(G)
-    # currently getting only the size because the others take really long.
-    metrics = GraphMetrics(0, 0, 0, size, directed, 0, 0, 0, 0, 0, 0)
 
-    return metrics
 
     start_time = time()
 
@@ -232,14 +226,10 @@ def getGraphMetrics(sparseMatrix: sparse.sparray) -> GraphMetrics:
 
     radius = try_or(lambda: nx.radius(G), -1, nx.exception.NetworkXError)
     average_path_length = try_or(lambda: nx.average_shortest_path_length(G), -1, nx.exception.NetworkXError)
-    # NOTE: removed edge and vertex connectivity because they are computationally expensive
-    # and take longer than the LEParD algorithm itself
-    # edge_connectivity = 0 #nx.edge_connectivity(G)
 
     print(f"found next metrics in ${time() - start_time}")
     start_time = time()
 
-    # vertex_connectivity = 0 #nx.node_connectivity(G)
     density = nx.density(G)
     connected_components = nx.number_connected_components(G)
 
@@ -276,7 +266,6 @@ def getEPMetrics(pi: Dict[int, List[Any]]) -> EPMetrics:
     size_skewness = stats.skew(sizes)
     size_kurtosis = stats.kurtosis(sizes)
 
-    # Compute percent_nt_vertices
     nt_vertices = 0
     nt_elements = 0
     for i in pi:
@@ -333,9 +322,9 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser(description="runs a graph through all outr metrics and test and stores"
                                      "The attributes in a .csv file called MatricWarden.csv")
     
-    parser.add_argument("--directed","-d", action='store_true',help="Necessary if graph is directed.")
-    parser.add_argument("--file",type=str, help="Path to the graph")
+    parser.add_argument("--directed","-d", action='store_true', help="Necessary if graph is directed.")
+    parser.add_argument("--file", type=str, help="Path to the graph")
     args = parser.parse_args()
     # file_path = sys.argv[1] if len(sys.argv) > 1 else input("File path > ")
 
-    main(args.file,args.directed)
+    main(args.file, args.directed)
