@@ -10,51 +10,40 @@ from scipy import sparse
 import itertools
 from typing import Dict, List, Set, Tuple
 import graphs
-import time
-import timeit
-
 from collections import Counter
+
 import ep_finder, lep_finder
 import graphs
+from utils import getSymmetricDifference
 
 # TODO: update naming to match paper
 # TODO: use child processes for finding EP and LEP to release memory after computation.
 
 EPSILON = 1e-4
 
-
-#@profile
-def getEigenvaluesSparse(mat: sparse.sparray) -> List[float | complex]:
+def getEigenvaluesSparse(mat: sparse.sparray, dt_stats=False) -> List[float | complex]:
     # NOTE: despite using sparse matrices where possible, eigenvalue calculations 
     #   are still performed on dense matrices. If possible, it would be good to hook 
     #   into a library designed for finding eigenvalues of sparse matrices specifically
     # see https://scicomp.stackexchange.com/questions/7369/what-is-the-fastest-way-to-compute-all-eigenvalues-of-a-very-big-and-sparse-adja
 
-    start = time.time()
     csr = mat.tocsr()
     csc = mat.tocsc()
 
-
-    print(f"{time.time() - start}: converted to csr, csc")
-
     # 1. Find Coarsest Equitable Partition
     pi = ep_finder.getEquitablePartition(ep_finder.initFromSparse(csr))
-
-    print(f"{time.time() - start}: found ep")
 
     # 2. Find Global Eigenvalues
     #       a. Compute Divisor Matrix
     #       b. Calculate spectrum
     divisor_matrix = getDivisorMatrixSparse(csc, pi)
-    print(f"{time.time() - start}: computed divisor matrix")
+
     # in practice, np.linalg.eigvals, scipy.linalg.eigvals, and scipy.linalg.eigvals(..., overwrite_a=True) run
     #   in roughly the same amount of time
     globals = np.linalg.eigvals(divisor_matrix)
-    print(f"{time.time() - start}: got globals")
 
     # 2. Find Monad LEP Set
     L = lep_finder.getLocalEquitablePartitions(lep_finder.initFromSparse(csc), pi)
-    print(f"{time.time() - start}: got LEPs")
 
     # 3. Find Local Eigenvalues
     #    For each LEP:
@@ -78,14 +67,46 @@ def getEigenvaluesSparse(mat: sparse.sparray) -> List[float | complex]:
         subgraph_locals = np.linalg.eigvals(subgraph.todense())
 
         locals.append(getSetDifference(subgraph_locals, subgraph_globals))
-    print(f"{time.time() - start}: got locals")
     
     spectrum = list(itertools.chain.from_iterable((globals, *locals)))
-    print(f"{time.time() - start}: combined globals + locals")
 
+    if dt_stats:
+        return pi, globals, list(itertools.chain.from_iterable(locals))
     return spectrum
 
-#@profile
+def _getEigenvaluesSparse(csc: sparse.csc_array, csr: sparse.csr_array, pi: Dict[int, List[int]], leps: List[List[int]]) -> Tuple[List[float | complex], List[float | complex]]:
+    
+    divisor_matrix = getDivisorMatrixSparse(csc, pi)
+
+    # in practice, np.linalg.eigvals, scipy.linalg.eigvals, and scipy.linalg.eigvals(..., overwrite_a=True) run
+    #   in roughly the same amount of time
+    globals = np.linalg.eigvals(divisor_matrix)
+
+    # 3. Find Local Eigenvalues
+    #    For each LEP:
+    #       a. Create subgraph
+    #       b. Compute divisor graph of subgraph
+    #       c. Calculate spectrum of subgraph, divisor graph
+    #       d. Compute difference eigs(SG) - eigs(DG)
+    locals = []
+    for lep in leps:
+        nodes = []
+        for V in lep:
+            nodes.extend(pi[V])
+        # skip iterations for which globals = locals
+        if len(nodes) < 2:
+            continue
+        
+        subgraph = csr[nodes,:][:,nodes]
+        divisor_submatrix = divisor_matrix[lep,:][:,lep]
+
+        subgraph_globals = np.linalg.eigvals(divisor_submatrix)
+        subgraph_locals = np.linalg.eigvals(subgraph.todense())
+
+        locals.extend(getSetDifference(subgraph_locals, subgraph_globals))
+
+    return globals, locals
+
 def getDivisorMatrixSparse(mat_csc: sparse.csc_array, pi: Dict[int, List[int]]) -> sparse.sparray:
 
     node2ep = { node: i for i, V in pi.items() for node in V }
@@ -99,7 +120,6 @@ def getDivisorMatrixSparse(mat_csc: sparse.csc_array, pi: Dict[int, List[int]]) 
     
     return div_mat
 
-#@profile
 def getDivisorMatrixNx(G: nx.Graph | nx.DiGraph, pi: Dict[int, Set[int]]) -> sparse.sparray: # [int, set[int]]:
     """Finds the divisor matrix of a graph with respect to its coarsest equitable partition.
    
@@ -136,7 +156,6 @@ def getDivisorMatrixNx(G: nx.Graph | nx.DiGraph, pi: Dict[int, Set[int]]) -> spa
             div_mat[ep_to_div[ep_id], ep_to_div[neighbor_ep]] += 1
     return div_mat
 
-#@profile
 def getEigenStuffsNx(G: nx.Graph | nx.DiGraph) -> Tuple[List[complex], Dict[int, List[complex]], Dict[int, List[complex]]]:
     """Finds the eigenvalues of the divisor matrix of a graph with respect to its coarsest equitable partition.
    
@@ -195,7 +214,6 @@ def getEigenStuffsNx(G: nx.Graph | nx.DiGraph) -> Tuple[List[complex], Dict[int,
     return globals, lep_locals, lep_globals
 
 
-#@profile
 def getEigenvaluesNx(G: nx.Graph | nx.DiGraph) -> List[complex]:
     '''
     Extracts eigenvalues from graph using the complete equitable partitions method.
@@ -207,6 +225,7 @@ def getEigenvaluesNx(G: nx.Graph | nx.DiGraph) -> List[complex]:
         A list of the eigenvalues of the graph
     '''
     lifting_counter, lep_eigs, lep_globals = getEigenStuffsNx(G)
+
     lifting_counter += lep_eigs
     # NOTE: set differences are non-trivial with floating point error, especially in the complex
     #   plane. In considering the complexity of the LEParD algorithm, note that this difference 
@@ -219,83 +238,9 @@ def getEigenvaluesNx(G: nx.Graph | nx.DiGraph) -> List[complex]:
     
 
 def getSetDifference(list1: List[complex], list2: List[complex], epsilon_start=EPSILON, epsilon_max=1e-1) -> List[complex]:
-    '''
-        Gets the difference of two lists. (Returns list1 - list2)
-        Assumes that two elements are equal if they are within epsilon of one another.
-        Increases the value of epsilon by an order of magnitude, up to epsilon_max, until all elements of list2 can be removed from list1.
-        If elements remain in list2 after reaching epsilon_max, throws and error.
-    '''
-    # NOTE: since maximum bipartite matching is generally solved as a max-flow problem, it
-    #   may be comparable in speed to this naive method (n^2), and is more robust to edge cases.
-    #   (Note, however, that the current implementation in NetworkX is quite slow.)
-    #   Consider defaulting to the bipartite method in getSymmetricDifferenceMatching
+    return getSymmetricDifference(list1, list2, epsilon_start=epsilon_start, epsilon_max=epsilon_max)[0]
     
-    res1 = []
 
-    skip_indices1 = set()
-    skip_indices2 = set()
-    epsilon = epsilon_start
-
-    while len(skip_indices2) < len(list2):
-        for j, cnum2 in enumerate(list2):
-            if j in skip_indices2:
-                continue
-            for i, cnum1 in enumerate(list1):
-                if i in skip_indices1:
-                    continue
-                if cmath.isclose(cnum2, cnum1, abs_tol=epsilon):
-                    skip_indices1.add(i)
-                    skip_indices2.add(j)
-                    break
-        # if, with epsilon = epsilon_max, we still can't perform the operation, raise an error
-        if epsilon == epsilon_max and len(skip_indices2) < len(list2):
-            raise Exception("Elements of list2 not present in list1:\n" +
-                            f"{[cnum for i, cnum in enumerate(list2) if i not in skip_indices2]}")
-        # increase epsilon by an order of magnitude
-        epsilon = min(epsilon * 10, epsilon_max)
-        
-
-    for i, cnum in enumerate(list1):
-        if i not in skip_indices1:
-            res1.append(cnum)
-
-    return res1
-
-def getSymmetricDifferenceMatching(list1: List[complex], list2: List[complex]) -> Tuple[List, List]:
-    '''
-        Gets the symmetric difference of two lists of complex numbers using a bipartite 
-        matching algorithm to find the maximum number of complex pairs (c1, c2), where 
-        c1 is from list1 and c2 from list2, such that c1 and c2 are sufficiently close to
-        be considered equal complex numbers given some floating point tolerance.
-        Returns two lists: list1 - list2, and list2 - list1
-    '''
-    # 1. create a bipartite graph with edges between each complex number in list1 and all 
-    #   complex numbers in list2 that are sufficiently close to be considered equal
-    #   (within some floating-point tolerance)
-    sparse_graph = sparse.dok_matrix((len(list1), len(list2)), dtype=bool)
-    for i, cnum1 in enumerate(list1):
-        for j, cnum2 in enumerate(list2):
-            if cmath.isclose(cnum1, cnum2, abs_tol=EPSILON):
-                sparse_graph[i, j] = True
-    # 2. find the maximum matching of the graph
-    matches = sparse.csgraph.maximum_bipartite_matching(sparse_graph.tocsr(), perm_type='column')
-    # 3. return the symmetric difference of the two lists, where the elements in the
-    #   matching are removed from the lists
-    skipIndices1 = set()
-    skipIndices2 = set()
-    for i, j in enumerate(matches):
-        if j != -1:
-            skipIndices1.add(i)
-            skipIndices2.add(j)
-    res1 = []
-    res2 = []
-    for i, cnum in enumerate(list1):
-        if i not in skipIndices1:
-            res1.append(cnum)
-    for j, cnum in enumerate(list2):
-        if j not in skipIndices2:
-            res2.append(cnum)
-    return res1, res2
 
 def compareEigenvalues(G: nx.Graph | nx.DiGraph) -> None:
     '''
@@ -308,14 +253,14 @@ def compareEigenvalues(G: nx.Graph | nx.DiGraph) -> None:
     '''
     # STEPS:
     # 1. get eigenvalues of the graph using the complete equitable partitions method
-    cep_eigs = getEigenvaluesSparse(nx.adjacency_matrix(G))
+    cep_eigs = getEigenvaluesSparse(G)#nx.adjacency_matrix(G))
     # for checking the networkx implimentation, use
     # cep_eigs = getEigenvaluesNx(G)
     # 2. get eigenvalues of the graph using networkx
     np_eigs = np.linalg.eigvals(nx.adjacency_matrix(G).toarray())
 
     # use getSymmetricDifferenceMatching for slower, but more robust, performance
-    rem_cep, rem_np = getSymmetricDifferenceMatching(cep_eigs, np_eigs)
+    rem_cep, rem_np = getSymmetricDifference(cep_eigs, np_eigs)
 
     if len(rem_cep) != 0 or len(rem_np) != 0:
         print(f"Eigenvalues do not match!\nUnique to CEP: \n{np.asarray(rem_cep)}\nUnique to NP: \n{np.asarray(rem_np)}")
@@ -397,14 +342,15 @@ def plotEquitablePartition(G, pi, pos_dict=None):
             color_list[vertex] = c
     
     if pos_dict is None:
-        # other layout options include: random, circular, spiral, spring, kamada_kawai, etc
-        pos_dict = nx.spring_layout(G)# nx.shell_layout(G)
+        # layout options include: spring, random, circular, spiral, spring, kamada_kawai, etc
+        pos_dict = nx.kamada_kawai_layout(G)
 
     # set plot as non-blocking
     plt.ion()
 
     nx.draw_networkx(G, pos=pos_dict, node_color=color_list)
     plt.show()
+    noop = 1
     # need to pause briefly because GUI events (e.g., drawing) happen when the main loop sleeps
     plt.pause(.001)
 
@@ -535,7 +481,7 @@ if __name__ == "__main__":
     # sparse_array = nx.adjacency_matrix(G)
     # getEigenvaluesSparse(sparse_array)
     # getEigenvaluesNx(G)
-    mat = graphs.GenBerthaSparse(10000)
+    mat = graphs.genBerthaSparse(10000)
     
     csr = mat.tocsr()
     

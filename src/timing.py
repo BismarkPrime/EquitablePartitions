@@ -2,7 +2,7 @@ from time import perf_counter as pc
 import json
 import math
 import subprocess
-import helper as h
+import slurm_helper as h
 
 
 def time_this(func,args,store_in=None,ret_output=False,label="result"):

@@ -1,5 +1,4 @@
-import os,sys
-import numpy as np
+import os
 
 def PrepSlurmScript(slurm_paste,start_script):
     """puts the slurm details into the beginning of the slurm script that's about to run
@@ -27,3 +26,8 @@ def parse_input(prompt):
             return inp
         else:
             inp = input(f"Not valid input. You must choose one of -> {keywords}: ")
+
+def start_section(content: str) -> None:
+    border = '#' * os.get_terminal_size().columns
+    pad_left = (os.get_terminal_size().columns - len(content)) // 2
+    print(f"{border}\n\n{' ' * pad_left}{content.upper()}\n\n{border}")

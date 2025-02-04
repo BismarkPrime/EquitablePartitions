@@ -158,6 +158,7 @@ def iterationsTest():
 def printWithLabel(label, delim, item):
     print("{}\n{}\n{}\n".format(label, delim * len(label), item))
 
+# Graveyard?
 def main(nodes = 1000, print_results = False):
 
     G = nx.random_internet_as_graph(nodes)
@@ -177,6 +178,7 @@ def main(nodes = 1000, print_results = False):
 
     lep_finder.plotEquitablePartition(G, ep)
 
+# Graveyard?
 def graphWithColoredPartEl(adj_mat, ep):
     """draws the nx graph with color coded partition elements for the coursest EP
     if given a permuted adjacency matrix
@@ -195,6 +197,7 @@ def graphWithColoredPartEl(adj_mat, ep):
     
     nx.draw_networkx(nx.from_numpy_array(adj_mat),node_color=colorArr)    #graph it with colors
 
+# Graveyard?
 # outdated function to test runtime complexity
 def complexityTest():
     num_nodes = list()
@@ -219,6 +222,7 @@ def complexityTest():
     plt.legend(loc="upper left")
     plt.show()
 
+# Graveyard?
 def getLocalEquitablePartitions(ep, adjMat, print_subgraphs = False, verbose = False):
     """This function finds the local equitable partitions of a graph.
    
@@ -314,6 +318,7 @@ def getLocalEquitablePartitions(ep, adjMat, print_subgraphs = False, verbose = F
     
     return leps
 
+# Graveyard?
 def PartitionAristotle(part_dict):
     """Aristotle was the great organizer, and fittingly, so is this function.
     It creates the permutation matrices necessary to group the partitions of the
@@ -344,6 +349,7 @@ def PartitionAristotle(part_dict):
     Pinv = np.linalg.inv(P)   # create P inverse
     return Pinv, P
 
+# Graveyard?
 def old_main():
     adj_mat = graphs.getDolores()
 
@@ -361,6 +367,7 @@ def old_main():
 
     graphWithColoredPartEl(permuted_adj_mat,ep)
 
+# Graveyard?
 def getEquitablePartition(adjacency_matrix):
     """This function gets the coarsest equitable partition of a graph.
    
@@ -378,6 +385,7 @@ def getEquitablePartition(adjacency_matrix):
 
 # LEP Finder before we added support for directed graphs:
 
+# Graveyard?
 def getLocalEquitablePartitions(G, ep, progress_bar = True):
     """Finds the local equitable partitions of a graph.
    
@@ -508,9 +516,11 @@ def getLocalEquitablePartitions(G, ep, progress_bar = True):
     return lep_dict.values()
     
 
+# Graveyard?
 def updateLoadingBar(progress):
     pass
 
+# Graveyard?
 def compute():
     # a = 0
     # for i in range(10000):
@@ -522,6 +532,7 @@ def compute():
     yield 2
     yield 3
 
+# Graveyard?
 def yieldTest():
     for _ in range(3):
         for i in compute():
@@ -530,6 +541,7 @@ def yieldTest():
 
                
 
+# Graveyard?
 def updateCohesionGroups(i, int_cohesion_list):
     # find current root of tree of which i is a leaf
     curr = i
@@ -546,6 +558,7 @@ def updateCohesionGroups(i, int_cohesion_list):
             
 
 
+# Graveyard?
 def __computeLocalEquitablePartitions_old(N, pi):
     """Finds the local equitable partitions of a graph.
    
@@ -625,6 +638,7 @@ def __computeLocalEquitablePartitions_old(N, pi):
 
     yield lep_dict
 
+# Graveyard?
 # TODO: verify correctness (at least run on a few more graphs)
 # consider initializing LEP finder as well to make algorithm implementation independent of NetworkX
 # verify time complexity (again, because algorithm has been changed)

@@ -98,7 +98,7 @@ def getTransceivingEP2(G: nx.Graph | nx.DiGraph,sparse_alg=False) -> dict[int, s
     ##############################################################################################################"""
 
 if __name__ == '__main__':
-    bertha = graphs.GenBerthaSparse(1000)
+    bertha = graphs.genBerthaSparse(1000)
     berthaNx = nx.from_numpy_array(bertha.todense())
     eigs_sparse = getEigenvaluesSparse(bertha)
     eigs_nx = getEigenvaluesNx(berthaNx)

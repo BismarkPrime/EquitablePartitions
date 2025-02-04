@@ -20,7 +20,6 @@ def birthBertha(size_id):
     sizes = np.array([2**i for i in [18.5,19,19.5,20]])#range(19,20)])
     sizes = np.floor(np.sqrt(sizes))**2
     sizes = sizes.astype(int)
-    
     print(f"building Bertha of size {sizes[size_id]}")
     bertha = graphs.GenBerthaSparse(sizes[size_id],parallel=True)
     #bertha = graphs.GenBertha(sizes[size_id])

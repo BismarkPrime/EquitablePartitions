@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import networkx as nx
 import random
 from scipy import sparse as sp
@@ -6,6 +7,131 @@ from matplotlib import pyplot as plt
 from time import perf_counter as pc
 import ep_utils
 from collections import Counter
+import slurm_helper as h
+import pandas as pd
+import json
+
+def toSymmetric(A: sp.coo_array) -> sp.coo_array:
+    """Converts a sparse matrix to a symmetric matrix"""
+    return A + A.T - sp.diags(A.diagonal())
+
+def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=False) -> sp.coo_array:
+    """detects the type of input graph. Reads it in and outputs it as a sparse matrix 
+    relaying any problems along the way
+    PARAMETERS
+    ---------------------------------------------
+        graph_file (str): name of the file to load into the graph
+    """
+    
+    def fromNx(G: nx.Graph | nx.DiGraph) -> sp.coo_array:
+        return nx.to_scipy_sparse_array(nx.convert_node_labels_to_integers(G), format='coo')
+
+    def fromDf(df: pd.DataFrame) -> sp.coo_array:
+        src = df.iloc[:,0].values
+        dst = df.iloc[:,1].values
+        zero_indexed = 0 in df
+        num_nodes = df.max(axis=None) + zero_indexed
+        weights = np.ones(src.size)
+        return sp.coo_array((weights, (src, dst)), shape=(num_nodes, num_nodes), dtype='b')
+    
+    extension = file_name.split('.')[-1]
+    match extension.lower():
+        # [ ] Tested
+        case 'csv': 
+            h.start_section("CSV File Detected")
+            print("ASSUMPTIONS:\n\twe are assuming that this csv file contains edge data of the form where the first column "
+                "is the origin node and the second column is the destination node. The metrics calculated on this graph "
+                "will not be accurate if this is false.\n\tWe are assuming the node labels start at 0")
+            
+            df = pd.read_csv(file_name)
+            # get connections, size, 
+            origin = df.iloc[:,0].values
+            dest = df.iloc[:,1].values
+            # get the node offset (if the nodes are labeled starting at 0 then num_nodes may be innacurate without adjustment)
+            node_offset = 1 if 0 in origin or 0 in dest else 0
+            num_nodes = max(origin.max(),dest.max()) + node_offset
+            prompt = h.parse_input(f"Inferred graph size is {num_nodes}. Is this accurate (yes/no): ")
+            # assuming directed but unweighted
+            weights = np.ones(origin.size)
+            # create the sparse matrix with these values. 'b' is for byte to make the storage EVEN SMALLER!
+            G_sparse = sp.coo_array((weights, (origin, dest)), shape=(num_nodes,num_nodes), dtype='b')
+
+        # [ ] Tested
+        case 'txt':
+            h.start_section("TXT File Detected")
+            print("ASSUMPTIONS:\nThis txt file contains edge data of the form\n" + \
+                                "\tsrc_label dst_label\n" + \
+                                "\tsrc_label dst_label\n" + \
+                                "\t...\n")
+            G = nx.read_edgelist(file_name, create_using=nx.DiGraph if directed else nx.Graph)
+            G_sparse = nx.to_scipy_sparse_array(G, format='coo', dtype='b')
+            
+        # [ ] Tested
+        case 'graphml':
+            h.start_section("GraphML File Detected")
+            G_sparse = fromNx(nx.read_graphml(file_name))
+            #TODO: test this
+
+        # [ ] Tested
+        case 'json':
+            def confirmFormat(format_name: str) -> None:
+                if input(f"Assuming {format_name} format. Is this correct? (Y/n)  > ").startswith('n'):
+                    print("Unrecognized format. Exiting...")
+                    exit()
+                    
+            h.start_section("JSON File Detected")
+            with json.load(file_name) as graph_dict:
+                # node/link format
+                # (https://networkx.org/documentation/stable/reference/readwrite/generated/networkx.readwrite.json_graph.node_link_graph.html)
+                if {'node', 'link'} <= graph_dict.keys():
+                    confirmFormat('node/link json')
+                    G = nx.node_link_graph(graph_dict,directed=directed)
+                # cytoscape format
+                # (https://networkx.org/documentation/stable/reference/readwrite/generated/networkx.readwrite.json_graph.cytoscape_graph.html)
+                elif 'elements' in graph_dict:
+                    confirmFormat('cytoscape json')
+                    G = nx.cytoscape_graph(graph_dict)
+                # dist-of-lists format
+                # (https://networkx.org/documentation/stable/reference/generated/networkx.convert.from_dict_of_lists.html)
+                else:
+                    confirmFormat('adjacency dict (dict of lists)')
+                    if directed: G = nx.from_dict_of_lists(graph_dict,create_using=nx.DiGraph)
+                    else: G = nx.from_dict_of_lists(graph_dict)
+                G_sparse = fromNx(G)
+
+        # [ ] Tested
+        case 'gexf':
+            h.start_section("GEXF File Detected")
+            G = nx.read_gexf(file_name)
+            G_sparse = nx.to_scipy_sparse_array(G, format='coo')
+            #TODO: test this
+            
+        # [ ] Tested
+        case 'edgelist':
+            h.start_section("EDGELIST File Detected")
+            if directed: G = nx.read_edgelist(file_name,create_using=nx.DiGraph)
+            else: G = nx.read_edgelist(file_name)
+            G_sparse = nx.to_scipy_sparse_array(G, format='coo')
+
+        # [ ] Tested
+        case 'edges':
+            h.start_section("EDGES File Detected")
+            G = nx.read_edgelist(file_name, create_using=nx.DiGraph if directed else nx.Graph)
+            G_sparse = nx.to_scipy_sparse_array(G, format='coo')
+        
+        case _:
+            # default case, if no other case matches
+            pass
+
+
+    if visualize:
+        rows, cols, values = G_sparse.row, G_sparse.col, G_sparse.data
+        plt.figure(figsize=(8, 8))
+        plt.scatter(cols, rows, s=100, c=values, cmap='viridis', marker='s')
+        plt.colorbar(label='Value')
+        plt.show()
+
+    return G_sparse
 
 def getCharacteristicMatrix(partition):
     """
@@ -87,7 +213,7 @@ def GetLocalSpec(G,ep_dict,lep_list):
         
     return spec_dict, orig_spec
 
-def GenBerthaSparse(n, parallel=False):
+def genBerthaSparse(n, parallel=False):
     """
     NOTE: this function could be a near-exact copy of GenBertha, but returning `mat` instead of using
     `nx.from_scipy_sparse_array`. However, writing it from scratch may prove more readable and efficient.
@@ -120,7 +246,7 @@ def GenBerthaSparse(n, parallel=False):
     
     return mat
 
-def GenBertha(size,show_graph=False,parallelize=False):
+def genBertha(size,show_graph=False,parallelize=False):
     """ constructs a Bertha graph of the size indicated (size=number of nodes) organized in such a way that it 
     has the optimal amount of LEP's for eigenvalue catching
     INPUTS:
@@ -180,8 +306,7 @@ def GenBertha(size,show_graph=False,parallelize=False):
 
         return bertha
 
-        
-
+# Graveyard?
 def NontrivialityData(G,ep_dict,lep_list, return_vals=False,plot=True,show_progress=True,verbose=False,include_pairs=False, n=None):
     """
     Gets the percentage of nodes in nontrivial eps and creates and returns a dictionary 
@@ -323,6 +448,7 @@ def NontrivialityData(G,ep_dict,lep_list, return_vals=False,plot=True,show_progr
     if return_vals:
         return nontrivEp_dict, nontrivLep_list,hist_list,totalNontrivNodes/num_nodes
 
+# Graveyard?
 def DuelOfMethods(bertha):
     """compares networkx's normal eigenvalue catching method to our method
     PARAMETERS:
@@ -376,6 +502,7 @@ def randomRelabel(G):
     mapping = {old_label: new_labels[i] for i, old_label in enumerate(G.nodes())}
     return nx.relabel_nodes(G, mapping)#, copy=False)
 
+# Graveyard?
 def getFacebookGraph():
     # NUM_NODES = 4039
 
@@ -451,6 +578,7 @@ def is_orthogonal(Q,verbose=True):
     return True
 
 
+# Graveyard?
 def getDolores(retMat=False):
     #                 1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17 18 19 20 21 22 23 24
     mat =  np.array([[0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0], # 1
@@ -539,6 +667,22 @@ def getDirectedDogbone():
                      
     return nx.DiGraph(mat)
 
+def getDirectedDogboneCE():
+    #                 0  1  2  3  4  5  6  7  8  9
+    mat =  np.array([[0, 0, 1, 0, 1, 0, 1, 0, 1, 1], # 0
+                     [0, 0, 0, 1, 0, 1, 0, 1, 1, 1], # 1
+                     [1, 0, 0, 0, 1, 0, 0, 0, 0, 0], # 2
+                     [0, 1, 0, 0, 0, 1, 0, 0, 0, 0], # 3
+                     [1, 0, 1, 0, 0, 0, 0, 0, 0, 0], # 4
+                     [0, 1, 0, 1, 0, 0, 0, 0, 0, 0], # 5
+                     [1, 0, 0, 0, 0, 0, 0, 1, 0, 0], # 6
+                     [0, 1, 0, 0, 0, 0, 1, 0, 0, 0], # 7
+                     [0, 0, 1, 0, 0, 0, 0, 0, 0, 1], # 8
+                     [0, 0, 0, 0, 0, 0, 0, 1, 1, 0]])# 9
+                     
+    return nx.DiGraph(mat)
+
+# Graveyard?
 def getDirectedDogboneLEP0():
     #                 0  1  2  3  4  5  6  7
     mat =  np.array([[0, 0, 1, 0, 1, 0, 1, 0], # 0
@@ -551,18 +695,21 @@ def getDirectedDogboneLEP0():
                      [0, 0, 0, 1, 0, 0, 0, 0]])# 7
     return nx.DiGraph(mat)
 
+# Graveyard?
 def getDirectedDogboneLEP1():
     #                 0  1
     mat =  np.array([[0, 1], # 0
                      [1, 0]])# 1
     return nx.DiGraph(mat)
 
+# Graveyard?
 def getDirectedDogboneDivisorGraph():
     mat = np.array([[0, 3, 2],
                     [0, 1, 0],
                     [0, 0, 1]])
     return nx.DiGraph(mat)
 
+# Graveyard?
 def getBerthaJr():
     #                 0  1  2  3  4  5  6  7  8  9
     mat =  np.array([[0, 1, 1, 1, 1, 1, 0, 0, 0], # 0
@@ -577,6 +724,7 @@ def getBerthaJr():
                      
     return nx.Graph(mat)
 
+# Graveyard?
 def getGeometricGraph():
     return np.array(
         [[0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 1,
@@ -760,6 +908,7 @@ def getGeometricGraph():
         0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]])
 
+# Graveyard?
 def getGeometricGraph2():
     return np.array([[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
