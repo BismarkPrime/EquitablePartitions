@@ -54,23 +54,17 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=
             # assuming directed but unweighted
             weights = np.ones(origin.size)
             # create the sparse matrix with these values. 'b' is for byte to make the storage EVEN SMALLER!
-            G_sparse = sp.coo_array((weights,(origin,dest)),shape=(num_nodes,num_nodes),dtype='b')
+            G_sparse = sp.coo_array((weights, (origin, dest)), shape=(num_nodes,num_nodes), dtype='b')
 
         # [ ] Tested
         case 'txt':
             h.start_section("TXT File Detected")
-            print("ASSUMPTIONS:\n\twe are assuming that this txt file contains edge data of the form where the first column "
-                "is the origin node and the second column is the destination node. The metrics calculated on this graph "
-                "will not be accurate if this is false.\n\tWe are assuming the node labels start at 0")
-            df = pd.read_csv(file_name, 
-                             sep=None, 
-                             engine='python',
-                             skip_blank_lines=True, 
-                             dtype=int, 
-                             skipinitialspace=True,
-                             header=None # this assumes, probably incorrectly, that there is no header row
-                             )
-            G_sparse = fromDf(df)
+            print("ASSUMPTIONS:\nThis txt file contains edge data of the form\n" + \
+                                "\tsrc_label dst_label\n" + \
+                                "\tsrc_label dst_label\n" + \
+                                "\t...\n")
+            G = nx.read_edgelist(file_name, create_using=nx.DiGraph if directed else nx.Graph)
+            G_sparse = nx.to_scipy_sparse_array(G, format='coo', dtype='b')
             
         # [ ] Tested
         case 'graphml':
@@ -109,7 +103,7 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=
         case 'gexf':
             h.start_section("GEXF File Detected")
             G = nx.read_gexf(file_name)
-            G_sparse = nx.to_scipy_sparse_array(G,format='coo')
+            G_sparse = nx.to_scipy_sparse_array(G, format='coo')
             #TODO: test this
             
         # [ ] Tested
@@ -117,22 +111,21 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=
             h.start_section("EDGELIST File Detected")
             if directed: G = nx.read_edgelist(file_name,create_using=nx.DiGraph)
             else: G = nx.read_edgelist(file_name)
-            G_sparse = nx.to_scipy_sparse_array(G,format='coo')
+            G_sparse = nx.to_scipy_sparse_array(G, format='coo')
 
         # [ ] Tested
         case 'edges':
             h.start_section("EDGES File Detected")
             G = nx.read_edgelist(file_name, create_using=nx.DiGraph if directed else nx.Graph)
-            G_sparse = nx.to_scipy_sparse_array(G,format='coo')
+            G_sparse = nx.to_scipy_sparse_array(G, format='coo')
         
         case _:
             # default case, if no other case matches
             pass
 
-    rows, cols, values = G_sparse.row, G_sparse.col, G_sparse.data
 
     if visualize:
-        print('ENTERED HERE')
+        rows, cols, values = G_sparse.row, G_sparse.col, G_sparse.data
         plt.figure(figsize=(8, 8))
         plt.scatter(cols, rows, s=100, c=values, cmap='viridis', marker='s')
         plt.colorbar(label='Value')

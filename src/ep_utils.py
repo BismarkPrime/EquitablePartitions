@@ -74,7 +74,7 @@ def getEigenvaluesSparse(mat: sparse.sparray, dt_stats=False) -> List[float | co
         return pi, globals, list(itertools.chain.from_iterable(locals))
     return spectrum
 
-def _getEigenvaluesSparse(csc: sparse.csc_array, csr: sparse.csr_array, pi: Dict[int, List[int]], leps: List[List[int]]) -> List[float | complex]:
+def _getEigenvaluesSparse(csc: sparse.csc_array, csr: sparse.csr_array, pi: Dict[int, List[int]], leps: List[List[int]]) -> Tuple[List[float | complex], List[float | complex]]:
     
     divisor_matrix = getDivisorMatrixSparse(csc, pi)
 
@@ -103,11 +103,9 @@ def _getEigenvaluesSparse(csc: sparse.csc_array, csr: sparse.csr_array, pi: Dict
         subgraph_globals = np.linalg.eigvals(divisor_submatrix)
         subgraph_locals = np.linalg.eigvals(subgraph.todense())
 
-        locals.append(getSetDifference(subgraph_locals, subgraph_globals))
-    
-    spectrum = list(itertools.chain.from_iterable((globals, *locals)))
+        locals.extend(getSetDifference(subgraph_locals, subgraph_globals))
 
-    return spectrum
+    return globals, locals
 
 def getDivisorMatrixSparse(mat_csc: sparse.csc_array, pi: Dict[int, List[int]]) -> sparse.sparray:
 

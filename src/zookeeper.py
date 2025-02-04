@@ -1,18 +1,19 @@
-import sys,os
-import pandas as pd
-import numpy as np
-from typing import NamedTuple, Dict, List, Any, Callable
-from scipy import sparse
+import sys, os
 from time import time
-import networkx as nx
-from scipy import stats
 import pickle
 import statistics
 import shutil
 import argparse
 
+from typing import NamedTuple, Dict, List, Any, Callable
+from collections import Counter
+
+from scipy import sparse, stats
+import numpy as np
+import networkx as nx
+
 import ep_utils
-import graphs as g
+import graphs
 import ep_finder
 import lep_finder
 
@@ -102,22 +103,21 @@ class LEPMetrics(NamedTuple):
     lep_size_skewness: float
     lep_size_kurtosis: float
 
-# @profile
 def main(file_path: str, directed: bool, verify_eigenvalues: bool=False):
     m_source_file = file_path
     # 1a Get the graph as a sparse graph
-    G = getGraph(file_path, directed)
+    mat = getGraph(file_path, directed)
     
     start_time = time()
 
     # 2. Compute desired graph metrics
-    graph_metrics = getGraphMetrics(G)
+    graph_metrics = getGraphMetrics(mat)
     print(f"Graph metrics computed in {time() - start_time} seconds")
     start_time = time()
     
     # 3. Compute coarsest EP, save to file
-    csr = G.tocsr()
-    csc = G.tocsc()
+    csr = mat.tocsr()
+    csc = mat.tocsc()
     start_time = time()
     pi = ep_finder.getEquitablePartition(ep_finder.initFromSparse(csr))
     m_ep_time = time() - start_time
@@ -139,35 +139,29 @@ def main(file_path: str, directed: bool, verify_eigenvalues: bool=False):
     
     # 7. Compute eigenvalues
     start_time = time()
-    eigenvalues = ep_utils._getEigenvaluesSparse(csc, csr, pi, leps)
+    global_eigs, local_eigs = ep_utils._getEigenvaluesSparse(csc, csr, pi, leps)
     m_eig_time = time() - start_time
     m_total_time = m_ep_time + m_lep_time + m_eig_time
 
     print(f"Eigenvalues computed in {m_eig_time} seconds")
-    
-    # 7b. Verify that the eigenvalues are correct
-    if verify_eigenvalues:
-        start_time = time()
-        verifyEigenvalues(csr, eigenvalues)
-        print(f"Eigenvalues verified in {time() - start_time} seconds")
 
     # 8. Store metrics in dataframe
 
-    file_name = file_path[file_path.rfind('/') : file_path.rfind('.')]
-    network_path = 'Results/' + file_name
+    file_name = file_path[:file_path.rfind('.')].split('/')[-1]
+    results_dir = f'Results/{file_name}'
 
     # remove and replace directory for results (consider warning the user also)
-    if os.path.exists(network_path):
-        shutil.rmtree(network_path)
+    if os.path.exists(results_dir):
+        shutil.rmtree(results_dir)
 
-    os.mkdir(network_path)
+    os.mkdir(results_dir)
 
     m_ep_file = 'ep_data.pkl'
     m_lep_file = 'lep_data.pkl'
 
-    with open(f"{network_path}/{m_ep_file}", 'wb') as f:
+    with open(f"{results_dir}/{m_ep_file}", 'wb') as f:
         pickle.dump(pi, f, protocol=pickle.HIGHEST_PROTOCOL)
-    with open(f"{network_path}/{m_lep_file}", 'wb') as f:
+    with open(f"{results_dir}/{m_lep_file}", 'wb') as f:
         pickle.dump(leps, f, protocol=pickle.HIGHEST_PROTOCOL)
 
     meta_metrics = MetaMetrics(m_source_file, m_ep_file, m_lep_file, m_ep_time, m_lep_time, m_eig_time, m_total_time)
@@ -177,17 +171,49 @@ def main(file_path: str, directed: bool, verify_eigenvalues: bool=False):
     with open('MetricWarden.csv','a') as file:
         file.write(f'{','.join(map(str, metrics))}\n')
 
+    # 9. Store metrics for DT
+    computeMetricsForDT(pi, global_eigs, local_eigs, file_name)
+
+    # 10. Verify that the eigenvalues are correct
+    if verify_eigenvalues:
+        eigenvalues = global_eigs + local_eigs
+        start_time = time()
+        verifyEigenvalues(csr, eigenvalues)
+        print(f"Eigenvalues verified in {time() - start_time} seconds")
+
 def getGraph(file_path: str, directed: bool) -> sparse.sparray:
     file_extension = file_path.split('.')[-1]
     if file_extension in SUPPORTED_TYPES: 
         #TODO: make this an argparser
-        if 'visualize' in sys.argv: visualize = True
-        else: visualize = False
-        G = g.oneGraphToRuleThemAll(file_path, visualize=visualize, directed=directed)
+        visualize = 'visualize' in sys.argv
+        return graphs.oneGraphToRuleThemAll(file_path, visualize=visualize, directed=directed)
     else:
         if file_extension in UNSUPPORTED_TYPES: print("This type is not yet supported. Maybe you could do it...")
         else: print("We haven't heard of that graph type. Or at least haven't thought about it... Sorry.")
         sys.exit(1)
+
+def computeMetricsForDT(pi: Dict[int, List[Any]], globals: List[float | complex], locals: List[float | complex], name: str) -> None:
+    category = input("Enter a category for this network (e.g., social, biological, etc.) > ")
+    url = input("Enter a URL for this network (if available) > ")
+    description = input("Enter a description for this network (~10 words) > ")
+
+    stats_folder = f"DT_Stats/{name}_stats"
+    os.makedirs(stats_folder, exist_ok=True)
+
+    sizes = Counter([len(part) for part in pi.values()])
+    with open(f"{stats_folder}/ep_sizes.txt", 'w') as f:
+        for size, count in sorted(sizes.items()):
+            f.write(f"{size}: {count}\n")
+    with open(f"{stats_folder}/globals.txt", 'w') as f:
+        for global_val in globals:
+            f.write(f"{global_val}\n")
+    with open(f"{stats_folder}/locals.txt", 'w') as f:
+        for local_val in locals:
+            f.write(f"{local_val}\n")
+    with open(f"{stats_folder}/info.txt", 'w') as f:
+        f.write(f"Category: {category}\n")
+        f.write(f"URL: {url}\n")
+        f.write(f"Description: {description}\n")
 
 def verifyEigenvalues(mat: sparse.sparray, eigenvalues: List[float | complex]) -> bool:
     np_eigenvalues = np.linalg.eigvals(mat.toarray())
@@ -199,7 +225,6 @@ def verifyEigenvalues(mat: sparse.sparray, eigenvalues: List[float | complex]) -
         if view_eigs:
             print(f"LEParD eigenvalues: {our_unique_eigs}")
             print(f"Numpy eigenvalues: {their_unique_eigs}")
-    
 
 def try_or[T](func: Callable[[], T], default: T, expected_exc: Exception=Exception) -> T:
     try:
@@ -230,7 +255,6 @@ def getGraphMetrics(sparseMatrix: sparse.sparray) -> GraphMetrics:
     return metrics
 
 def getEPMetrics(pi: Dict[int, List[Any]]) -> EPMetrics:
-    # Compute EP metrics
     num_elements = len(pi)
     sizes = np.array([len(pi[i]) for i in pi])
     size_max = sizes.max()
@@ -263,7 +287,6 @@ def getEPMetrics(pi: Dict[int, List[Any]]) -> EPMetrics:
     return metrics
 
 def getLEPMetrics(leps: List[List[int]], pi: Dict[int, List[Any]]) -> LEPMetrics:
-    # Compute LEP metrics
     num_leps = len(leps)
     sizes = np.array([len(lep) for lep in leps])
     size_max = sizes.max()
