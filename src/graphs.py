@@ -70,9 +70,11 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False) -> sp.coo_array
         case 'txt':
             df = pd.read_csv(file_name, 
                              sep=None, 
+                             engine='python',
                              skip_blank_lines=True, 
                              dtype=int, 
-                             skipinitialspace=True
+                             skipinitialspace=True,
+                             header=None # this assumes, probably incorrectly, that there is no header row
                              )
             G_sparse = fromDf(df)
             

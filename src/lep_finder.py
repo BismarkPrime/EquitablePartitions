@@ -1,7 +1,7 @@
 import numpy as np
 import networkx as nx
 from scipy import sparse
-from alive_progress import alive_bar
+# from alive_progress import alive_bar
 
 from typing import Any, List, Set, Dict, Generator
 # imported to support type hint for initFromN
