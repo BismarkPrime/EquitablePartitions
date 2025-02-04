@@ -50,7 +50,6 @@ class MetaMetrics(NamedTuple):
     m_eig_time: float
     m_total_time: float
 
-
 class GraphMetrics(NamedTuple):
     g_avg_node_degree: float
     g_diameter: int
@@ -61,10 +60,12 @@ class GraphMetrics(NamedTuple):
     g_average_path_length: float
     g_density: float
     g_connected_components: int
-    g_assortativity: float
-    g_clustering_coefficient: float
-    g_transitivity: float
-    # NOTE: removed edge and vertex connectivity because they are computationally expensive
+    # NOTE: the following metrics were removed for being too computationally expensive
+    # g_edge_connectivity: int
+    # g_vertex_connectivity: int
+    # g_assortativity: float
+    # g_clustering_coefficient: float
+    # g_transitivity: float
 
 class EPMetrics(NamedTuple):
     ep_percent_nt_vertices: int  # percent of vertices in non-trivial equitable partition elements
@@ -105,17 +106,7 @@ class LEPMetrics(NamedTuple):
 def main(file_path: str, directed: bool, verify_eigenvalues: bool=False):
     m_source_file = file_path
     # 1a Get the graph as a sparse graph
-    tag = file_path.split('.')[-1]
-    # type is supported
-    if tag in SUPPORTED_TYPES: 
-        #TODO: make this an argparser
-        if 'visualize' in sys.argv: visualize = True
-        else: visualize = False
-        G = g.oneGraphToRuleThemAll(file_path, visualize=visualize, directed=directed)
-    else:    # type is not
-        if tag in UNSUPPORTED_TYPES: print("This type is not yet supported. Maybe you could do it...")
-        else: print("We haven't heard of that graph type. Or at least haven't thought about it... Sorry.")
-        sys.exit(1)
+    G = getGraph(file_path, directed)
     
     start_time = time()
 
@@ -124,28 +115,24 @@ def main(file_path: str, directed: bool, verify_eigenvalues: bool=False):
     print(f"Graph metrics computed in {time() - start_time} seconds")
     start_time = time()
     
-    # 3. Compute coarsest EP, save and time to file
-    # (remember to track computation time for dataframe!)
+    # 3. Compute coarsest EP, save to file
     csr = G.tocsr()
     csc = G.tocsc()
     start_time = time()
     pi = ep_finder.getEquitablePartition(ep_finder.initFromSparse(csr))
-    ep_time = time() - start_time
-    m_ep_time = ep_time
+    m_ep_time = time() - start_time
 
-    print(f"Coarsest EP computed in {ep_time} seconds")
+    print(f"Coarsest EP computed in {m_ep_time} seconds")
     
     # 4. Compute EP metrics
     ep_metrics = getEPMetrics(pi)
     
     # 5. Compute Monad Set of LEPs, save to file
-    # (remember to track computation time for dataframe!)
     start_time = time()
     leps = lep_finder.getLocalEquitablePartitions(lep_finder.initFromSparse(csc), pi)
-    lep_time = time() - start_time
-    m_lep_time = lep_time
+    m_lep_time = time() - start_time
 
-    print(f"Monad set of LEPs computed in {lep_time} seconds")
+    print(f"Monad set of LEPs computed in {m_lep_time} seconds")
     
     # 6. Compute LEP metrics
     lep_metrics = getLEPMetrics(leps, pi)
@@ -153,36 +140,26 @@ def main(file_path: str, directed: bool, verify_eigenvalues: bool=False):
     # 7. Compute eigenvalues
     start_time = time()
     eigenvalues = ep_utils._getEigenvaluesSparse(csc, csr, pi, leps)
-    eig_time = time() - start_time
-    m_eig_time = eig_time
-    m_total_time = ep_time + lep_time + eig_time
+    m_eig_time = time() - start_time
+    m_total_time = m_ep_time + m_lep_time + m_eig_time
 
-    print(f"Eigenvalues computed in {eig_time} seconds")
-    start_time = time()
+    print(f"Eigenvalues computed in {m_eig_time} seconds")
     
     # 7b. Verify that the eigenvalues are correct
     if verify_eigenvalues:
-        np_eigenvalues = np.linalg.eigvals(csr.toarray())
-        our_unique_eigs, their_unique_eigs = ep_utils.getSymmetricDifference(eigenvalues, np_eigenvalues)
-        if len(our_unique_eigs) > 0:
-            print(f"Error: Some eigenvalues are unique to the LEPARD eigenvalues")
-            prompt = "Would you like to compare LEParD eigenvalues to numpy eigenvalues? (Y/n) > "
-            view_eigs = input(prompt)[0].lower() != 'n'
-            if view_eigs:
-                print(f"LEParD eigenvalues: {our_unique_eigs}")
-                print(f"Numpy eigenvalues: {their_unique_eigs}")
-        
+        start_time = time()
+        verifyEigenvalues(csr, eigenvalues)
         print(f"Eigenvalues verified in {time() - start_time} seconds")
 
     # 8. Store metrics in dataframe
 
-    file_name = file_path.split('/')[-1].split('.')[0]
+    file_name = file_path[file_path.rfind('/') : file_path.rfind('.')]
     network_path = 'Results/' + file_name
 
     # remove and replace directory for results (consider warning the user also)
     if os.path.exists(network_path):
         shutil.rmtree(network_path)
-    # make a directory for the network in results
+
     os.mkdir(network_path)
 
     m_ep_file = 'ep_data.pkl'
@@ -195,11 +172,34 @@ def main(file_path: str, directed: bool, verify_eigenvalues: bool=False):
 
     meta_metrics = MetaMetrics(m_source_file, m_ep_file, m_lep_file, m_ep_time, m_lep_time, m_eig_time, m_total_time)
 
-    new_info = [file_name] + list(meta_metrics) + list(graph_metrics) + list(ep_metrics) + list(lep_metrics)
-    new_info = ','.join(map(str, new_info))
+    metrics = [file_name] + list(meta_metrics) + list(graph_metrics) + list(ep_metrics) + list(lep_metrics)
 
     with open('MetricWarden.csv','a') as file:
-        file.write(f'{new_info}\n')
+        file.write(f'{','.join(map(str, metrics))}\n')
+
+def getGraph(file_path: str, directed: bool) -> sparse.sparray:
+    file_extension = file_path.split('.')[-1]
+    if file_extension in SUPPORTED_TYPES: 
+        #TODO: make this an argparser
+        if 'visualize' in sys.argv: visualize = True
+        else: visualize = False
+        G = g.oneGraphToRuleThemAll(file_path, visualize=visualize, directed=directed)
+    else:
+        if file_extension in UNSUPPORTED_TYPES: print("This type is not yet supported. Maybe you could do it...")
+        else: print("We haven't heard of that graph type. Or at least haven't thought about it... Sorry.")
+        sys.exit(1)
+
+def verifyEigenvalues(mat: sparse.sparray, eigenvalues: List[float | complex]) -> bool:
+    np_eigenvalues = np.linalg.eigvals(mat.toarray())
+    our_unique_eigs, their_unique_eigs = ep_utils.getSymmetricDifference(eigenvalues, np_eigenvalues)
+    if len(our_unique_eigs) > 0:
+        print(f"Error: Some eigenvalues are unique to the LEPARD eigenvalues")
+        prompt = "Would you like to compare LEParD eigenvalues to numpy eigenvalues? (Y/n) > "
+        view_eigs = input(prompt)[0].lower() != 'n'
+        if view_eigs:
+            print(f"LEParD eigenvalues: {our_unique_eigs}")
+            print(f"Numpy eigenvalues: {their_unique_eigs}")
+    
 
 def try_or[T](func: Callable[[], T], default: T, expected_exc: Exception=Exception) -> T:
     try:
@@ -213,39 +213,19 @@ def getGraphMetrics(sparseMatrix: sparse.sparray) -> GraphMetrics:
     size = G.size()
     directed = nx.is_directed(G)
 
-
-    start_time = time()
-
     # Compute graph metrics
     avg_node_degree = G.number_of_edges() / G.number_of_nodes()
     diameter = try_or(lambda: nx.diameter(G), -1, nx.exception.NetworkXError) # TODO: consider what default makes the most sense here
     order = G.order()
 
-    print(f"found first metrics in ${time() - start_time}")
-    start_time = time()
-
     radius = try_or(lambda: nx.radius(G), -1, nx.exception.NetworkXError)
     average_path_length = try_or(lambda: nx.average_shortest_path_length(G), -1, nx.exception.NetworkXError)
-
-    print(f"found next metrics in ${time() - start_time}")
-    start_time = time()
 
     density = nx.density(G)
     connected_components = nx.number_connected_components(G)
 
-    print(f"found next next metrics in ${time() - start_time}")
-    start_time = time()
-
-    assortativity = nx.degree_assortativity_coefficient(G)
-    clustering_coefficient = nx.average_clustering(G)
-    transitivity = nx.transitivity(G)
-
-    print(f"found final metrics in ${time() - start_time}")
-    start_time = time()
-
     metrics = GraphMetrics(avg_node_degree, diameter, order, size, directed, radius, average_path_length,
-                           density, connected_components, assortativity,
-                           clustering_coefficient, transitivity)
+                           density, connected_components)
 
     return metrics
 
