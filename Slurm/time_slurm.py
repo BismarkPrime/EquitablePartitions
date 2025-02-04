@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-#SBATCH --job-name=bertha_65536slurm
+#SBATCH --job-name=bertha_369664slurm
 #SBATCH --time=3-00:00:00   # walltime
 ##SBATCH --ntasks-per-node=1
 ##SBATCH --nodes=1
-#SBATCH --mem-per-cpu=256G
+#SBATCH --mem-per-cpu=1024G
 #SBATCH --tasks-per-node=1
 #SBATCH --qos=normal
 

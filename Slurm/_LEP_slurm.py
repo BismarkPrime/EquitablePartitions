@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-#SBATCH --job-name=bertha_262144_LEPs
+#SBATCH --job-name=bertha_524176_LEPs
 #SBATCH --time=3-00:00:00   # walltime
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
-#SBATCH --mem-per-cpu=256G
+#SBATCH --mem-per-cpu=1024G
 #SBATCH --qos=normal
-#SBATCH --array=1-30
+#SBATCH --array=1-26
 
 
 import os, sys, json
