@@ -39,22 +39,27 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=
         # [ ] Tested
         case 'csv': 
             h.start_section("CSV File Detected")
-            print("ASSUMPTIONS:\n\twe are assuming that this csv file contains edge data of the form where the first column "
-                "is the origin node and the second column is the destination node. The metrics calculated on this graph "
-                "will not be accurate if this is false.\n\tWe are assuming the node labels start at 0")
+            print("ASSUMPTIONS:\nThis txt file contains edge data of the form\n" + \
+                                "\tsrc_label,dst_label\n" + \
+                                "\tsrc_label,dst_label\n" + \
+                                "\t...\n")
             
-            df = pd.read_csv(file_name)
-            # get connections, size, 
-            origin = df.iloc[:,0].values
-            dest = df.iloc[:,1].values
-            # get the node offset (if the nodes are labeled starting at 0 then num_nodes may be innacurate without adjustment)
-            node_offset = 1 if 0 in origin or 0 in dest else 0
-            num_nodes = max(origin.max(),dest.max()) + node_offset
-            prompt = h.parse_input(f"Inferred graph size is {num_nodes}. Is this accurate (yes/no): ")
-            # assuming directed but unweighted
-            weights = np.ones(origin.size)
-            # create the sparse matrix with these values. 'b' is for byte to make the storage EVEN SMALLER!
-            G_sparse = sp.coo_array((weights, (origin, dest)), shape=(num_nodes,num_nodes), dtype='b')
+            # df = pd.read_csv(file_name)
+            # # get connections, size, 
+            # origin = df.iloc[:,0].values
+            # dest = df.iloc[:,1].values
+            # # get the node offset (if the nodes are labeled starting at 0 then num_nodes may be innacurate without adjustment)
+            # node_offset = 1 if 0 in origin or 0 in dest else 0
+            # num_nodes = max(origin.max(),dest.max()) + node_offset
+            # prompt = h.parse_input(f"Inferred graph size is {num_nodes}. Is this accurate (yes/no): ")
+            # # assuming directed but unweighted
+            # weights = np.ones(origin.size)
+            # # create the sparse matrix with these values. 'b' is for byte to make the storage EVEN SMALLER!
+            # G_sparse = sp.coo_array((weights, (origin, dest)), shape=(num_nodes,num_nodes), dtype='b')
+
+            # might be safer just to use networkx to read in the csv file...
+            G = nx.read_edgelist(file_name, delimiter=',', create_using=nx.DiGraph if directed else nx.Graph)
+            G_sparse = nx.to_scipy_sparse_array(G, format='coo', dtype='b')
 
         # [ ] Tested
         case 'txt':

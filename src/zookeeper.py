@@ -4,6 +4,8 @@ import pickle
 import statistics
 import shutil
 import argparse
+from tkinter import Tk
+from tkinter import filedialog
 
 from typing import NamedTuple, Dict, List, Any, Callable
 from collections import Counter
@@ -172,7 +174,7 @@ def main(file_path: str, directed: bool, verify_eigenvalues: bool=False):
         file.write(f'{','.join(map(str, metrics))}\n')
 
     # 9. Store metrics for DT
-    computeMetricsForDT(pi, global_eigs, local_eigs, file_name)
+    computeMetricsForDT(pi, leps, global_eigs, local_eigs, file_name)
 
     # 10. Verify that the eigenvalues are correct
     if verify_eigenvalues:
@@ -192,7 +194,7 @@ def getGraph(file_path: str, directed: bool) -> sparse.sparray:
         else: print("We haven't heard of that graph type. Or at least haven't thought about it... Sorry.")
         sys.exit(1)
 
-def computeMetricsForDT(pi: Dict[int, List[Any]], globals: List[float | complex], locals: List[float | complex], name: str) -> None:
+def computeMetricsForDT(pi: Dict[int, List[Any]], leps: List[List[int]], globals: List[float | complex], locals: List[float | complex], name: str) -> None:
     category = input("Enter a category for this network (e.g., social, biological, etc.) > ")
     url = input("Enter a URL for this network (if available) > ")
     description = input("Enter a description for this network (~10 words) > ")
@@ -200,10 +202,18 @@ def computeMetricsForDT(pi: Dict[int, List[Any]], globals: List[float | complex]
     stats_folder = f"DT_Stats/{name}_stats"
     os.makedirs(stats_folder, exist_ok=True)
 
-    sizes = Counter([len(part) for part in pi.values()])
-    with open(f"{stats_folder}/ep_sizes.txt", 'w') as f:
-        for size, count in sorted(sizes.items()):
-            f.write(f"{size}: {count}\n")
+    def writeCountsToFile(counts: Counter, filename: str) -> None:
+        with open(f"{stats_folder}/{filename}", 'w') as f:
+            for size, count in sorted(counts.items()):
+                f.write(f"{size}: {count}\n")
+
+    ep_sizes = Counter([len(part) for part in pi.values()])
+    writeCountsToFile(ep_sizes, "ep_sizes.txt")
+    lep_ep_sizes = Counter([len(lep) for lep in leps])
+    writeCountsToFile(lep_ep_sizes, "lep_sizes_ep_elements.txt")
+    lep_vertex_sizes = Counter([sum(len(pi[i]) for i in lep) for lep in leps])
+    writeCountsToFile(lep_vertex_sizes, "lep_sizes_vertices.txt")
+
     with open(f"{stats_folder}/globals.txt", 'w') as f:
         for global_val in globals:
             f.write(f"{global_val}\n")
@@ -329,5 +339,8 @@ if __name__=="__main__":
     parser.add_argument("--file", type=str, help="Path to the graph")
     args = parser.parse_args()
     # file_path = sys.argv[1] if len(sys.argv) > 1 else input("File path > ")
+    if args.file is None:
+        Tk().withdraw()
+        args.file = filedialog.askopenfilename()
 
     main(args.file, args.directed)
