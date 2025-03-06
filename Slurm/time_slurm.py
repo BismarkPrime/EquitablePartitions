@@ -22,14 +22,23 @@ import slurm_helper as h
 
 if __name__ == "__main__":
     start_script = '/home/jrhmc1/Desktop/EquitablePartitions/Slurm/_LEP_slurm.py'
-    # get graph we are doing analysis on
+    # get graph we are doing analysis on and relevant information for later.
+    real = 'real' in sys.argv
+    directed = True if 'True' in sys.argv else False
+    print(f"\n\n\nThis is a check to see if the directed argument is working right. directed is: {directed}\n\n\n")
     graph_path = sys.argv[1]
     data_fn = graph_path.split('/')[-1].split('.')[0]
     os.environ['GRAPH_PATH'] = graph_path
+
+    # try to load in graph
     try: 
-        try: G = nx.read_graphml(graph_path)
-        except: G = sp.load_npz(graph_path)
-    except: print("You need to give the file path to graph you want to run")
+        if real:
+            G = graphs.oneGraphToRuleThemAll(graph_path,directed=directed)
+        else:
+            try: G = nx.read_graphml(graph_path)
+            except: G = sp.load_npz(graph_path)
+    except Exception as e: 
+        print(f"Error occured: {e}")
     out,t = tim.time_this(ep_utils.getEquitablePartitions,[G],ret_output=True,
                             label="get_eps",store_in='./' + data_fn + '_parallel.txt')
     ep,lep_list = out

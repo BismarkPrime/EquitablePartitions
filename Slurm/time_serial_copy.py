@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-#SBATCH --job-name=bio-celegans-dirserial
-#SBATCH --time=12:00:00   # walltime
+#SBATCH --job-name=bio-celegans-udserial
+#SBATCH --time=00:10:00   # walltime
 ##SBATCH --ntasks-per-node=1
 ##SBATCH --nodes=1
-#SBATCH --mem-per-cpu=512G
+#SBATCH --mem-per-cpu=32G
 #SBATCH --tasks-per-node=1
-#SBATCH --qos=normal
+#SBATCH --qos=test
 
 
 import os, sys, json, io
@@ -19,11 +19,6 @@ import subprocess
 from time import perf_counter as pc
 import scipy.sparse as sp
 
-CUST_COM="#"
-CUST_DEL=" "
-# this is currently not being changed, maybe in the future when our algorithm can handle weighted graphs.
-WEIGHTED=False
-
 if __name__ == "__main__":
     # get graph we are doing analysis on and parameters relating to that
     real = 'real' in sys.argv
@@ -34,10 +29,21 @@ if __name__ == "__main__":
     data_fn = graph_path.split('/')[-1].split('.')[0]
     os.environ['GRAPH_PATH'] = graph_path
 
+    print("DATA FILE LOOK LIKE THIS:")
+    output = os.popen(f"head {file_name}").read()
+    print(output)
+    custom = h.parse_input("Custom Delimiter/comment symbol? (yes/no): ")
+    if custom:
+        cust_del = input("\tWhat is the delimiter: ")
+        cust_com = input("\tWhat is the comment symbol: ")
+    else:
+        cust_del = None
+        cust_com = "#"
+
     # try loading the graph in
     try: 
         if real:
-            G = graphs.oneGraphToRuleThemAll(graph_path, suppress=True,cust_del=CUST_DEL,cust_com=CUST_COM, weighted=WEIGHTED); graph_type = 'sparse'
+            G = graphs.oneGraphToRuleThemAll(graph_path, suppress=True,cust_del=cust_del,cust_com=cust_com); graph_type = 'sparse'
         else:
             try: G = nx.read_graphml(graph_path); graph_type = 'graphml'
             except: G = sp.load_npz(graph_path); graph_type = 'sparse'; 
@@ -46,16 +52,11 @@ if __name__ == "__main__":
 
     # run the timing
     if graph_type == 'graphml':
-        G_size = G.number_of_nodes()
         t = tim.time_this(nx.adjacency_spectrum,[G],
                             label="get_eigvals",store_in='./' + data_fn + '_serial.txt')
     if graph_type == 'sparse':
-        G_size = G.shape[0]
-        t = tim.time_this(sp.linalg.eigs,[G,G_size-2],
+        t = tim.time_this(sp.linalg.eigs,[G,G.shape[0]-2],
                             label="get_eigvals",store_in='./' + data_fn + '_serial.txt')
-
-    with open('./' + data_fn + '_serial.txt','a') as f:
-        f.write(f"Size: {G_size}")
     print("Finished!")
 
 

@@ -3,6 +3,7 @@ import os
 import networkx as nx
 import random
 from scipy import sparse as sp
+import scipy.io
 from matplotlib import pyplot as plt
 from time import perf_counter as pc
 import ep_utils
@@ -15,14 +16,13 @@ def toSymmetric(A: sp.coo_array) -> sp.coo_array:
     """Converts a sparse matrix to a symmetric matrix"""
     return A + A.T - sp.diags(A.diagonal())
 
-def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=False) -> sp.coo_array:
+def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=False, suppress=False, cust_del=None, cust_com="#",weighted=False) -> sp.coo_array:
     """detects the type of input graph. Reads it in and outputs it as a sparse matrix 
     relaying any problems along the way
     PARAMETERS
     ---------------------------------------------
         graph_file (str): name of the file to load into the graph
-    """
-    
+    """    
     def fromNx(G: nx.Graph | nx.DiGraph) -> sp.coo_array:
         return nx.to_scipy_sparse_array(nx.convert_node_labels_to_integers(G), format='coo')
 
@@ -39,7 +39,7 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=
         # [ ] Tested
         case 'csv': 
             h.start_section("CSV File Detected")
-            print("ASSUMPTIONS:\nThis txt file contains edge data of the form\n" + \
+            if not suppress: print("ASSUMPTIONS:\nThis txt file contains edge data of the form\n" + \
                                 "\tsrc_label,dst_label\n" + \
                                 "\tsrc_label,dst_label\n" + \
                                 "\t...\n")
@@ -64,7 +64,7 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=
         # [ ] Tested
         case 'txt':
             h.start_section("TXT File Detected")
-            print("ASSUMPTIONS:\nThis txt file contains edge data of the form\n" + \
+            if not suppress: print("ASSUMPTIONS:\nThis txt file contains edge data of the form\n" + \
                                 "\tsrc_label dst_label\n" + \
                                 "\tsrc_label dst_label\n" + \
                                 "\t...\n")
@@ -81,10 +81,10 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=
         case 'json':
             def confirmFormat(format_name: str) -> None:
                 if input(f"Assuming {format_name} format. Is this correct? (Y/n)  > ").startswith('n'):
-                    print("Unrecognized format. Exiting...")
+                    if not suppress: print("Unrecognized format. Exiting...")
                     exit()
                     
-            h.start_section("JSON File Detected")
+            if not suppress: h.start_section("JSON File Detected")
             with json.load(file_name) as graph_dict:
                 # node/link format
                 # (https://networkx.org/documentation/stable/reference/readwrite/generated/networkx.readwrite.json_graph.node_link_graph.html)
@@ -113,16 +113,32 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=
             
         # [ ] Tested
         case 'edgelist':
-            h.start_section("EDGELIST File Detected")
-            if directed: G = nx.read_edgelist(file_name,create_using=nx.DiGraph)
-            else: G = nx.read_edgelist(file_name)
+            if not suppress: h.start_section("EDGELIST File Detected")
+            else: print("\n\n\t\t\tEDGELIST File Detected\n\n")
+            if weighted: 
+                G = nx.read_edgelist(file_name, comments=cust_com, delimiter=cust_del, data=(('weight',float),), create_using=nx.DiGraph if directed else nx.Graph)
+            else:
+                G = nx.read_edgelist(file_name, comments=cust_com, delimiter=cust_del, create_using=nx.DiGraph if directed else nx.Graph)
             G_sparse = nx.to_scipy_sparse_array(G, format='coo')
 
         # [ ] Tested
         case 'edges':
-            h.start_section("EDGES File Detected")
-            G = nx.read_edgelist(file_name, create_using=nx.DiGraph if directed else nx.Graph)
+            # Need this if else because .start_section gets the terminal window width and that can't happen in a slurm script. JRH
+            if not suppress: 
+                h.start_section("EDGES File Detected")
+            else: 
+                print("\n\n\t\t\tEDGES File Detected\n\n")
+            if weighted: 
+                G = nx.read_edgelist(file_name, comments=cust_com, delimiter=cust_del, data=(('weight',float),), create_using=nx.DiGraph if directed else nx.Graph)
+            else:
+                G = nx.read_edgelist(file_name, comments=cust_com, delimiter=cust_del, create_using=nx.DiGraph if directed else nx.Graph)
             G_sparse = nx.to_scipy_sparse_array(G, format='coo')
+
+        case 'mtx':
+            if not suppress: h.start_section("MTX File Detected")
+            else: print("\n\n\t\t\tMTX File Detected\n\n")
+            G_sparse = scipy.io.mmread(file_name)
+
         
         case _:
             # default case, if no other case matches

@@ -24,12 +24,6 @@ if __name__ == "__main__":
         G = nx.read_graphml(graph_path)
     except: 
         G = sp.load_npz(graph_path)
-    #nodes, edges = os.environ.get('GRAPH_NODES'), os.environ.get('GRAPH_EDGES')
-    #G = nx.Graph()
-    #G.add_nodes_from(nodes)
-    #G.add_edges_from(edges)
-    #G = nx.parse_edgelist(serialized_graph,nodetype=int)
-    #print(type(G))
     end = pc()
     data_fn = graph_path.split('/')[-1].split('.')[0]
     build_time = end-start
