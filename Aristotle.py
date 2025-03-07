@@ -23,7 +23,7 @@ def GetRunInfo(results_fn):
     """records the time taken to do a run in the master_keeper.csv file. This function must
     be called in the results folder of the run you want to save."""
     # get the graph format
-    g_name = results_fn.split('_')[0] + results_fn.split('_')[1]
+    g_name = results_fn.split('_')[0]# + results_fn.split('_')[1] # don't think we need the second part anymore for real runss
     if 'csr' in results_fn: g_format = 'csr'
     elif 'coo' in results_fn: g_format = 'coo'
     elif 'lil_matrix' in results_fn: g_format = 'lil_matrix'
@@ -34,18 +34,26 @@ def GetRunInfo(results_fn):
     spectrum_file = [file for file in os.listdir('./' + results_fn) if 'spec' in file]
 
     # if parallel run get all the details
-    if 'parallel' in timing_file[0]: 
+    if 'parallel' in timing_file[0]:
+        # initializations of data and files 
         if not timing_file:
             raise NameError("parallel or serial timing file not present.")
         if not spectrum_file:
             raise NameError("spectrum file not present. timing did not run to completion.")
         print(f"THE RESULTS FILE IS: {results_fn}")
         with open(results_fn + '/' + timing_file[0],'r') as f:
-            data = f.read()
+            data = f.readlines()
         total,longest_lep,longest_com,longest_g = 0,np.inf,np.inf,np.inf # initialize times
 
+
+        # get the meta data to record
+        with open(results_fn + "/Meta.txt","r") as f:
+            meta_data = f.readlines()
+        # meta_data = meta_data.split('\n')
+        g_size, nt_ep_perc, nt_lep_perc = [float(md.split(':')[1]) for md in meta_data]
+
         # get the times we'll record
-        for t_record in data.strip().split('\n'):
+        for t_record in data:
             if len(t_record.split(':')) == 1: continue
             label,t = t_record.split(':')
             t = float(t)
@@ -57,20 +65,21 @@ def GetRunInfo(results_fn):
             elif 'build_graph' in label: 
                 if t < longest_g: longest_g = t
             elif 'eps' in label: total += t
-        total += longest_com + longest_lep + longest_g
+        total = longest_com + longest_lep + longest_g
         total_noGraph = total - longest_g
         time_pieces = {'longest_lep_time':longest_lep,'longest_comm_time':longest_com,'longest_graphBuild':longest_g}
-        return [g_name,g_format,'parallel',time_pieces,total_noGraph,total]
+        return [g_name, int(g_size), g_format,'parallel',nt_ep_perc,nt_lep_perc,time_pieces,total_noGraph,total]
     
     elif 'serial' in timing_file[0]: # if serial run there's only one time recorded
         if not timing_file:  # only check for timing file
             raise NameError("parallel or serial timing file not present.")
         with open(results_fn + '/' + timing_file[0],'r') as f:
-            data = f.read()
-        total = float(data.strip()[0].split(':')[1])
-        g_size = float(data.strip()[1].split(':')[1])
-        print(total,g_size)
-        return [g_name,g_size,g_format,'serial',None,None,total]
+            data = f.readlines()
+
+        total = float(data[0].split(':')[1])
+        g_size = int(data[1].split(':')[1])
+
+        return [g_name,g_size,g_format,'serial',None,None,None,None,total]
     
     else: # otherwise something was wrong
         print('Something went wrong, couldn\'t find whether it was serial or parallel')
@@ -83,8 +92,7 @@ def EnsureRecord(results_fn):
     df = pd.read_csv('/home/jrhmc1/Desktop/EquitablePartitions/Results/Master_keeper.csv',index_col="SlurmID")
     try: df.loc[slurm_id] # do nothing if it exists
     except: 
-        print(slurm_list)   
-        stats = GetRunInfo(results_fn)
+        stats = GetRunInfo(results_fn)  
         df.loc[slurm_id] = stats
         df.to_csv('/home/jrhmc1/Desktop/EquitablePartitions/Results/Master_keeper.csv',index_label="SlurmID")
 
@@ -166,20 +174,17 @@ def TimeGraph(graph: str, serial=False, real=False,parent_folder='./Networks/') 
                 cust_del = " "
                 cust_com = "#"
 
-            if serial:
-                com_command = ["sed", '-i', f"s/CUST_COM=\"[^\"]*\"/CUST_COM=\"{cust_com}\"/I", f"{start_script}"]
-                del_command = ["sed", '-i', f"s/CUST_DEL=\"[^\"]*\"/CUST_DEL=\"{cust_del}\"/I", f"{start_script}"]
-                if weighted: 
-                    weight_command = ["sed", '-i', f"s/WEIGHTED=[^\s]*/WEIGHTED={weighted}/I", f"{start_script}"]
-                    # subprocess.run(weight_command)
-                # devnulls were added by chatgpt's suggestion to avoid ioctl errors but I think that they 
-                # might have been being caused in the onGraphToRuleThemAll call instead.
-                # RESOLVED: ioctl happens when h.start_section tries to get terminal length, not here.
-                subprocess.run(com_command)
-                subprocess.run(del_command)# not sure if that was neded in these two calls#,stdin=subprocess.DEVNULL)
-            else:
-                print("Slurm version has yet to be written for custom comment and delimiters.")
-                # put the slurm version here
+
+            com_command = ["sed", '-i', f"s/CUST_COM=\"[^\"]*\"/CUST_COM=\"{cust_com}\"/I", f"{start_script}"]
+            del_command = ["sed", '-i', f"s/CUST_DEL=\"[^\"]*\"/CUST_DEL=\"{cust_del}\"/I", f"{start_script}"]
+            if weighted: 
+                weight_command = ["sed", '-i', f"s/WEIGHTED=[^\s]*/WEIGHTED={weighted}/I", f"{start_script}"]
+                # subprocess.run(weight_command)
+            # devnulls were added by chatgpt's suggestion to avoid ioctl errors but I think that they 
+            # might have been being caused in the onGraphToRuleThemAll call instead.
+            # RESOLVED: ioctl happens when h.start_section tries to get terminal length, not here.
+            subprocess.run(com_command)
+            subprocess.run(del_command)
 
         directed = 'yes' == h.parse_input("Is this a directed graph? (yes/no): ")
 
@@ -337,6 +342,6 @@ if __name__ == '__main__':
             # TODO: problem with the cleaning code!
 
     else:
-        print("must give --kwarg arguents (choices are: --run or --record_real)")
+        print("must give --kwarg arguents (choices are: --run or --record)")
         
 

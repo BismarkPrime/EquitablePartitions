@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-#SBATCH --job-name=bio-celegans-dirserial
+#SBATCH --job-name=bio-yeast-protein-interserial
 #SBATCH --time=12:00:00   # walltime
 ##SBATCH --ntasks-per-node=1
 ##SBATCH --nodes=1
@@ -36,19 +36,20 @@ if __name__ == "__main__":
 
     # try loading the graph in
     try: 
-        if real:
-            G = graphs.oneGraphToRuleThemAll(graph_path, suppress=True,cust_del=CUST_DEL,cust_com=CUST_COM, weighted=WEIGHTED); graph_type = 'sparse'
-        else:
-            try: G = nx.read_graphml(graph_path); graph_type = 'graphml'
-            except: G = sp.load_npz(graph_path); graph_type = 'sparse'; 
+        # commented code on trial. I don't think we need it now that we have the oneGraphtoRuleThemAll function
+        # if real:
+        G = graphs.oneGraphToRuleThemAll(graph_path, suppress=True,directed=directed, cust_del=CUST_DEL,cust_com=CUST_COM, weighted=WEIGHTED); graph_type = 'sparse'
+        # else:
+        #     try: G = nx.read_graphml(graph_path); graph_type = 'graphml'
+        #     except: G = sp.load_npz(graph_path); graph_type = 'sparse'; 
     except Exception as e:
         print(f"Error occured: {e}")
 
     # run the timing
-    if graph_type == 'graphml':
-        G_size = G.number_of_nodes()
-        t = tim.time_this(nx.adjacency_spectrum,[G],
-                            label="get_eigvals",store_in='./' + data_fn + '_serial.txt')
+    # if graph_type == 'graphml':
+    #     G_size = G.number_of_nodes()
+    #     t = tim.time_this(nx.adjacency_spectrum,[G],
+    #                         label="get_eigvals",store_in='./' + data_fn + '_serial.txt')
     if graph_type == 'sparse':
         G_size = G.shape[0]
         t = tim.time_this(sp.linalg.eigs,[G,G_size-2],

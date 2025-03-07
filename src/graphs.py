@@ -38,8 +38,9 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=
     match extension.lower():
         # [ ] Tested
         case 'csv': 
-            h.start_section("CSV File Detected")
-            if not suppress: print("ASSUMPTIONS:\nThis txt file contains edge data of the form\n" + \
+            if not suppress: h.start_section("CSV File Detected")
+            else: print("\n\n\t\t\CSV File Detected\n\n")
+            print("ASSUMPTIONS:\nThis txt file contains edge data of the form\n" + \
                                 "\tsrc_label,dst_label\n" + \
                                 "\tsrc_label,dst_label\n" + \
                                 "\t...\n")
@@ -63,8 +64,9 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=
 
         # [ ] Tested
         case 'txt':
-            h.start_section("TXT File Detected")
-            if not suppress: print("ASSUMPTIONS:\nThis txt file contains edge data of the form\n" + \
+            if not suppress: h.start_section("TXT File Detected")
+            else: print("\n\n\t\t\TXT File Detected\n\n")
+            print("ASSUMPTIONS:\nThis txt file contains edge data of the form\n" + \
                                 "\tsrc_label dst_label\n" + \
                                 "\tsrc_label dst_label\n" + \
                                 "\t...\n")
@@ -73,7 +75,8 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=
             
         # [ ] Tested
         case 'graphml':
-            h.start_section("GraphML File Detected")
+            if not suppress: h.start_section("GraphML File Detected")
+            else: print("\n\n\t\tGraphML File Detected\n\n")
             G_sparse = fromNx(nx.read_graphml(file_name))
             #TODO: test this
 
@@ -85,6 +88,8 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=
                     exit()
                     
             if not suppress: h.start_section("JSON File Detected")
+            else: print("\n\n\t\t\JSON File Detected\n\n")
+
             with json.load(file_name) as graph_dict:
                 # node/link format
                 # (https://networkx.org/documentation/stable/reference/readwrite/generated/networkx.readwrite.json_graph.node_link_graph.html)
@@ -106,7 +111,8 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=
 
         # [ ] Tested
         case 'gexf':
-            h.start_section("GEXF File Detected")
+            if not suppress: h.start_section("GEXF File Detected")
+            else: print("\n\n\t\t\GEXF File Detected\n\n")
             G = nx.read_gexf(file_name)
             G_sparse = nx.to_scipy_sparse_array(G, format='coo')
             #TODO: test this
@@ -152,7 +158,7 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=
         plt.colorbar(label='Value')
         plt.show()
 
-    return G_sparse
+    return G_sparse.tocsr()
 
 def getCharacteristicMatrix(partition):
     """

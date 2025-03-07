@@ -138,7 +138,7 @@ def __computeLocalEquitablePartitions(N: List[Set[int]], pi: Dict[int, List[Any]
 
     leps = __extractConnectedComponents(lep_network, len(pi))
     # convert to List of Lists to be consistent with EPFinder
-    lep_list = [list(lep) for lep in leps]
+    lep_list = [[int(l) for l in lep] for lep in leps] # maybe replacee with 
     return lep_list
 
 def __link(i: int, j: int, edge_dict: Dict[int, Set[int]]) -> None:

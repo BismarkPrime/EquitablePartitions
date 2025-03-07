@@ -74,13 +74,61 @@ def getEigenvaluesSparse(mat: sparse.sparray, dt_stats=False) -> List[float | co
         return pi, globals, list(itertools.chain.from_iterable(locals))
     return spectrum
 
-def _getEigenvaluesSparse(csc: sparse.csc_array, csr: sparse.csr_array, pi: Dict[int, List[int]], leps: List[List[int]]) -> Tuple[List[float | complex], List[float | complex]]:
+def _getEigenvaluesSparseFromPartialLeps(csc: sparse.csc_array, csr: sparse.csr_array, pi: Dict[int, List[int]], leps: List[List[int]], include_globals=True) -> Tuple[List[float | complex], List[float | complex]]:
+    """Get the leps by constructing only partial divisor matrices. It can constuct the full divisor matrix and get
+    the globals if desired but to save time on larger graphs it doesn't usually do that.
+    """
+    if include_globals:
+        divisor_matrix = getDivisorMatrixSparse(csc, pi)
+
+        # in practice, np.linalg.eigvals, scipy.linalg.eigvals, and scipy.linalg.eigvals(..., overwrite_a=True) run
+        #   in roughly the same amount of time
+        globals = np.linalg.eigvals(divisor_matrix)
+    else:
+        globals = []
+
+    # 3. Find Local Eigenvalues
+    #    For each LEP:
+    #       a. Create subgraph
+    #       b. Compute divisor graph of subgraph
+    #       c. Calculate spectrum of subgraph, divisor graph
+    #       d. Compute difference eigs(SG) - eigs(DG)
+
+
+    locals = []
+    for lep in leps:
+        nodes = []
+        sub_pi = {}
+        min_node = np.inf
+        relabel_ind = 0
+        for i, V in enumerate(lep):
+            nodes.extend(pi[V])
+            # create the new sub ep element dict.
+            sub_pi[i] = [j for j in range(relabel_ind,relabel_ind + len(pi[V]))]
+            relabel_ind += len(pi[V])
+        # sub_pi = {v:[relabler[node] for node in l] for v,l in zip(np.arange(len(sub_pi.keys())),sub_pi.values())}
+        # skip iterations for which globals = locals
+        if len(nodes) < 2:
+            continue
+        
+        subgraph = csr[nodes,:][:,nodes]
+        divisor_submatrix = getDivisorMatrixSparse(subgraph.tocsc(), sub_pi) #divisor_matrix[lep,:][:,lep]
+
+        subgraph_globals = np.linalg.eigvals(divisor_submatrix)
+        subgraph_locals = np.linalg.eigvals(subgraph.todense())
+
+        locals.extend(getSetDifference(subgraph_locals, subgraph_globals))
+
+    return globals, locals
+
+def _getEigenvaluesSparse(csc: sparse.csc_array, csr: sparse.csr_array, pi: Dict[int, List[int]], leps: List[List[int]], include_globals: bool = True) -> Tuple[List[float | complex], List[float | complex]]:
     
     divisor_matrix = getDivisorMatrixSparse(csc, pi)
 
     # in practice, np.linalg.eigvals, scipy.linalg.eigvals, and scipy.linalg.eigvals(..., overwrite_a=True) run
     #   in roughly the same amount of time
-    globals = np.linalg.eigvals(divisor_matrix)
+    if include_globals: globals = np.linalg.eigvals(divisor_matrix)
+    else: globals = []
 
     # 3. Find Local Eigenvalues
     #    For each LEP:
