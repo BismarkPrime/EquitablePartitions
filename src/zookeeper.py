@@ -52,18 +52,19 @@ class MetaMetrics(NamedTuple):
     m_lep_time: float
     m_eig_time: float
     m_total_time: float
+    m_np_eig_time: float
 
 class GraphMetrics(NamedTuple):
     g_avg_node_degree: float
-    g_diameter: int
     g_order: int  # num nodes
     g_size: int  # num edges
     g_directed: bool
-    g_radius: int  # min eccentricity
-    g_average_path_length: float
     g_density: float
     g_connected_components: int
     # NOTE: the following metrics were removed for being too computationally expensive
+    # g_diameter: int
+    # g_radius: int  # min eccentricity
+    # g_average_path_length: float
     # g_edge_connectivity: int
     # g_vertex_connectivity: int
     # g_assortativity: float
@@ -105,10 +106,14 @@ class LEPMetrics(NamedTuple):
     lep_size_skewness: float
     lep_size_kurtosis: float
 
-def main(file_path: str, directed: bool, verify_eigenvalues: bool=False):
+def main(file_path: str, directed: bool, verify_eigenvalues: bool=True):
+    print(f"Processing {file_path}...")
+
     m_source_file = file_path
     # 1a Get the graph as a sparse graph
+    start_time = time()
     mat = getGraph(file_path, directed)
+    print(f"Graph loaded in {time() - start_time} seconds")
     
     start_time = time()
 
@@ -166,7 +171,13 @@ def main(file_path: str, directed: bool, verify_eigenvalues: bool=False):
     with open(f"{results_dir}/{m_lep_file}", 'wb') as f:
         pickle.dump(leps, f, protocol=pickle.HIGHEST_PROTOCOL)
 
-    meta_metrics = MetaMetrics(m_source_file, m_ep_file, m_lep_file, m_ep_time, m_lep_time, m_eig_time, m_total_time)
+    # 9. Compute eigenvalues using numpy for speed comparison
+    start_time = time()
+    np_eigenvalues = np.linalg.eigvals(csr.toarray())
+    m_np_eig_time = time() - start_time
+    print(f"Numpy eigenvalues computed in {m_np_eig_time} seconds")
+
+    meta_metrics = MetaMetrics(m_source_file, m_ep_file, m_lep_file, m_ep_time, m_lep_time, m_eig_time, m_total_time, m_np_eig_time)
 
     metrics = [file_name] + list(meta_metrics) + list(graph_metrics) + list(ep_metrics) + list(lep_metrics)
 
@@ -180,7 +191,7 @@ def main(file_path: str, directed: bool, verify_eigenvalues: bool=False):
     if verify_eigenvalues:
         eigenvalues = global_eigs + local_eigs
         start_time = time()
-        verifyEigenvalues(csr, eigenvalues)
+        verifyEigenvalues(np_eigenvalues, eigenvalues)
         print(f"Eigenvalues verified in {time() - start_time} seconds")
 
 def getGraph(file_path: str, directed: bool) -> sparse.sparray:
@@ -225,9 +236,8 @@ def computeMetricsForDT(pi: Dict[int, List[Any]], leps: List[List[int]], globals
         f.write(f"URL: {url}\n")
         f.write(f"Description: {description}\n")
 
-def verifyEigenvalues(mat: sparse.sparray, eigenvalues: List[float | complex]) -> bool:
-    np_eigenvalues = np.linalg.eigvals(mat.toarray())
-    our_unique_eigs, their_unique_eigs = ep_utils.getSymmetricDifference(eigenvalues, np_eigenvalues)
+def verifyEigenvalues(np_eigenvalues: List[float | complex], lepard_eigenvalues: List[float | complex]) -> bool:
+    our_unique_eigs, their_unique_eigs = ep_utils.getSymmetricDifference(lepard_eigenvalues, np_eigenvalues)
     if len(our_unique_eigs) > 0:
         print(f"Error: Some eigenvalues are unique to the LEPARD eigenvalues")
         prompt = "Would you like to compare LEParD eigenvalues to numpy eigenvalues? (Y/n) > "
@@ -250,17 +260,12 @@ def getGraphMetrics(sparseMatrix: sparse.sparray) -> GraphMetrics:
 
     # Compute graph metrics
     avg_node_degree = G.number_of_edges() / G.number_of_nodes()
-    diameter = try_or(lambda: nx.diameter(G), -1, nx.exception.NetworkXError) # TODO: consider what default makes the most sense here
     order = G.order()
-
-    radius = try_or(lambda: nx.radius(G), -1, nx.exception.NetworkXError)
-    average_path_length = try_or(lambda: nx.average_shortest_path_length(G), -1, nx.exception.NetworkXError)
 
     density = nx.density(G)
     connected_components = nx.number_connected_components(G)
 
-    metrics = GraphMetrics(avg_node_degree, diameter, order, size, directed, radius, average_path_length,
-                           density, connected_components)
+    metrics = GraphMetrics(avg_node_degree, order, size, directed, density, connected_components)
 
     return metrics
 
@@ -338,7 +343,7 @@ if __name__=="__main__":
     parser.add_argument("--directed","-d", action='store_true', help="Necessary if graph is directed.")
     parser.add_argument("--file", type=str, help="Path to the graph")
     args = parser.parse_args()
-    # file_path = sys.argv[1] if len(sys.argv) > 1 else input("File path > ")
+
     if args.file is None:
         Tk().withdraw()
         args.file = filedialog.askopenfilename()

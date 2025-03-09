@@ -127,8 +127,7 @@ def _getEigenvaluesSparse(csc: sparse.csc_array, csr: sparse.csr_array, pi: Dict
 
     # in practice, np.linalg.eigvals, scipy.linalg.eigvals, and scipy.linalg.eigvals(..., overwrite_a=True) run
     #   in roughly the same amount of time
-    if include_globals: globals = np.linalg.eigvals(divisor_matrix)
-    else: globals = []
+    globals = np.linalg.eigvals(divisor_matrix).tolist() if include_globals else []
 
     # 3. Find Local Eigenvalues
     #    For each LEP:

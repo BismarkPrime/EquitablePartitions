@@ -240,7 +240,7 @@ def GetLocalSpec(G,ep_dict,lep_list):
         
     return spec_dict, orig_spec
 
-def genBerthaSparse(n, parallel=False):
+def genBerthaSparse(n: int, parallel: bool=False) -> sp.lil_matrix:
     """
     NOTE: this function could be a near-exact copy of GenBertha, but returning `mat` instead of using
     `nx.from_scipy_sparse_array`. However, writing it from scratch may prove more readable and efficient.
@@ -273,7 +273,7 @@ def genBerthaSparse(n, parallel=False):
     
     return mat
 
-def genBertha(size,show_graph=False,parallelize=False):
+def genBertha(size: int, show_graph: bool=False, parallelize: bool=False) -> nx.Graph | nx.DiGraph:
     """ constructs a Bertha graph of the size indicated (size=number of nodes) organized in such a way that it 
     has the optimal amount of LEP's for eigenvalue catching
     INPUTS:
