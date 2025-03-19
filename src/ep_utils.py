@@ -11,6 +11,7 @@ import itertools
 from typing import Dict, List, Set, Tuple
 import graphs
 from collections import Counter
+from multiprocessing import Pool as ThreadPool
 
 import ep_finder, lep_finder
 import graphs
@@ -153,6 +154,46 @@ def _getEigenvaluesSparse(csc: sparse.csc_array, csr: sparse.csr_array, pi: Dict
         locals.extend(getSetDifference(subgraph_locals, subgraph_globals))
 
     return globals, locals
+
+
+def getGlobals(divisor_matrix: sparse.sparray) -> List[float | complex]:
+    return np.linalg.eigvals(divisor_matrix).tolist()
+
+def getLocals(csr: sparse.csr_array, divisor_matrix: sparse.sparray, pi: Dict[int, List[int]], leps: List[List[int]]) -> List[float | complex]:
+    locals = []
+    for lep in leps:
+        locals.extend(getLocalsForLEP(csr, divisor_matrix, pi, lep))
+    return locals
+
+
+def getLocalsForLEP(csr: sparse.csr_array, divisor_matrix: sparse.sparray, pi: Dict[int, List[int]], lep: List[int]) -> List[float | complex]:
+    nodes = []
+    for V in lep:
+        nodes.extend(pi[V])
+    # skip iterations for which globals = locals
+    if len(nodes) < 2:
+        return []
+    
+    subgraph = csr[nodes,:][:,nodes]
+    divisor_submatrix = divisor_matrix[lep,:][:,lep]
+
+    subgraph_globals = np.linalg.eigvals(divisor_submatrix)
+    subgraph_locals = np.linalg.eigvals(subgraph.todense())
+
+    return getSetDifference(subgraph_locals, subgraph_globals)
+
+def _getEigenvaluesSparseParallel(csc: sparse.csc_array, csr: sparse.csr_array, pi: Dict[int, List[int]], leps: List[List[int]]) -> Tuple[List[float | complex], List[float | complex]]:
+    divisor_matrix = getDivisorMatrixSparse(csc, pi)
+    
+    pool = ThreadPool(2)
+    
+    # locals_lists = pool.starmap_async(getLocals, [(csr, divisor_matrix, pi, lep) for lep in leps])
+    globals = pool.apply_async(getGlobals, (divisor_matrix,))
+    locals = pool.apply_async(getLocals, (csr, divisor_matrix, pi, leps))
+    # locals = list(itertools.chain.from_iterable(locals_lists.get()))
+
+    return globals.get(), locals.get()
+    
 
 def getDivisorMatrixSparse(mat_csc: sparse.csc_array, pi: Dict[int, List[int]]) -> sparse.sparray:
 

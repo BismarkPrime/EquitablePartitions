@@ -13,6 +13,7 @@ from collections import Counter
 from scipy import sparse, stats
 import numpy as np
 import networkx as nx
+from line_profiler import profile
 
 import ep_utils
 import graphs
@@ -21,7 +22,7 @@ import lep_finder
 
 # TODO: consider tracking computation time for each metric
 
-def profile(fnc):
+def profile2(fnc):
     """
     Profiles any function in following class just by adding @profile above function
     """
@@ -51,6 +52,7 @@ class MetaMetrics(NamedTuple):
     m_ep_time: float
     m_lep_time: float
     m_eig_time: float
+    m_par_eig_time: float
     m_total_time: float
     m_np_eig_time: float
 
@@ -115,10 +117,9 @@ def main(file_path: str, directed: bool, verify_eigenvalues: bool=True):
     mat = getGraph(file_path, directed)
     print(f"Graph loaded in {time() - start_time} seconds")
     
-    start_time = time()
-
     # 2. Compute desired graph metrics
-    graph_metrics = getGraphMetrics(mat)
+    start_time = time()
+    graph_metrics = getGraphMetrics(mat, directed)
     print(f"Graph metrics computed in {time() - start_time} seconds")
     start_time = time()
     
@@ -152,6 +153,12 @@ def main(file_path: str, directed: bool, verify_eigenvalues: bool=True):
 
     print(f"Eigenvalues computed in {m_eig_time} seconds")
 
+    start_time = time()
+    global_eigs, local_eigs = ep_utils._getEigenvaluesSparseParallel(csc, csr, pi, leps)
+    m_par_eig_time = time() - start_time
+
+    print(f"Eigenvalues parallel computed in {m_par_eig_time} seconds")
+
     # 8. Store metrics in dataframe
 
     file_name = file_path[:file_path.rfind('.')].split('/')[-1]
@@ -177,17 +184,18 @@ def main(file_path: str, directed: bool, verify_eigenvalues: bool=True):
     m_np_eig_time = time() - start_time
     print(f"Numpy eigenvalues computed in {m_np_eig_time} seconds")
 
-    meta_metrics = MetaMetrics(m_source_file, m_ep_file, m_lep_file, m_ep_time, m_lep_time, m_eig_time, m_total_time, m_np_eig_time)
+    # REMEMBER that par time is not currently included in total time
+    meta_metrics = MetaMetrics(m_source_file, m_ep_file, m_lep_file, m_ep_time, m_lep_time, m_eig_time, m_par_eig_time, m_total_time, m_np_eig_time)
 
     metrics = [file_name] + list(meta_metrics) + list(graph_metrics) + list(ep_metrics) + list(lep_metrics)
 
     with open('MetricWarden.csv','a') as file:
         file.write(f'{','.join(map(str, metrics))}\n')
 
-    # 9. Store metrics for DT
+    # 10. Store metrics for DT
     computeMetricsForDT(pi, leps, global_eigs, local_eigs, file_name)
 
-    # 10. Verify that the eigenvalues are correct
+    # 11. Verify that the eigenvalues are correct
     if verify_eigenvalues:
         eigenvalues = global_eigs + local_eigs
         start_time = time()
@@ -252,18 +260,17 @@ def try_or[T](func: Callable[[], T], default: T, expected_exc: Exception=Excepti
     except expected_exc:
         return default
 
-def getGraphMetrics(sparseMatrix: sparse.sparray) -> GraphMetrics:
-    # Convert sparse matrix to NetworkX graph
-    G = nx.from_scipy_sparse_array(sparseMatrix)
+@profile
+def getGraphMetrics(sparseMatrix: sparse.sparray, directed: bool) -> GraphMetrics:
+    G = nx.from_scipy_sparse_array(sparseMatrix, create_using=nx.DiGraph if directed else nx.Graph)
     size = G.size()
-    directed = nx.is_directed(G)
 
     # Compute graph metrics
-    avg_node_degree = G.number_of_edges() / G.number_of_nodes()
+    avg_node_degree = G.number_of_edges() / G.number_of_nodes() * (1 if directed else 2)
     order = G.order()
 
     density = nx.density(G)
-    connected_components = nx.number_connected_components(G)
+    connected_components = nx.number_connected_components(G.to_undirected(as_view=True))
 
     metrics = GraphMetrics(avg_node_degree, order, size, directed, density, connected_components)
 
