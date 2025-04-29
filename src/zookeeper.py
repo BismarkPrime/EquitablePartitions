@@ -51,8 +51,9 @@ class MetaMetrics(NamedTuple):
     m_lep_file: str
     m_ep_time: float
     m_lep_time: float
-    m_eig_time: float
-    m_par_eig_time: float
+    m_div_mat_time: float
+    m_globals_time: float
+    m_locals_time: float
     m_total_time: float
     m_np_eig_time: float
 
@@ -147,17 +148,12 @@ def main(file_path: str, directed: bool, verify_eigenvalues: bool=True):
     
     # 7. Compute eigenvalues
     start_time = time()
-    global_eigs, local_eigs = ep_utils._getEigenvaluesSparse(csc, csr, pi, leps)
+    global_eigs, local_eigs, times = ep_utils._getEigenvaluesSparse(csc, csr, pi, leps)
     m_eig_time = time() - start_time
-    m_total_time = m_ep_time + m_lep_time + m_eig_time
+    m_div_mat_time, m_globals_time, m_locals_time = times
+    m_total_time = m_ep_time + m_lep_time + m_div_mat_time + m_globals_time + m_locals_time
 
     print(f"Eigenvalues computed in {m_eig_time} seconds")
-
-    start_time = time()
-    global_eigs, local_eigs = ep_utils._getEigenvaluesSparseParallel(csc, csr, pi, leps)
-    m_par_eig_time = time() - start_time
-
-    print(f"Eigenvalues parallel computed in {m_par_eig_time} seconds")
 
     # 8. Store metrics in dataframe
 
@@ -185,7 +181,7 @@ def main(file_path: str, directed: bool, verify_eigenvalues: bool=True):
     print(f"Numpy eigenvalues computed in {m_np_eig_time} seconds")
 
     # REMEMBER that par time is not currently included in total time
-    meta_metrics = MetaMetrics(m_source_file, m_ep_file, m_lep_file, m_ep_time, m_lep_time, m_eig_time, m_par_eig_time, m_total_time, m_np_eig_time)
+    meta_metrics = MetaMetrics(m_source_file, m_ep_file, m_lep_file, m_ep_time, m_lep_time, m_div_mat_time, m_globals_time, m_locals_time, m_total_time, m_np_eig_time)
 
     metrics = [file_name] + list(meta_metrics) + list(graph_metrics) + list(ep_metrics) + list(lep_metrics)
 

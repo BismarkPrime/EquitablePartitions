@@ -1,4 +1,5 @@
 import cmath
+from time import time
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -124,11 +125,17 @@ def _getEigenvaluesSparseFromPartialLeps(csc: sparse.csc_array, csr: sparse.csr_
 
 def _getEigenvaluesSparse(csc: sparse.csc_array, csr: sparse.csr_array, pi: Dict[int, List[int]], leps: List[List[int]], include_globals: bool = True) -> Tuple[List[float | complex], List[float | complex]]:
     
+    start_time = time()
     divisor_matrix = getDivisorMatrixSparse(csc, pi)
+    div_time = time() - start_time
+    print(f"Divisor matrix computed in {div_time} seconds")
 
     # in practice, np.linalg.eigvals, scipy.linalg.eigvals, and scipy.linalg.eigvals(..., overwrite_a=True) run
     #   in roughly the same amount of time
+    start_time = time()
     globals = np.linalg.eigvals(divisor_matrix).tolist() if include_globals else []
+    globals_time = time() - start_time
+    print(f"Globals computed in {globals_time} seconds")
 
     # 3. Find Local Eigenvalues
     #    For each LEP:
@@ -136,6 +143,7 @@ def _getEigenvaluesSparse(csc: sparse.csc_array, csr: sparse.csr_array, pi: Dict
     #       b. Compute divisor graph of subgraph
     #       c. Calculate spectrum of subgraph, divisor graph
     #       d. Compute difference eigs(SG) - eigs(DG)
+    start_time = time()
     locals = []
     for lep in leps:
         nodes = []
@@ -152,8 +160,11 @@ def _getEigenvaluesSparse(csc: sparse.csc_array, csr: sparse.csr_array, pi: Dict
         subgraph_locals = np.linalg.eigvals(subgraph.todense())
 
         locals.extend(getSetDifference(subgraph_locals, subgraph_globals))
+    
+    locals_time = time() - start_time
+    print(f"Locals computed in {locals_time} seconds")
 
-    return globals, locals
+    return globals, locals, [div_time, globals_time, locals_time]
 
 
 def getGlobals(divisor_matrix: sparse.sparray) -> List[float | complex]:
