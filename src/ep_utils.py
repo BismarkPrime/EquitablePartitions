@@ -12,10 +12,7 @@ import itertools
 from typing import Dict, List, Set, Tuple
 import graphs
 from collections import Counter
-<<<<<<< HEAD
-=======
 from multiprocessing import Pool as ThreadPool
->>>>>>> 95ba4d3595f379fcd794dedf4107817253bf2e7a
 
 import ep_finder, lep_finder
 import graphs
@@ -26,11 +23,7 @@ from utils import getSymmetricDifference
 
 EPSILON = 1e-4
 
-<<<<<<< HEAD
-def getEigenvaluesSparse(mat: sparse.sparray,return_all=False) -> List[float | complex]:
-=======
 def getEigenvaluesSparse(mat: sparse.sparray, dt_stats=False) -> List[float | complex]:
->>>>>>> 95ba4d3595f379fcd794dedf4107817253bf2e7a
     # NOTE: despite using sparse matrices where possible, eigenvalue calculations 
     #   are still performed on dense matrices. If possible, it would be good to hook 
     #   into a library designed for finding eigenvalues of sparse matrices specifically
@@ -46,60 +39,6 @@ def getEigenvaluesSparse(mat: sparse.sparray, dt_stats=False) -> List[float | co
     #       a. Compute Divisor Matrix
     #       b. Calculate spectrum
     divisor_matrix = getDivisorMatrixSparse(csc, pi)
-<<<<<<< HEAD
-
-    # in practice, np.linalg.eigvals, scipy.linalg.eigvals, and scipy.linalg.eigvals(..., overwrite_a=True) run
-    #   in roughly the same amount of time
-    if return_all: 
-        globals, global_vecs = np.linalg.eig(divisor_matrix)
-        eig_dict = {'global':{'vals':Counter(globals),'vecs':global_vecs}}
-    else:
-        globals = np.linalg.eigvals(divisor_matrix)
-
-    # 2. Find Monad LEP Set
-    L = lep_finder.getLocalEquitablePartitions(lep_finder.initFromSparse(csc), pi)
-
-    # 3. Find Local Eigenvalues
-    #    For each LEP:
-    #       a. Create subgraph
-    #       b. Compute divisor graph of subgraph
-    #       c. Calculate spectrum of subgraph, divisor graph
-    #       d. Compute difference eigs(SG) - eigs(DG)
-    locals = []
-    for i,lep in enumerate(L):
-        nodes = []
-        for V in lep:
-            nodes.extend(pi[V])
-        # skip iterations for which globals = locals
-        if len(nodes) < 2:
-            continue
-        
-        subgraph = csr[nodes,:][:,nodes]
-        divisor_submatrix = divisor_matrix[lep,:][:,lep]
-
-        if return_all: 
-            subgraph_globals, sbg_global_vecs = np.linalg.eig(divisor_submatrix)
-            subgraph_locals, sbg_local_vecs = np.linalg.eig(subgraph.todense())
-            eig_dict[f"LEP{i+1}"] = {'globals': Counter(subgraph_globals),
-                                      'global_vecs': sbg_global_vecs,
-                                      'locals': Counter(subgraph_locals),
-                                      'local_vecs': sbg_local_vecs}
-        else:
-            subgraph_globals = np.linalg.eigvals(divisor_submatrix)
-            subgraph_locals = np.linalg.eigvals(subgraph.todense())
-
-        locals.append(getSetDifference(subgraph_locals, subgraph_globals))
-    
-    spectrum = list(itertools.chain.from_iterable((globals, *locals)))
-
-    if return_all: return eig_dict
-    return spectrum
-
-def _getEigenvaluesSparse(csc: sparse.csc_array, csr: sparse.csr_array, pi: Dict[int, List[int]], leps: List[List[int]]) -> List[float | complex]:
-    
-    divisor_matrix = getDivisorMatrixSparse(csc, pi)
-=======
->>>>>>> 95ba4d3595f379fcd794dedf4107817253bf2e7a
 
     # in practice, np.linalg.eigvals, scipy.linalg.eigvals, and scipy.linalg.eigvals(..., overwrite_a=True) run
     #   in roughly the same amount of time
@@ -137,8 +76,6 @@ def _getEigenvaluesSparse(csc: sparse.csc_array, csr: sparse.csr_array, pi: Dict
         return pi, globals, list(itertools.chain.from_iterable(locals))
     return spectrum
 
-<<<<<<< HEAD
-=======
 def _getEigenvaluesSparseFromPartialLeps(csc: sparse.csc_array, csr: sparse.csr_array, pi: Dict[int, List[int]], leps: List[List[int]], include_globals=True) -> Tuple[List[float | complex], List[float | complex]]:
     """Get the leps by constructing only partial divisor matrices. It can constuct the full divisor matrix and get
     the globals if desired but to save time on larger graphs it doesn't usually do that.
@@ -269,7 +206,6 @@ def _getEigenvaluesSparseParallel(csc: sparse.csc_array, csr: sparse.csr_array, 
     return globals.get(), locals.get()
     
 
->>>>>>> 95ba4d3595f379fcd794dedf4107817253bf2e7a
 def getDivisorMatrixSparse(mat_csc: sparse.csc_array, pi: Dict[int, List[int]]) -> sparse.sparray:
 
     node2ep = { node: i for i, V in pi.items() for node in V }

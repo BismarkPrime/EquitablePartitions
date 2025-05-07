@@ -12,15 +12,11 @@ import slurm_helper as h
 import pandas as pd
 import json
 
-<<<<<<< HEAD
-def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=False) -> sp.coo_array:
-=======
 def toSymmetric(A: sp.coo_array) -> sp.coo_array:
     """Converts a sparse matrix to a symmetric matrix"""
     return A + A.T - sp.diags(A.diagonal())
 
 def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=False, suppress=False, cust_del=None, cust_com="#",weighted=False) -> sp.coo_array:
->>>>>>> 95ba4d3595f379fcd794dedf4107817253bf2e7a
     """detects the type of input graph. Reads it in and outputs it as a sparse matrix 
     relaying any problems along the way
     PARAMETERS
@@ -38,23 +34,6 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=
         weights = np.ones(src.size)
         return sp.coo_array((weights, (src, dst)), shape=(num_nodes, num_nodes), dtype='b')
     
-<<<<<<< HEAD
-    # note: pandas.read_csv automatically detects compression for the following extensions: 
-    # ‘.gz’, ‘.bz2’, ‘.zip’, ‘.xz’, ‘.zst’, ‘.tar’, ‘.tar.gz’, ‘.tar.xz’ or ‘.tar.bz2’
-    
-    # note: perhaps useable when we consider cases for compressed files
-    # split_name = file_name.split('.')[-1]
-    
-    # tar_compression_extensions = {'gz', 'xz', 'bz2'}
-    # compression_extensions = {'gz', 'bz2', 'zip', 'xz', 'zst', 'tar'}
-    # extension = split_name[-1]
-    # if extension in compression_extensions:
-    #     if extension in tar_compression_extensions and split_name[-2] == 'tar':
-    #         extension = split_name[-3]
-    #     else:
-    #         extension = split_name[-2]
-=======
->>>>>>> 95ba4d3595f379fcd794dedf4107817253bf2e7a
     extension = file_name.split('.')[-1]
     match extension.lower():
         # [ ] Tested
@@ -85,21 +64,6 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=
 
         # [ ] Tested
         case 'txt':
-<<<<<<< HEAD
-            h.start_section("TXT File Detected")
-            print("ASSUMPTIONS:\n\twe are assuming that this txt file contains edge data of the form where the first column "
-                "is the origin node and the second column is the destination node. The metrics calculated on this graph "
-                "will not be accurate if this is false.\n\tWe are assuming the node labels start at 0")
-            df = pd.read_csv(file_name, 
-                             sep=None, 
-                             engine='python',
-                             skip_blank_lines=True, 
-                             dtype=int, 
-                             skipinitialspace=True,
-                             header=None # this assumes, probably incorrectly, that there is no header row
-                             )
-            G_sparse = fromDf(df)
-=======
             if not suppress: h.start_section("TXT File Detected")
             else: print("\n\n\t\t\TXT File Detected\n\n")
             print("ASSUMPTIONS:\nThis txt file contains edge data of the form\n" + \
@@ -108,7 +72,6 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=
                                 "\t...\n")
             G = nx.read_edgelist(file_name, create_using=nx.DiGraph if directed else nx.Graph)
             G_sparse = nx.to_scipy_sparse_array(G, format='coo', dtype='b')
->>>>>>> 95ba4d3595f379fcd794dedf4107817253bf2e7a
             
         # [ ] Tested
         case 'graphml':
@@ -156,18 +119,6 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=
             
         # [ ] Tested
         case 'edgelist':
-<<<<<<< HEAD
-            h.start_section("EDGELIST File Detected")
-            if directed: G = nx.read_edgelist(file_name,create_using=nx.DiGraph)
-            else: G = nx.read_edgelist(file_name)
-            G_sparse = nx.to_scipy_sparse_array(G,format='coo')
-
-        # [ ] Tested
-        case 'edges':
-            h.start_section("EDGES File Detected")
-            G = nx.read_edgelist(file_name,create_using=nx.DiGraph if directed else nx.Graph)
-            G_sparse = nx.to_scipy_sparse_array(G,format='coo')
-=======
             if not suppress: h.start_section("EDGELIST File Detected")
             else: print("\n\n\t\t\tEDGELIST File Detected\n\n")
             if weighted: 
@@ -194,7 +145,6 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=
             else: print("\n\n\t\t\tMTX File Detected\n\n")
             G_sparse = scipy.io.mmread(file_name)
 
->>>>>>> 95ba4d3595f379fcd794dedf4107817253bf2e7a
         
         case _:
             # default case, if no other case matches
@@ -290,11 +240,7 @@ def GetLocalSpec(G,ep_dict,lep_list):
         
     return spec_dict, orig_spec
 
-<<<<<<< HEAD
-def genBerthaSparse(n, parallel=False):
-=======
 def genBerthaSparse(n: int, parallel: bool=False) -> sp.lil_matrix:
->>>>>>> 95ba4d3595f379fcd794dedf4107817253bf2e7a
     """
     NOTE: this function could be a near-exact copy of GenBertha, but returning `mat` instead of using
     `nx.from_scipy_sparse_array`. However, writing it from scratch may prove more readable and efficient.
@@ -327,11 +273,7 @@ def genBerthaSparse(n: int, parallel: bool=False) -> sp.lil_matrix:
     
     return mat
 
-<<<<<<< HEAD
-def genBertha(size,show_graph=False,parallelize=False):
-=======
 def genBertha(size: int, show_graph: bool=False, parallelize: bool=False) -> nx.Graph | nx.DiGraph:
->>>>>>> 95ba4d3595f379fcd794dedf4107817253bf2e7a
     """ constructs a Bertha graph of the size indicated (size=number of nodes) organized in such a way that it 
     has the optimal amount of LEP's for eigenvalue catching
     INPUTS:
