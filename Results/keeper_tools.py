@@ -6,6 +6,9 @@ import slurm_helper as h
 import subprocess, os
 from matplotlib import pyplot as plt
 import argparse
+
+RESULTS_DIR = "/home/jrhmc1/Desktop/EquitablePartitions/Results/"
+
     #NOTE: took out plot=True here because I don't think I was using it. but if errors hopefully I'll see this.
 def MakeSpeedGraph(plot_name="Sl_v_Se_times.png",match_points=False,fit_lines=False,split_parallel=False):
     """Makes the speed graph from the data in the Master Keeper csv file
@@ -140,24 +143,27 @@ if __name__ == "__main__":
     elif args.reinit: # restart the run timing as a whole.
         choice = h.parse_input("This will erase all saved data, are you sure you want to proceed? (Y/N)")
         if choice == 'Y':
-            df = pd.DataFrame(columns=['Graph_name','Graph_format','Run_type','Partitioned_times','Total_noGraph','Total_wGraph'])
-            df.to_csv("Master_keeper.csv",index_label="SlurmID")
+            df = pd.DataFrame(columns=['Graph_name','Graph_size','Graph_format','Run_type',"Nontriv_ep_perc","Nontriv_lep_perc",'Partitioned_times','Total_noGraph','Total_wGraph'])
+            df.to_csv(RESULTS_DIR + "Master_keeper.csv",index_label="SlurmID")
         else:
             print("ABORTING...")
     elif args.reset_recorded_runs: # if there was a problem 
-        for direct_name in os.listdir():
+        for direct_name in os.listdir(RESULTS_DIR):
             if 'recorded' in direct_name:
-                subprocess.run(f"mv {direct_name} {direct_name.split('_recorded')[0]}",shell=True)
+                full_path = RESULTS_DIR + direct_name
+                subprocess.run(f"mv {full_path} {full_path.split('_recorded')[0]}",shell=True)
     elif args.reset_problem_runs: # make the problem runs be checked again
-        for direct_name in os.listdir():
+        for direct_name in os.listdir(RESULTS_DIR):
             if 'prob' in direct_name:
-                subprocess.run(f"mv {direct_name} {direct_name.split('_prob')[0]}",shell=True)
+                full_path = RESULTS_DIR + direct_name
+                subprocess.run(f"mv {full_path} {full_path.split('_prob')[0]}",shell=True)
     elif args.reset_all_runs: # reset all the runs to be rechecked
-        for direct_nme in os.listdir():
+        for direct_nme in os.listdir(RESULTS_DIR):
+            full_path = RESULTS_DIR + direct_name
             if 'prob' in direct_name:
-                subprocess.run(f"mv {direct_name} {direct_name.split('_prob')[0]}",shell=True)
+                subprocess.run(f"mv {full_path} {full_path.split('_prob')[0]}",shell=True)
             elif 'recorded' in direct_name:
-                subprocess.run(f"mv {direct_name} {direct_name.split('_recorded')[0]}",shell=True)
+                subprocess.run(f"mv {full_path} {full_path.split('_recorded')[0]}",shell=True)
     elif args.serialVslurm: # make the graph based on the data in the master keeper csv
         MakeSpeedGraph(match_points=args.match_points,plot_name=args.plot_name,
                         fit_lines=args.fit_lines,split_parallel=args.split_parallel)

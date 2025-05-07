@@ -15,6 +15,7 @@ def PrepSlurmScript(slurm_paste,start_script):
     with open(start_script,"w") as f:
         f.write(slurm_paste+'\n\n\n'+data)
 
+
 def parse_input(prompt):
     """makes sure input is of the form specified in the prompt. Which is signified by being inside
     parentheses and separated by backslashes '/'

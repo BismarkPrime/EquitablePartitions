@@ -3,6 +3,7 @@ import os
 import networkx as nx
 import random
 from scipy import sparse as sp
+import scipy.io
 from matplotlib import pyplot as plt
 from time import perf_counter as pc
 import ep_utils
@@ -11,14 +12,21 @@ import slurm_helper as h
 import pandas as pd
 import json
 
+<<<<<<< HEAD
 def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=False) -> sp.coo_array:
+=======
+def toSymmetric(A: sp.coo_array) -> sp.coo_array:
+    """Converts a sparse matrix to a symmetric matrix"""
+    return A + A.T - sp.diags(A.diagonal())
+
+def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=False, suppress=False, cust_del=None, cust_com="#",weighted=False) -> sp.coo_array:
+>>>>>>> 95ba4d3595f379fcd794dedf4107817253bf2e7a
     """detects the type of input graph. Reads it in and outputs it as a sparse matrix 
     relaying any problems along the way
     PARAMETERS
     ---------------------------------------------
         graph_file (str): name of the file to load into the graph
-    """
-    
+    """    
     def fromNx(G: nx.Graph | nx.DiGraph) -> sp.coo_array:
         return nx.to_scipy_sparse_array(nx.convert_node_labels_to_integers(G), format='coo')
 
@@ -30,6 +38,7 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=
         weights = np.ones(src.size)
         return sp.coo_array((weights, (src, dst)), shape=(num_nodes, num_nodes), dtype='b')
     
+<<<<<<< HEAD
     # note: pandas.read_csv automatically detects compression for the following extensions: 
     # ‘.gz’, ‘.bz2’, ‘.zip’, ‘.xz’, ‘.zst’, ‘.tar’, ‘.tar.gz’, ‘.tar.xz’ or ‘.tar.bz2’
     
@@ -44,30 +53,39 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=
     #         extension = split_name[-3]
     #     else:
     #         extension = split_name[-2]
+=======
+>>>>>>> 95ba4d3595f379fcd794dedf4107817253bf2e7a
     extension = file_name.split('.')[-1]
     match extension.lower():
         # [ ] Tested
         case 'csv': 
-            h.start_section("CSV File Detected")
-            print("ASSUMPTIONS:\n\twe are assuming that this csv file contains edge data of the form where the first column "
-                "is the origin node and the second column is the destination node. The metrics calculated on this graph "
-                "will not be accurate if this is false.\n\tWe are assuming the node labels start at 0")
+            if not suppress: h.start_section("CSV File Detected")
+            else: print("\n\n\t\t\CSV File Detected\n\n")
+            print("ASSUMPTIONS:\nThis txt file contains edge data of the form\n" + \
+                                "\tsrc_label,dst_label\n" + \
+                                "\tsrc_label,dst_label\n" + \
+                                "\t...\n")
             
-            df = pd.read_csv(file_name)
-            # get connections, size, 
-            origin = df.iloc[:,0].values
-            dest = df.iloc[:,1].values
-            # get the node offset (if the nodes are labeled starting at 0 then num_nodes may be innacurate without adjustment)
-            node_offset = 1 if 0 in origin or 0 in dest else 0
-            num_nodes = max(origin.max(),dest.max()) + node_offset
-            prompt = h.parse_input(f"Inferred graph size is {num_nodes}. Is this accurate (yes/no): ")
-            # assuming directed but unweighted
-            weights = np.ones(origin.size)
-            # create the sparse matrix with these values. 'b' is for byte to make the storage EVEN SMALLER!
-            G_sparse = sp.coo_array((weights,(origin,dest)),shape=(num_nodes,num_nodes),dtype='b')
+            # df = pd.read_csv(file_name)
+            # # get connections, size, 
+            # origin = df.iloc[:,0].values
+            # dest = df.iloc[:,1].values
+            # # get the node offset (if the nodes are labeled starting at 0 then num_nodes may be innacurate without adjustment)
+            # node_offset = 1 if 0 in origin or 0 in dest else 0
+            # num_nodes = max(origin.max(),dest.max()) + node_offset
+            # prompt = h.parse_input(f"Inferred graph size is {num_nodes}. Is this accurate (yes/no): ")
+            # # assuming directed but unweighted
+            # weights = np.ones(origin.size)
+            # # create the sparse matrix with these values. 'b' is for byte to make the storage EVEN SMALLER!
+            # G_sparse = sp.coo_array((weights, (origin, dest)), shape=(num_nodes,num_nodes), dtype='b')
+
+            # might be safer just to use networkx to read in the csv file...
+            G = nx.read_edgelist(file_name, delimiter=',', create_using=nx.DiGraph if directed else nx.Graph)
+            G_sparse = nx.to_scipy_sparse_array(G, format='coo', dtype='b')
 
         # [ ] Tested
         case 'txt':
+<<<<<<< HEAD
             h.start_section("TXT File Detected")
             print("ASSUMPTIONS:\n\twe are assuming that this txt file contains edge data of the form where the first column "
                 "is the origin node and the second column is the destination node. The metrics calculated on this graph "
@@ -81,10 +99,21 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=
                              header=None # this assumes, probably incorrectly, that there is no header row
                              )
             G_sparse = fromDf(df)
+=======
+            if not suppress: h.start_section("TXT File Detected")
+            else: print("\n\n\t\t\TXT File Detected\n\n")
+            print("ASSUMPTIONS:\nThis txt file contains edge data of the form\n" + \
+                                "\tsrc_label dst_label\n" + \
+                                "\tsrc_label dst_label\n" + \
+                                "\t...\n")
+            G = nx.read_edgelist(file_name, create_using=nx.DiGraph if directed else nx.Graph)
+            G_sparse = nx.to_scipy_sparse_array(G, format='coo', dtype='b')
+>>>>>>> 95ba4d3595f379fcd794dedf4107817253bf2e7a
             
         # [ ] Tested
         case 'graphml':
-            h.start_section("GraphML File Detected")
+            if not suppress: h.start_section("GraphML File Detected")
+            else: print("\n\n\t\tGraphML File Detected\n\n")
             G_sparse = fromNx(nx.read_graphml(file_name))
             #TODO: test this
 
@@ -92,10 +121,12 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=
         case 'json':
             def confirmFormat(format_name: str) -> None:
                 if input(f"Assuming {format_name} format. Is this correct? (Y/n)  > ").startswith('n'):
-                    print("Unrecognized format. Exiting...")
+                    if not suppress: print("Unrecognized format. Exiting...")
                     exit()
                     
-            h.start_section("JSON File Detected")
+            if not suppress: h.start_section("JSON File Detected")
+            else: print("\n\n\t\t\JSON File Detected\n\n")
+
             with json.load(file_name) as graph_dict:
                 # node/link format
                 # (https://networkx.org/documentation/stable/reference/readwrite/generated/networkx.readwrite.json_graph.node_link_graph.html)
@@ -117,13 +148,15 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=
 
         # [ ] Tested
         case 'gexf':
-            h.start_section("GEXF File Detected")
+            if not suppress: h.start_section("GEXF File Detected")
+            else: print("\n\n\t\t\GEXF File Detected\n\n")
             G = nx.read_gexf(file_name)
-            G_sparse = nx.to_scipy_sparse_array(G,format='coo')
+            G_sparse = nx.to_scipy_sparse_array(G, format='coo')
             #TODO: test this
             
         # [ ] Tested
         case 'edgelist':
+<<<<<<< HEAD
             h.start_section("EDGELIST File Detected")
             if directed: G = nx.read_edgelist(file_name,create_using=nx.DiGraph)
             else: G = nx.read_edgelist(file_name)
@@ -134,21 +167,48 @@ def oneGraphToRuleThemAll(file_name: str, visualize: bool=False, directed: bool=
             h.start_section("EDGES File Detected")
             G = nx.read_edgelist(file_name,create_using=nx.DiGraph if directed else nx.Graph)
             G_sparse = nx.to_scipy_sparse_array(G,format='coo')
+=======
+            if not suppress: h.start_section("EDGELIST File Detected")
+            else: print("\n\n\t\t\tEDGELIST File Detected\n\n")
+            if weighted: 
+                G = nx.read_edgelist(file_name, comments=cust_com, delimiter=cust_del, data=(('weight',float),), create_using=nx.DiGraph if directed else nx.Graph)
+            else:
+                G = nx.read_edgelist(file_name, comments=cust_com, delimiter=cust_del, create_using=nx.DiGraph if directed else nx.Graph)
+            G_sparse = nx.to_scipy_sparse_array(G, format='coo')
+
+        # [ ] Tested
+        case 'edges':
+            # Need this if else because .start_section gets the terminal window width and that can't happen in a slurm script. JRH
+            if not suppress: 
+                h.start_section("EDGES File Detected")
+            else: 
+                print("\n\n\t\t\tEDGES File Detected\n\n")
+            if weighted: 
+                G = nx.read_edgelist(file_name, comments=cust_com, delimiter=cust_del, data=(('weight',float),), create_using=nx.DiGraph if directed else nx.Graph)
+            else:
+                G = nx.read_edgelist(file_name, comments=cust_com, delimiter=cust_del, create_using=nx.DiGraph if directed else nx.Graph)
+            G_sparse = nx.to_scipy_sparse_array(G, format='coo')
+
+        case 'mtx':
+            if not suppress: h.start_section("MTX File Detected")
+            else: print("\n\n\t\t\tMTX File Detected\n\n")
+            G_sparse = scipy.io.mmread(file_name)
+
+>>>>>>> 95ba4d3595f379fcd794dedf4107817253bf2e7a
         
         case _:
             # default case, if no other case matches
             pass
 
-    rows, cols, values = G_sparse.row, G_sparse.col, G_sparse.data
 
     if visualize:
-        print('ENTERED HERE')
+        rows, cols, values = G_sparse.row, G_sparse.col, G_sparse.data
         plt.figure(figsize=(8, 8))
         plt.scatter(cols, rows, s=100, c=values, cmap='viridis', marker='s')
         plt.colorbar(label='Value')
         plt.show()
 
-    return G_sparse
+    return G_sparse.tocsr()
 
 def getCharacteristicMatrix(partition):
     """
@@ -230,7 +290,11 @@ def GetLocalSpec(G,ep_dict,lep_list):
         
     return spec_dict, orig_spec
 
+<<<<<<< HEAD
 def genBerthaSparse(n, parallel=False):
+=======
+def genBerthaSparse(n: int, parallel: bool=False) -> sp.lil_matrix:
+>>>>>>> 95ba4d3595f379fcd794dedf4107817253bf2e7a
     """
     NOTE: this function could be a near-exact copy of GenBertha, but returning `mat` instead of using
     `nx.from_scipy_sparse_array`. However, writing it from scratch may prove more readable and efficient.
@@ -263,7 +327,11 @@ def genBerthaSparse(n, parallel=False):
     
     return mat
 
+<<<<<<< HEAD
 def genBertha(size,show_graph=False,parallelize=False):
+=======
+def genBertha(size: int, show_graph: bool=False, parallelize: bool=False) -> nx.Graph | nx.DiGraph:
+>>>>>>> 95ba4d3595f379fcd794dedf4107817253bf2e7a
     """ constructs a Bertha graph of the size indicated (size=number of nodes) organized in such a way that it 
     has the optimal amount of LEP's for eigenvalue catching
     INPUTS:
@@ -498,14 +566,16 @@ def NetworkxToMathematica(graph,filename='exported_graph'):
     """
     nx.write_graphml(graph,'./Mathematica/' + filename + '.graphml')
 
-def NumpyToMathematica(graph,filename='numpy_to_mathematica.txt'):
-    g_s = str(graph)
-    g_s = g_s.replace('[','{')
-    g_s = g_s.replace(']','}')
-    g_s = g_s.replace(' ',',')
-    g_s = g_s.replace('\n,','\n')
-    with open(filename,'w') as file:
-        file.write(g_s)
+def NumpyToMathematica(adjacency_matrix,filename='numpy_to_mathematica.txt'):
+    for row in adjacency_matrix:
+        row_s = str(row)
+        row_s = row_s.replace('[','{')
+        row_s = row_s.replace(']','}')
+        row_s = row_s.replace('.',',')
+        #row_s = row_s.replace(' ','')
+        #row_s = row_s.replace('\n,','\n')
+        with open(filename,'a') as file:
+            file.write(row_s + ',\n')
 
 def relabel(G):
     mapping = {old_label: new_label for new_label, old_label in enumerate(G.nodes())}

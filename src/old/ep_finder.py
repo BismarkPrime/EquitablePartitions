@@ -247,7 +247,6 @@ class ColorClass(LinkedList):
 
             v = v.next
 
-    #@profile
     def computeStructureSet(self, C, N):
         """
         Computes the (color) structure set L(c)
@@ -291,7 +290,6 @@ class ColorClass(LinkedList):
             if w is None:
                 return C, N
 
-    #@profile
     def splitColor(self, C, L, n_colors, new_colors):
         """
         TODO: add documentation...
@@ -386,7 +384,6 @@ class ColorClass(LinkedList):
             v = v.next
             data += f', {v}'
             
-#@profile
 def initialize(G, init_C=None):
     """
     Initializes the Node and ColorClass objects necessary for equitablePartition.
@@ -517,7 +514,6 @@ def initFromFile(file_path, num_nodes=None, delim=',', comments='#', directed=Fa
     return C, N
 
 
-#@profile
 def recolor(C, L):
     """
     TODO: add documentation.
@@ -557,7 +553,6 @@ def recolor(C, L):
 
     return C
 
-#@profile
 def equitablePartition(C, N, progress_bar = True):
     """
     Finds the coarsest equitable partition of a network

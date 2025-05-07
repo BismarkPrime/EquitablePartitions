@@ -17,6 +17,10 @@ if __name__ == '__main__':
     sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 import ep_finder
+<<<<<<< HEAD
+=======
+import lep_finder
+>>>>>>> 95ba4d3595f379fcd794dedf4107817253bf2e7a
 from ep_utils import getEigenvaluesSparse, plotEquitablePartition
 from utils import getSymmetricDifference, getSymmetricDifferenceMatching
 from graphs import genBerthaSparse
@@ -25,9 +29,26 @@ def testSpecificCase():
     # seeds that failed (Erdos-Renyi Directed): 
     #   size 250; p=.004; seeds: 5117, 204, 6217
     #   size 80; p=.025; seeds: 6514, 5383
+<<<<<<< HEAD
     #   size 40; p=0.0375; seec: 74887
     G = nx.erdos_renyi_graph(40, .0375, directed=True, seed=74887)
     plotEquitablePartition(G, ep_finder.getEquitablePartition(ep_finder.initFromNx(G)))
+=======
+    #   size 40; p=0.0375; seeds: 74887
+    G = nx.erdos_renyi_graph(40, .0375, directed=True, seed=74887)
+    pi = ep_finder.getEquitablePartition(ep_finder.initFromNx(G))
+    leps = lep_finder.getLocalEquitablePartitions(lep_finder.initFromNx(G), pi)
+    #write the dense array to a file
+    with open('mathematica_graph.txt', 'w') as f:
+        for i in range(40):
+            f.write('{')
+            for j in range(40):
+                f.write(str(nx.to_scipy_sparse_array(G)[i, j]) + ', ')
+            f.write('},\n')
+        f.write(str(nx.to_scipy_sparse_array(G).toarray()))
+    noop = 1
+    plotEquitablePartition(G, pi)
+>>>>>>> 95ba4d3595f379fcd794dedf4107817253bf2e7a
     sp_array = nx.to_scipy_sparse_array(G)
     lepard_eigenvalues = getEigenvaluesSparse(sp_array)
     np_eigenvalues = np.linalg.eigvals(sp_array.toarray())

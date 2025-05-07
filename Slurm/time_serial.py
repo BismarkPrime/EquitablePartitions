@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-#SBATCH --job-name=bertha_8100serial
-#SBATCH --time=3-00:00:00   # walltime
+#SBATCH --job-name=bio-yeast-protein-interserial
+#SBATCH --time=12:00:00   # walltime
 ##SBATCH --ntasks-per-node=1
 ##SBATCH --nodes=1
-#SBATCH --mem-per-cpu=256G
+#SBATCH --mem-per-cpu=512G
 #SBATCH --tasks-per-node=1
 #SBATCH --qos=normal
 
@@ -19,22 +19,44 @@ import subprocess
 from time import perf_counter as pc
 import scipy.sparse as sp
 
+CUST_COM="#"
+CUST_DEL=" "
+# this is currently not being changed, maybe in the future when our algorithm can handle weighted graphs.
+WEIGHTED=False
+
 if __name__ == "__main__":
-    # get graph we are doing analysis on
+    # get graph we are doing analysis on and parameters relating to that
+    real = 'real' in sys.argv
+    directed = True if 'True' in sys.argv else False
     graph_type = None
     graph_path = sys.argv[1]
+    print(f'\n\n\n{graph_path}\n\n\n')
     data_fn = graph_path.split('/')[-1].split('.')[0]
     os.environ['GRAPH_PATH'] = graph_path
+
+    # try loading the graph in
     try: 
-        try: G = nx.read_graphml(graph_path); graph_type = 'graphml'
-        except: G = sp.load_npz(graph_path); graph_type = 'sparse'; 
-    except: print("You need to give the file path to graph you want to run")
-    if graph_type == 'graphml':
-        t = tim.time_this(nx.adjacency_spectrum,[G],
+        # commented code on trial. I don't think we need it now that we have the oneGraphtoRuleThemAll function
+        # if real:
+        G = graphs.oneGraphToRuleThemAll(graph_path, suppress=True,directed=directed, cust_del=CUST_DEL,cust_com=CUST_COM, weighted=WEIGHTED); graph_type = 'sparse'
+        # else:
+        #     try: G = nx.read_graphml(graph_path); graph_type = 'graphml'
+        #     except: G = sp.load_npz(graph_path); graph_type = 'sparse'; 
+    except Exception as e:
+        print(f"Error occured: {e}")
+
+    # run the timing
+    # if graph_type == 'graphml':
+    #     G_size = G.number_of_nodes()
+    #     t = tim.time_this(nx.adjacency_spectrum,[G],
+    #                         label="get_eigvals",store_in='./' + data_fn + '_serial.txt')
+    if graph_type == 'sparse':
+        G_size = G.shape[0]
+        t = tim.time_this(sp.linalg.eigs,[G,G_size-2],
                             label="get_eigvals",store_in='./' + data_fn + '_serial.txt')
-    if graph_type == 'sprase':
-        t = tim.time_this(sp.linalg.eigs,[G,g.shape[0]-2],
-                            label="get_eigvals",store_in='./' + data_fn + '_serial.txt')
+
+    with open('./' + data_fn + '_serial.txt','a') as f:
+        f.write(f"Size: {G_size}")
     print("Finished!")
 
 

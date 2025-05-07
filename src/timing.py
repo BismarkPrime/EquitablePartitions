@@ -43,14 +43,21 @@ def deserialize(data):
 def prep_scatter(data_list,tot_threads,verbose=False):
     """prepares a list to be scattered among a certain number of threads 
     for parallelization. Total threads can also be the total nodes."""
+    # make one less so the divisor matrix empty list addition doesn't go over the allocated
+    # number of nodes.
+    tot_threads -= 1
     # create lists with both methods
+    # NOTE: the empty list is for the calcualtion of the divisor matrix.
     num_in_each = int(len(data_list)/tot_threads)
     scatter_list1 = [data_list[j*num_in_each:(j+1)*num_in_each] if j != (tot_threads-1) else data_list[j*num_in_each:] for j in range(tot_threads)]
+    scatter_list1.append([])
     num_in_each = math.ceil(len(data_list)/tot_threads)
     scatter_list2 = [data_list[j*num_in_each:(j+1)*num_in_each] if j != (tot_threads-1) else data_list[j*num_in_each:] for j in range(tot_threads)]
+    scatter_list2.append([])
     # check which is better
-    diff1,diff2 = abs(len(scatter_list1[-1])-len(scatter_list1[-2])), abs(len(scatter_list2[-1]) - len(scatter_list2[-2]))
+    diff1,diff2 = abs(len(scatter_list1[-2])-len(scatter_list1[-3])), abs(len(scatter_list2[-2]) - len(scatter_list2[-3]))
     if verbose: print(f"diff1: {diff1}\ndiff2: {diff2}")
+
     if diff1 <= diff2:
         if verbose: print("using full remainder method")
         return scatter_list1, True

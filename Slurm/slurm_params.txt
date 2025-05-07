@@ -1,5 +1,5 @@
 nodes=1
 ntasks=1
-time=3-00:00:00
+time=01:00:00
 memory=256G
 qos=normal

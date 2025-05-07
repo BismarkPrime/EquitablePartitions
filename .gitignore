@@ -142,3 +142,6 @@ Networks/
 # each user will have their own Results folder where their run information is recorded.
 Results/*
 !Results/keeper_tools.py
+
+src/DT_Stats/*
+src/Results/*
