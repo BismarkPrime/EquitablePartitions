@@ -564,8 +564,8 @@ def recolor(C: List[ColorClass], L: Set[Node]) -> None:
 
 def getEquitablePartition(N: List[Node], progress_bar: bool=False) -> Dict[int, List[Any]]:
     """
-    Finds the coarsest equitable partition of a network. In the case of a directed graph, it
-    computes the coarsest receiving equitable partition.
+    Finds the coarsest equitable partition of a network (receiving equitable partition if directed).
+     In the case of a directed graph, it computes the coarsest receiving equitable partition.
     
     Parameters
     ----------

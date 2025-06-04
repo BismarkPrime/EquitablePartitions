@@ -23,6 +23,18 @@ from utils import getSymmetricDifference
 
 EPSILON = 1e-4
 
+def getPercentNonTrivial(G,ep=None) -> float:
+        if ep is None:
+            ep = ep_finder.getEquitablePartition(ep_finder.initFromSparse(G))
+        num_nodes = G.shape[0]
+        num_parts = len(ep.keys())
+
+        nt_nodes = reduce(
+            lambda part_sum, curr: part_sum if len(curr) == 1 else part_sum + len(curr), ep.values(), 0)
+        nt_partitions = reduce(
+            lambda ep_part_sum, curr: ep_part_sum if len(curr) == 1 else ep_part_sum + 1, ep.values(), 0)
+        return nt_nodes * 100 / num_nodes, nt_partitions * 100 / num_parts, nt_nodes, nt_partitions
+
 def getEigenvaluesSparse(mat: sparse.sparray, dt_stats=False) -> List[float | complex]:
     # NOTE: despite using sparse matrices where possible, eigenvalue calculations 
     #   are still performed on dense matrices. If possible, it would be good to hook 
@@ -77,8 +89,10 @@ def getEigenvaluesSparse(mat: sparse.sparray, dt_stats=False) -> List[float | co
     return spectrum
 
 def _getEigenvaluesSparseFromPartialLeps(csc: sparse.csc_array, csr: sparse.csr_array, pi: Dict[int, List[int]], leps: List[List[int]], include_globals=True) -> Tuple[List[float | complex], List[float | complex]]:
-    """Get the leps by constructing only partial divisor matrices. It can constuct the full divisor matrix and get
-    the globals if desired but to save time on larger graphs it doesn't usually do that.
+    """Get the leps by constructing only partial divisor matrices. 
+    It can constuct the full divisor matrix and get
+    the globals if desired but to save time on larger graphs 
+    it doesn't usually do that.
     """
     if include_globals:
         divisor_matrix = getDivisorMatrixSparse(csc, pi)
@@ -454,8 +468,12 @@ def plotEquitablePartition(G, pi, pos_dict=None):
     plt.pause(.001)
 
 def printStats(G):
+    if type(G) is sparse._csr.csr_array:
+        G = ep_finder.initFromSparse(G)
+    else:
+        G = ep_finder.initfromNx(G)
     # get coarsest EP and list of local EPs
-    ep, leps, time = getEquitablePartitions(G)
+    ep, leps, time = ep_finder.getEquitablePartitions(G)
     # keep non-trivial parts of EP and LEPs
     f_ep = list(filter(lambda i: len(i) != 1, ep.values()))
     # here, non-trivial just means that there are multiple nodes in the LEP
