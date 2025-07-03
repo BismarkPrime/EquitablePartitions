@@ -50,30 +50,22 @@ class Node(LinkedListNode):
     label : int
         integer label of the vertex
     old_color : int
-        integer representing the node's current color class
-    new_color : ColorClass object
-        integer representing the node's new color class
+        index of the node's current color class
+    new_color : int
+        index of the node's new color class
     neighbors : list(int)
         list of integers corresponding to the node's neighbors (in the case of DiGraphs, this is their out-edge neighbors, or "successors")
+    out_edge_count : int
+        Number of out-edges from node to the current ColorClass.
+        Used in ColorClass().ComputeStructureSet().
+        Needs to be set to zero at the begining of each call to ComputeStructureSet.
     """
     __slots__ = 'label', 'old_color', 'new_color', 'neighbors', \
-        'out_edge_count', 'structure_value'
+        'out_edge_count'
 
     def __init__(self, label: Any, color_class_ind: int, neighbors: List[int]=None):
         """
-        Initialize the node with it's label and initial color.
-
-        Parameters
-        ----------
-        label : int
-            Integer label of the vertex
-        color_class : ColorClass object
-            ColorClass object representing the nodes current color class
-        neighbors : list(int)
-            List of integers corresponding to the node's neighbors, defined by out-edges
-        structure_value : int
-            Current structure value. Used in ColorClass().ComputeStructureSet().
-            Needs to be set to zero at the begining of each call to ComputeStructureSet.
+        Initialize the node with its label and initial color.
         """
         super().__init__()
         self.label = label
@@ -84,8 +76,8 @@ class Node(LinkedListNode):
         if neighbors is None:
             neighbors = []
 
-        self.neighbors = neighbors # list of the indices of the neighboring nodes (out-edge neighbors)
-        self.out_edge_count = 0 # value used to count connections to a given color class
+        self.neighbors = neighbors
+        self.out_edge_count = 0
 
     # magic methods
     def __hash__(self):
@@ -100,7 +92,7 @@ class Node(LinkedListNode):
 class LinkedList:
     """Base doubly-linked list class"""
 
-    __slots__ = "head", "tail", "size"
+    __slots__ = 'head', 'tail', 'size'
 
     def __init__(self, data: List[Node]=None):
         """
@@ -130,19 +122,19 @@ class LinkedList:
             self.tail = None
             self.size = 0
 
-
-    def append(self, node):
+    def append(self, node: Node):
         """Appends `node` to the list"""
 
         if self.head is None:
             self.head = node
             self.tail = node
         else:
-            self.tail.next = node # set the current tail's next to `node`
-            node.prev = self.tail # set `node`'s previous to the current tail
-            self.tail = node      # set current tail to node
+            self.tail.next = node
+            node.prev = self.tail
+            self.tail = node
+        node.next = None  # drop reference to next
 
-    def remove(self, node):
+    def remove(self, node: Node):
         """
         Removes `node` from list. Assumes `node` is an element of the list,
         however, an error will *not* be raised if it is not.
@@ -150,29 +142,16 @@ class LinkedList:
 
         if self.head is None:
             raise ValueError("List is empty.")
-
-        if node is self.head and node is self.tail: # if `node` is the only member of the list
-            node.next, node.prev = None, None
-            self.head, self.tail = None, None
-
-        elif node is self.head:
-            # reset head and set prev to None
-            self.head = node.next
-            self.head.prev = None
-            # remove node.next reference
-            node.next = None
         
-        elif node is self.tail:
-            # reset tail and set next to None
+        if node.prev is not None:
+            node.prev.next = node.next
+        else:  # if node is head
+            self.head = node.next
+        if node.next is not None:
+            node.next.prev = node.prev
+        else:  # if node is tail
             self.tail = node.prev
-            self.tail.next = None
-            # remove node.prev reference
-            node.prev = None
-        else:
-            # link node.prev to node.next
-            node.prev.next, node.next.prev = node.next, node.prev
-            # drop next and prev references from node
-            node.prev, node.next = None, None
+        node.prev, node.next = None, None  # drop references to next and prev
 
     # magic methods
     def __list__(self):
@@ -193,7 +172,7 @@ class ColorClass(LinkedList):
 
     """
     __slots__ = 'out_edge_neighbors', 'curr_color_neighbors', \
-        'split_color', 'curr_conns', "max_out_edge_count"
+        'split_color', 'curr_conns', 'max_out_edge_count'
 
     def __init__(self) -> None:
         """
@@ -209,33 +188,20 @@ class ColorClass(LinkedList):
         if v is None:
             raise ValueError("Color Class has no Nodes and therefore cannot be relabeled.")
 
-        while True:
+        while v is not None:
             v.new_color = c
             v.old_color = c
-            if v.next is None:
-                break
             v = v.next
 
-    def nodes(self):
+    def nodes(self) -> List[Any]:
         """Returns a list of node labels for nodes in this ColorClass"""
         labels = list()
-
         node = self.head
 
         while node is not None:
             labels.append(node.label)
             node = node.next
         return labels
-
-    def _nodeObjects(self):
-        """Returns a list of Node objects for nodes in this ColorClass"""
-        nodes = list()
-        node = self.head
-
-        while node is not None:
-            nodes.append(node)
-            node = node.next
-        return nodes
 
     def computeColorStructure(self, C: List['ColorClass'], N: List[Node]) -> None:
         """
@@ -259,21 +225,18 @@ class ColorClass(LinkedList):
 
         # reset neighbor list
         self.out_edge_neighbors = list()
-
         self.max_out_edge_count = 0
 
-        # All the nodes in a color class are stored as a linked list, so 
-        #   self.head returns the first node in the color class
-        w = self.head
+        w = self.head # first node in the color class
         while w is not None:
-            # loop over each neighbor v of w 
+            # loop over each out-edge neighbor v of w 
             #   (i.e., there exists an edge v <-- w)
             for v_ind in w.neighbors:
-                v = N[v_ind]                                            # get node object
-                if v.out_edge_count == 0:                               # check if node v has already been seen
-                    C[v.new_color].curr_color_neighbors += 1   # if not, increment out-edge neighbor count for its color
-                    self.out_edge_neighbors.append(v)                   # and add v to this color class's out-edge neighbors
-                v.out_edge_count += 1                                   # increment count of out-edges from this color class to v
+                v = N[v_ind]                                    # get node object
+                if v.out_edge_count == 0:                       # check if node v has already been seen
+                    C[v.new_color].curr_color_neighbors += 1    # if not, increment out-edge neighbor count for its color
+                    self.out_edge_neighbors.append(v)           # and add v to this color class's out-edge neighbors
+                v.out_edge_count += 1                           # increment count of out-edges from this color class to v
                 # track largest number of outgoing edges to a single node (for bucket sorting)
                 if v.out_edge_count > self.max_out_edge_count:
                     self.max_out_edge_count = v.out_edge_count
@@ -283,13 +246,12 @@ class ColorClass(LinkedList):
     def splitColor(self, C: List['ColorClass'], L: Set[Node]) -> None:
         """
         Uses metrics collected in computeColorStructure to determine which nodes 
-            must be moved to a new color class; new color classes are assigend 
+            must be moved to a new color class; new color classes are assigned 
             for such nodes (i.e., the new_color attribute is set), but the 
             ColorClass list is not yet changed.
 
         Parameters
         ----------
-        N   : the node dictionary
         C   : the list of ColorClasses
         L   : the set of nodes that will get new colors
 
@@ -301,19 +263,13 @@ class ColorClass(LinkedList):
         """
         
 
-        # sort neighbors by number of edges from connecting them to this color class, ascending
-        # a bucket sort of these vertices will be bounded by the number of edges between a vertex
-        #   and this color class, which will not be more than the size of the color class. To 
-        #   improve performance on large color classes, we bound it by the actual max number of 
-        #   edges.
-
+        # sort out-edge neighbors by number of edges connecting them to this color class, ascending
+        bucketSort(self.out_edge_neighbors, 'out_edge_count', 1, self.max_out_edge_count)
         # NOTE: this may actually be somewhat slower in practice for many graphs, but is necessary 
         #   guarantee linear sorting complexity and m log(n) complexity overall. The alternative:
         # self.out_edge_neighbors.sort(key=operator.attrgetter('out_edge_count'))
-        
-        bucketSort(self.out_edge_neighbors, 'out_edge_count', 1, self.max_out_edge_count)
 
-        visited = set() # tracking which ColorClasses have been visited
+        visited = set() # which ColorClasses have been visited
         for v in self.out_edge_neighbors:
             # new_color may have been changed in previous iterations, so we may 
             #   not use old_color here
@@ -327,41 +283,36 @@ class ColorClass(LinkedList):
                     #   then the min number of connections to this color class is zero
                     C[b].curr_conns = 0
                 else:
-                    # otherwise, v.out_edge_count is the minimum number of connections 
+                    # otherwise, the minimum number of connections is v.out_edge_count
                     #   (since out_edge_neighbors was sorted by out_edge_count)
                     C[b].curr_conns = v.out_edge_count
 
-                C[b].split_color = b # initializing split_color for use in next loop
+                C[b].split_color = b # initialize split_color for use in next loop
                 C[b].curr_color_neighbors = 0 # resetting count for the next iteration
 
         for v in self.out_edge_neighbors:
             b = v.new_color
             # curr_conns is the min number of connections in C[b] to the current color class. Nodes 
             #   with more than this number of connections get moved into a different color class.
-            # Note on the logic here: this `if` is entered every time that a node from C[b] has more 
-            #   connections to this color class than did previous nodes. Nodes in out_edge_neighbors 
-            #   are sorted by connections to this color class, so iterating over them yields 
-            #   out_edge_counts that are strictly increasing. When the node v has more connections to 
-            #   the current color class than did its predecessors from C[b], we change the 
-            #   curr_conns to match the out_edge_count, so this will not run again until we see 
-            #   another v in C[b] with a larger out_edge_count.
+            # Note that since out_edge_neighbors were sorted by out_edge_count, we will exhaust all nodes
+            #   with an out_edge_count of curr_conns before moving on to nodes with larger out_edge_counts
             if C[b].curr_conns != v.out_edge_count:
                 C[b].curr_conns = v.out_edge_count   # update curr_conns with the new out_edge_count
-                C.append(ColorClass())              # add new color
-                C[b].split_color = len(C) - 1       # update split to apply to subsequent nodes
+                C.append(ColorClass())               # add new color
+                C[b].split_color = len(C) - 1        # update split to apply to subsequent nodes
 
-            # As soon as we have gotten past all nodes v from C[b] with minimum out_edge_count, the 
+            # As soon as we have processed all nodes v from C[b] with minimum out_edge_count, the 
             #   split_color of C[b] will change (in the above if statement). All subsequent nodes 
-            #   from C[b] will go into this if statement and will recieve new_color values according 
-            #   to their out_edge_count (thus, all v in C[b] with equal out_edge_count will be given 
-            #   the same new_color value). The only nodes that will retain their original color 
-            #   value will be the nodes from each C[b] with the same minimum out_edge_count
+            #   from C[b] will recieve new_color values according to their out_edge_count (thus, all 
+            #   v in C[b] with equal out_edge_count will be given the same new_color value). The only 
+            #   nodes that will retain their original color value will be the nodes from each C[b] 
+            #   with the same minimum out_edge_count
             if v.new_color != C[b].split_color:   # if split_color of C[b] changed
                 L.add(v)
                 
                 # NOTE: it may seem more intuitive to update the ColorClass sizes when nodes are 
                 #   added or removed (in recolor); HOWEVER, we use the updated sizes before that 
-                #   point (e.g., finding largest new colorclass before relabeling in recolor)
+                #   point (e.g., future iterations of splitColor before recolor is called).
                 C[v.new_color].size -= 1
                 v.new_color = C[b].split_color
                 C[v.new_color].size += 1
@@ -380,14 +331,15 @@ class ColorClass(LinkedList):
             v = v.next
             data += f', {v}'
 
+
 def bucketSort(objs: List[Any], attribute: str, attr_min_val: int, attr_max_val: int) -> None:
     """
-    Initializes the Node list necessary for equitablePartition.
+    Performs an in-place bucket sort on the list of objects `objs` based on the specified `attribute`.
 
     Parameters
     ----------
     objs        : the list to be sorted
-    attribute   : the attribute with which to perform a bucket sort
+    attribute   : the attribute by which to sort
     attr_min_val: the smallest possible value of `attribute`
     attr_max_val: the largest possible value of `attribute`
 
@@ -401,8 +353,8 @@ def bucketSort(objs: List[Any], attribute: str, attr_min_val: int, attr_max_val:
     for obj in objs:
         index = getattr(obj, attribute) - attr_min_val
         if buckets[index] is None:
-            buckets[index] = set()
-        buckets[index].add(obj)
+            buckets[index] = []
+        buckets[index].append(obj)
     i = 0
     for bucket in buckets:
         if bucket is not None:
@@ -410,6 +362,7 @@ def bucketSort(objs: List[Any], attribute: str, attr_min_val: int, attr_max_val:
                 objs[i] = obj
                 i += 1
    
+
 def initFromNx(G: nx.Graph | nx.DiGraph) -> List[Node]:
     """
     Initializes the Node list necessary for equitablePartition.
@@ -435,6 +388,7 @@ def initFromNx(G: nx.Graph | nx.DiGraph) -> List[Node]:
 
     return N
 
+
 def initFromSparse(mat: sp.csr_array) -> List[Node]:
     """
     Initializes the Node list necessary for equitablePartition.
@@ -459,73 +413,6 @@ def initFromSparse(mat: sp.csr_array) -> List[Node]:
 
     return N
 
-def initFromFile(file_path: str, num_nodes: int=None, delim: str=',', 
-                 comments: str='#', directed: bool=False, rev: bool=False) -> Dict[Any, Node]:
-    """
-    Initializes the Node list necessary for equitablePartition.
-
-    Parameters
-    ----------
-    file_path   : the path to the file storing edge data of the graph to be 
-                    analyzed
-    num_nodes   : the total number of nodes; only necessary if file_path does 
-                    not contain all nodes (i.e., if there are nodes with no 
-                    edges between them); if num_nodes is provided, it is assumed 
-                    that nodes are labeled with integers (zero-indexed)
-    delim       : the delimiter between source and destination nodes for each 
-                    edge in the file at file_path; uses ',' by default
-    comments    : a character used to denote a comment, or line to ignore; uses 
-                    '#' by default
-    directed    : a boolean indicating whether the graph is directed or not; 
-                    assumes undirected by default
-
-    Returns
-    -------
-    N   : a list of Node objects representing the nodes of the graph described 
-            in file_path
-    
-    Complexity
-    ----------
-    Time: Linear with number of nodes and with number of edges
-    Space: Linear with number of nodes and with number of edges
-
-    """
-
-    # TODO: update this to create a list (not dict) 
-    #                   -or-
-    # remove it entirely and only use sparse initialization
-    # KEEP IN MIND THAT ORIGINALLY THIS WAS A LIST, BUT IT CAUSED ISSUES BECAUSE NOT 
-    # ALL VERTICES WERE CONSECUTIVE INTEGERS. IF WE CONTINUE TO INIT FROM FILE, WE MUST 
-    # VERIFY THAT THESE CONDITIONS ARE MET. PROBABLY EASIER JUST TO MAKE SPARSE AND USE
-    # INIT FROM SPARSE
-
-    N = dict()
-    
-    with open(file_path, 'r') as f:
-        for line in f:
-            if not comments.isspace():
-                line = line.strip()
-            if line[0] != comments:
-                line = line.split(delim)
-                src = int(line[0])
-                dest = int(line[1])
-                if rev:
-                    src, dest = dest, src
-                if src not in N:
-                    N[src] = Node(src, 0, [])
-                N[src].successors.append(dest)
-                if dest not in N:
-                    N[dest] = Node(dest, 0, [])
-                # in the undirected case, add out edge in the other direction as well
-                if not directed:
-                    N[dest].successors.append(src)
-    
-    if num_nodes is not None:
-        for node in range(num_nodes):
-            if node not in N:
-                N[node] = Node(node, 0, [])
-
-    return N
 
 def recolor(C: List[ColorClass], L: Set[Node]) -> None:
     """
@@ -585,13 +472,9 @@ def getEquitablePartition(N: List[Node], progress_bar: bool=False) -> Dict[int, 
     """
 
     # initialize ColorClass list
-    # NOTE: it might be slightly faster just to initialize color class list to 
-    #   have size len(N) (rather than adding to it until it whenever we add a 
-    #   color class), but we may actually care about that wasted memory when 
-    #   working with very large graphs
     C = [ColorClass()]
     
-    # add all nodes to their correspnding ColorClass
+    # add all nodes to the first color class to start
     for n in N:
         C[0].append(n)
 

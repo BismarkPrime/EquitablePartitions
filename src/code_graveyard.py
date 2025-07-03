@@ -5,6 +5,18 @@ import networkx as nx
 # EP_UTILS:
 from ep_utils import *
 
+def _getEigenvaluesSparseParallel(csc: sparse.csc_array, csr: sparse.csr_array, pi: Dict[int, List[int]], leps: List[List[int]]) -> Tuple[List[float | complex], List[float | complex]]:
+    divisor_matrix = getDivisorMatrixSparse(csc, pi)
+    
+    pool = ThreadPool(2)
+    
+    # locals_lists = pool.starmap_async(getLocals, [(csr, divisor_matrix, pi, lep) for lep in leps])
+    globals = pool.apply_async(getGlobals, (divisor_matrix,))
+    locals = pool.apply_async(getLocals, (csr, divisor_matrix, pi, leps))
+    # locals = list(itertools.chain.from_iterable(locals_lists.get()))
+
+    return globals.get(), locals.get()
+
 def getTransceivingEP(G: nx.Graph | nx.DiGraph) -> dict[int, set[int]]:
     """
     Finds the transceiving equitable partition of a graph.
@@ -102,3 +114,118 @@ if __name__ == '__main__':
     berthaNx = nx.from_numpy_array(bertha.todense())
     eigs_sparse = getEigenvaluesSparse(bertha)
     eigs_nx = getEigenvaluesNx(berthaNx)
+
+# EP_FINDER:
+def initFromFile(file_path: str, num_nodes: int=None, delim: str=',', 
+                 comments: str='#', directed: bool=False, rev: bool=False) -> Dict[Any, Node]:
+    """
+    Initializes the Node list necessary for equitablePartition.
+
+    Parameters
+    ----------
+    file_path   : the path to the file storing edge data of the graph to be 
+                    analyzed
+    num_nodes   : the total number of nodes; only necessary if file_path does 
+                    not contain all nodes (i.e., if there are nodes with no 
+                    edges between them); if num_nodes is provided, it is assumed 
+                    that nodes are labeled with integers (zero-indexed)
+    delim       : the delimiter between source and destination nodes for each 
+                    edge in the file at file_path; uses ',' by default
+    comments    : a character used to denote a comment, or line to ignore; uses 
+                    '#' by default
+    directed    : a boolean indicating whether the graph is directed or not; 
+                    assumes undirected by default
+
+    Returns
+    -------
+    N   : a list of Node objects representing the nodes of the graph described 
+            in file_path
+    
+    Complexity
+    ----------
+    Time: Linear with number of nodes and with number of edges
+    Space: Linear with number of nodes and with number of edges
+
+    """
+
+    # TODO: update this to create a list (not dict) 
+    #                   -or-
+    # remove it entirely and only use sparse initialization
+    # KEEP IN MIND THAT ORIGINALLY THIS WAS A LIST, BUT IT CAUSED ISSUES BECAUSE NOT 
+    # ALL VERTICES WERE CONSECUTIVE INTEGERS. IF WE CONTINUE TO INIT FROM FILE, WE MUST 
+    # VERIFY THAT THESE CONDITIONS ARE MET. PROBABLY EASIER JUST TO MAKE SPARSE AND USE
+    # INIT FROM SPARSE
+
+    N = dict()
+    
+    with open(file_path, 'r') as f:
+        for line in f:
+            if not comments.isspace():
+                line = line.strip()
+            if line[0] != comments:
+                line = line.split(delim)
+                src = int(line[0])
+                dest = int(line[1])
+                if rev:
+                    src, dest = dest, src
+                if src not in N:
+                    N[src] = Node(src, 0, [])
+                N[src].successors.append(dest)
+                if dest not in N:
+                    N[dest] = Node(dest, 0, [])
+                # in the undirected case, add out edge in the other direction as well
+                if not directed:
+                    N[dest].successors.append(src)
+    
+    if num_nodes is not None:
+        for node in range(num_nodes):
+            if node not in N:
+                N[node] = Node(node, 0, [])
+
+    return N
+
+
+# LEP_FINDER:
+
+def initFromFile(file_path: str, num_nodes: int=None, delim: str=',', 
+                 comments: str='#', directed: bool=False, rev: bool=False) -> Dict[int, Set[int]]:
+    """Initializes the inverted neighbor dictionary required to compute leps.
+   
+    ARGUMENTS:
+        file_path : the path to the file storing edge data of the graph to be analyzed
+        num_nodes : the total number of nodes; only necessary if the file at file_path
+                        does not contain all nodes (i.e., if there are nodes with no edges between them)
+        delim :     the delimiter between source and destination nodes for each edge in the
+                        file at file_path; uses ',' by default
+        comments :  a character used to denote a comment, or line to ignore; uses '#' by default
+        directed :  whether the graph is directed; uses False by default
+
+    
+    RETURNS:
+        A dictionary with nodes as keys and a set of their in-edge neighbors as values.
+    """
+    N = dict()
+    with open(file_path, 'r') as f:
+        for line in f:
+            if line[0] != comments:
+                # NOTE: we assume that the file is formatted as follows:
+                #   source_node, destination_node
+                if rev:
+                    (dest, src) = line.split(delim)
+                else:
+                    (src, dest) = line.split(delim)
+                src = int(src)
+                dest = int(dest)
+                if dest not in N:
+                    N.update({dest: set()})
+                N.get(dest).add(src)
+                if src not in N:
+                    N.update({src: set()})
+                if not directed:
+                    N.get(src).add(dest)
+    # if there are nodes with no edges between them, we need to add them to N
+    if num_nodes is not None:
+        for i in range(num_nodes):
+            if i not in N:
+                N.update({i: set()})
+    return N

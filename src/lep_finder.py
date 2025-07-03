@@ -3,19 +3,16 @@ import networkx as nx
 from scipy import sparse
 # from alive_progress import alive_bar
 
-from typing import Any, List, Set, Dict, Generator
-# imported to support type hint for initFromN
-import ep_finder
+from typing import Any, List, Set, Dict
 
 # TODO: update naming to match paper
 
 # POTENTIAL OPTIMIZATIONS:
 #   Using Disjoint Set data structures to store partitions
-#   Initialize using csv files
 
 def initFromNx(G: nx.Graph | nx.DiGraph) -> Dict[Any, Set[Any]]:
     """Initializes the inverted neighbor dictionary required to compute leps.
-    PAS's Code
+    
     ARGUMENTS:
         G : The graph to analyzed
     
@@ -44,50 +41,6 @@ def initFromSparse(mat: sparse.csc_array) -> Dict[Any, Set[Any]]:
     # NOTE: we should revert to using arrays/lists where possible instead of dictionaries to reduce spatial complexity
     N = [set(mat.indices[mat.indptr[i]:mat.indptr[i + 1]]) for i in range(mat.shape[0])]
     
-    return N
-        
-
-def initFromFile(file_path: str, num_nodes: int=None, delim: str=',', 
-                 comments: str='#', directed: bool=False, rev: bool=False) -> Dict[int, Set[int]]:
-    """Initializes the inverted neighbor dictionary required to compute leps.
-   
-    ARGUMENTS:
-        file_path : the path to the file storing edge data of the graph to be analyzed
-        num_nodes : the total number of nodes; only necessary if the file at file_path
-                        does not contain all nodes (i.e., if there are nodes with no edges between them)
-        delim :     the delimiter between source and destination nodes for each edge in the
-                        file at file_path; uses ',' by default
-        comments :  a character used to denote a comment, or line to ignore; uses '#' by default
-        directed :  whether the graph is directed; uses False by default
-
-    
-    RETURNS:
-        A dictionary with nodes as keys and a set of their in-edge neighbors as values.
-    """
-    N = dict()
-    with open(file_path, 'r') as f:
-        for line in f:
-            if line[0] != comments:
-                # NOTE: we assume that the file is formatted as follows:
-                #   source_node, destination_node
-                if rev:
-                    (dest, src) = line.split(delim)
-                else:
-                    (src, dest) = line.split(delim)
-                src = int(src)
-                dest = int(dest)
-                if dest not in N:
-                    N.update({dest: set()})
-                N.get(dest).add(src)
-                if src not in N:
-                    N.update({src: set()})
-                if not directed:
-                    N.get(src).add(dest)
-    # if there are nodes with no edges between them, we need to add them to N
-    if num_nodes is not None:
-        for i in range(num_nodes):
-            if i not in N:
-                N.update({i: set()})
     return N
 
 def getLocalEquitablePartitions(N: Dict[Any, Set[Any]], ep: Dict[int, Set[Any]]) -> List[List[int]]:

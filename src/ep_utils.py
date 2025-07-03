@@ -10,7 +10,6 @@ import scipy.linalg
 from scipy import sparse
 import itertools
 from typing import Dict, List, Set, Tuple
-import graphs
 from collections import Counter
 from multiprocessing import Pool as ThreadPool
 
@@ -23,19 +22,9 @@ from utils import getSymmetricDifference
 
 EPSILON = 1e-4
 
-def getPercentNonTrivial(G,ep=None) -> float:
-        if ep is None:
-            ep = ep_finder.getEquitablePartition(ep_finder.initFromSparse(G))
-        num_nodes = G.shape[0]
-        num_parts = len(ep.keys())
+# SPARSE MATRIX METHODS
 
-        nt_nodes = reduce(
-            lambda part_sum, curr: part_sum if len(curr) == 1 else part_sum + len(curr), ep.values(), 0)
-        nt_partitions = reduce(
-            lambda ep_part_sum, curr: ep_part_sum if len(curr) == 1 else ep_part_sum + 1, ep.values(), 0)
-        return nt_nodes * 100 / num_nodes, nt_partitions * 100 / num_parts, nt_nodes, nt_partitions
-
-def getEigenvaluesSparse(mat: sparse.sparray, dt_stats=False) -> List[float | complex]:
+def getEigenvaluesSparse(mat: sparse.sparray) -> List[float | complex]:
     # NOTE: despite using sparse matrices where possible, eigenvalue calculations 
     #   are still performed on dense matrices. If possible, it would be good to hook 
     #   into a library designed for finding eigenvalues of sparse matrices specifically
@@ -47,136 +36,33 @@ def getEigenvaluesSparse(mat: sparse.sparray, dt_stats=False) -> List[float | co
     # 1. Find Coarsest Equitable Partition
     pi = ep_finder.getEquitablePartition(ep_finder.initFromSparse(csr))
 
-    # 2. Find Global Eigenvalues
-    #       a. Compute Divisor Matrix
-    #       b. Calculate spectrum
-    divisor_matrix = getDivisorMatrixSparse(csc, pi)
+    # 2. Find Fundamental LEP Set (Monad LEP Set)
+    leps = lep_finder.getLocalEquitablePartitions(lep_finder.initFromSparse(csc), pi)
 
-    # in practice, np.linalg.eigvals, scipy.linalg.eigvals, and scipy.linalg.eigvals(..., overwrite_a=True) run
-    #   in roughly the same amount of time
-    globals = np.linalg.eigvals(divisor_matrix)
-
-    # 2. Find Monad LEP Set
-    L = lep_finder.getLocalEquitablePartitions(lep_finder.initFromSparse(csc), pi)
-
-    # 3. Find Local Eigenvalues
-    #    For each LEP:
-    #       a. Create subgraph
-    #       b. Compute divisor graph of subgraph
-    #       c. Calculate spectrum of subgraph, divisor graph
-    #       d. Compute difference eigs(SG) - eigs(DG)
-    locals = []
-    for lep in L:
-        nodes = []
-        for V in lep:
-            nodes.extend(pi[V])
-        # skip iterations for which globals = locals
-        if len(nodes) < 2:
-            continue
-        
-        subgraph = csr[nodes,:][:,nodes]
-        divisor_submatrix = divisor_matrix[lep,:][:,lep]
-
-        subgraph_globals = np.linalg.eigvals(divisor_submatrix)
-        subgraph_locals = np.linalg.eigvals(subgraph.todense())
-
-        locals.append(getSetDifference(subgraph_locals, subgraph_globals))
-    
-    spectrum = list(itertools.chain.from_iterable((globals, *locals)))
-
-    if dt_stats:
-        return pi, globals, list(itertools.chain.from_iterable(locals))
-    return spectrum
-
-def _getEigenvaluesSparseFromPartialLeps(csc: sparse.csc_array, csr: sparse.csr_array, pi: Dict[int, List[int]], leps: List[List[int]], include_globals=True) -> Tuple[List[float | complex], List[float | complex]]:
-    """Get the leps by constructing only partial divisor matrices. 
-    It can constuct the full divisor matrix and get
-    the globals if desired but to save time on larger graphs 
-    it doesn't usually do that.
-    """
-    if include_globals:
-        divisor_matrix = getDivisorMatrixSparse(csc, pi)
-
-        # in practice, np.linalg.eigvals, scipy.linalg.eigvals, and scipy.linalg.eigvals(..., overwrite_a=True) run
-        #   in roughly the same amount of time
-        globals = np.linalg.eigvals(divisor_matrix)
-    else:
-        globals = []
-
-    # 3. Find Local Eigenvalues
-    #    For each LEP:
-    #       a. Create subgraph
-    #       b. Compute divisor graph of subgraph
-    #       c. Calculate spectrum of subgraph, divisor graph
-    #       d. Compute difference eigs(SG) - eigs(DG)
+    globals, locals, _ = _getEigenvaluesSparse(csc, csr, pi, leps)
+    return globals + locals
 
 
-    locals = []
-    for lep in leps:
-        nodes = []
-        sub_pi = {}
-        min_node = np.inf
-        relabel_ind = 0
-        for i, V in enumerate(lep):
-            nodes.extend(pi[V])
-            # create the new sub ep element dict.
-            sub_pi[i] = [j for j in range(relabel_ind,relabel_ind + len(pi[V]))]
-            relabel_ind += len(pi[V])
-        # sub_pi = {v:[relabler[node] for node in l] for v,l in zip(np.arange(len(sub_pi.keys())),sub_pi.values())}
-        # skip iterations for which globals = locals
-        if len(nodes) < 2:
-            continue
-        
-        subgraph = csr[nodes,:][:,nodes]
-        divisor_submatrix = getDivisorMatrixSparse(subgraph.tocsc(), sub_pi) #divisor_matrix[lep,:][:,lep]
-
-        subgraph_globals = np.linalg.eigvals(divisor_submatrix)
-        subgraph_locals = np.linalg.eigvals(subgraph.todense())
-
-        locals.extend(getSetDifference(subgraph_locals, subgraph_globals))
-
-    return globals, locals
-
-def _getEigenvaluesSparse(csc: sparse.csc_array, csr: sparse.csr_array, pi: Dict[int, List[int]], leps: List[List[int]], include_globals: bool = True) -> Tuple[List[float | complex], List[float | complex]]:
-    
+def _getEigenvaluesSparse(csc: sparse.csc_array, csr: sparse.csr_array, pi: Dict[int, List[int]], leps: List[List[int]], verbose=False) -> Tuple[List[float | complex], List[float | complex]]:
     start_time = time()
     divisor_matrix = getDivisorMatrixSparse(csc, pi)
     div_time = time() - start_time
-    print(f"Divisor matrix computed in {div_time} seconds")
+    if verbose:
+        print(f"Divisor matrix computed in {div_time} seconds")
 
     # in practice, np.linalg.eigvals, scipy.linalg.eigvals, and scipy.linalg.eigvals(..., overwrite_a=True) run
     #   in roughly the same amount of time
     start_time = time()
-    globals = np.linalg.eigvals(divisor_matrix).tolist() if include_globals else []
+    globals = getGlobals(divisor_matrix)
     globals_time = time() - start_time
-    print(f"Globals computed in {globals_time} seconds")
+    if verbose:
+        print(f"Globals computed in {globals_time} seconds")
 
-    # 3. Find Local Eigenvalues
-    #    For each LEP:
-    #       a. Create subgraph
-    #       b. Compute divisor graph of subgraph
-    #       c. Calculate spectrum of subgraph, divisor graph
-    #       d. Compute difference eigs(SG) - eigs(DG)
     start_time = time()
-    locals = []
-    for lep in leps:
-        nodes = []
-        for V in lep:
-            nodes.extend(pi[V])
-        # skip iterations for which globals = locals
-        if len(nodes) < 2:
-            continue
-        
-        subgraph = csr[nodes,:][:,nodes]
-        divisor_submatrix = divisor_matrix[lep,:][:,lep]
-
-        subgraph_globals = np.linalg.eigvals(divisor_submatrix)
-        subgraph_locals = np.linalg.eigvals(subgraph.todense())
-
-        locals.extend(getSetDifference(subgraph_locals, subgraph_globals))
-    
+    locals = getLocals(csr, divisor_matrix, pi, leps)
     locals_time = time() - start_time
-    print(f"Locals computed in {locals_time} seconds")
+    if verbose:
+        print(f"Locals computed in {locals_time} seconds")
 
     return globals, locals, [div_time, globals_time, locals_time]
 
@@ -184,40 +70,31 @@ def _getEigenvaluesSparse(csc: sparse.csc_array, csr: sparse.csr_array, pi: Dict
 def getGlobals(divisor_matrix: sparse.sparray) -> List[float | complex]:
     return np.linalg.eigvals(divisor_matrix).tolist()
 
+
 def getLocals(csr: sparse.csr_array, divisor_matrix: sparse.sparray, pi: Dict[int, List[int]], leps: List[List[int]]) -> List[float | complex]:
+    
+    # For each LEP:
+    #    a. Create subgraph
+    #    b. Compute divisor graph of subgraph
+    #    c. Calculate spectrum of subgraph, divisor graph
+    #    d. Compute difference eigs(SG) - eigs(DG)
     locals = []
     for lep in leps:
-        locals.extend(getLocalsForLEP(csr, divisor_matrix, pi, lep))
+        nodes = []
+        for V in lep:
+            nodes.extend(pi[V])
+        # skip iterations for which globals = locals
+        if len(nodes) < 2:
+            continue
+        
+        subgraph = csr[nodes,:][:,nodes]
+        divisor_submatrix = divisor_matrix[lep,:][:,lep]
+
+        subgraph_globals = np.linalg.eigvals(divisor_submatrix)
+        subgraph_locals = np.linalg.eigvals(subgraph.todense())
+
+        locals.extend(getSetDifference(subgraph_locals, subgraph_globals))
     return locals
-
-
-def getLocalsForLEP(csr: sparse.csr_array, divisor_matrix: sparse.sparray, pi: Dict[int, List[int]], lep: List[int]) -> List[float | complex]:
-    nodes = []
-    for V in lep:
-        nodes.extend(pi[V])
-    # skip iterations for which globals = locals
-    if len(nodes) < 2:
-        return []
-    
-    subgraph = csr[nodes,:][:,nodes]
-    divisor_submatrix = divisor_matrix[lep,:][:,lep]
-
-    subgraph_globals = np.linalg.eigvals(divisor_submatrix)
-    subgraph_locals = np.linalg.eigvals(subgraph.todense())
-
-    return getSetDifference(subgraph_locals, subgraph_globals)
-
-def _getEigenvaluesSparseParallel(csc: sparse.csc_array, csr: sparse.csr_array, pi: Dict[int, List[int]], leps: List[List[int]]) -> Tuple[List[float | complex], List[float | complex]]:
-    divisor_matrix = getDivisorMatrixSparse(csc, pi)
-    
-    pool = ThreadPool(2)
-    
-    # locals_lists = pool.starmap_async(getLocals, [(csr, divisor_matrix, pi, lep) for lep in leps])
-    globals = pool.apply_async(getGlobals, (divisor_matrix,))
-    locals = pool.apply_async(getLocals, (csr, divisor_matrix, pi, leps))
-    # locals = list(itertools.chain.from_iterable(locals_lists.get()))
-
-    return globals.get(), locals.get()
     
 
 def getDivisorMatrixSparse(mat_csc: sparse.csc_array, pi: Dict[int, List[int]]) -> sparse.sparray:
@@ -232,6 +109,103 @@ def getDivisorMatrixSparse(mat_csc: sparse.csc_array, pi: Dict[int, List[int]]) 
             div_mat[i, node2ep[neighbor]] += 1 # perhaps += weight for weighted graphs...
     
     return div_mat
+
+
+def getSetDifference(list1: List[complex], list2: List[complex], epsilon_start=EPSILON, epsilon_max=1e-1) -> List[complex]:
+    return getSymmetricDifference(list1, list2, epsilon_start=epsilon_start, epsilon_max=epsilon_max)[0]
+    
+
+# GENERAL HELPER FUNCTIONS
+
+def plotEquitablePartition(G, pi, pos_dict=None):
+    """Plots the equitable partition of a graph, with each element in its own color.
+   
+    ARGUMENTS:
+        G : NetworkX Graph
+            The graph to be plotted
+        pi : dict
+            The equitable partition of the graph, as returned by ep_finder
+        pos_dict : dict (optional)
+            A dictionary mapping nodes to their x,y coordinates. Only used when a such
+            values are available and meaningful (such as a random geometric graph).
+    """
+    # iterator over equidistant colors on the color spectrum
+    color = iter(plt.cm.rainbow(np.linspace(0, 1, len(pi) + 1)))
+    # stores the color for each node
+    default_color = next(color)
+    color_list = [default_color for _ in range(G.number_of_nodes())]
+    # assign all vertices in the same partition element to the same color
+    for V_i in pi.values():
+        c = next(color)
+        for vertex in V_i:
+            color_list[vertex] = c
+    
+    if pos_dict is None:
+        # layout options include: spring, random, circular, spiral, spring, kamada_kawai, etc
+        pos_dict = nx.kamada_kawai_layout(G)
+
+    # set plot as non-blocking
+    plt.ion()
+
+    nx.draw_networkx(G, pos=pos_dict, node_color=color_list)
+    plt.show()
+    noop = 1
+    # need to pause briefly because GUI events (e.g., drawing) happen when the main loop sleeps
+    plt.pause(.001)
+
+
+def printStats(G):
+    if type(G) is sparse._csr.csr_array:
+        G = ep_finder.initFromSparse(G)
+    else:
+        G = ep_finder.initfromNx(G)
+    # get coarsest EP and list of local EPs
+    ep, leps, time = ep_finder.getEquitablePartitions(G)
+    # keep non-trivial parts of EP and LEPs
+    f_ep = list(filter(lambda i: len(i) != 1, ep.values()))
+    # here, non-trivial just means that there are multiple nodes in the LEP
+    f_leps = list(filter(lambda i: len(i) != 1 or len(ep[list(i)[0]]) != 1, leps))
+    # calculate how much is non-trivial
+    partitionSize = lambda part_el: len(ep[part_el])
+    # calculate number of non-trivial nodes
+    nt_nodes = reduce(
+        lambda part_sum, curr: part_sum + sum([partitionSize(i) for i in curr]),
+        f_leps, 0)
+    nt_nodes2 = reduce(
+        lambda part_sum, curr: part_sum + len(curr), f_ep, 0)
+    print("\nnt1 = {}\nnt2 = {}\n\n".format(nt_nodes, nt_nodes2))
+    # percentage of nodes that are non-trivial
+    nt_percent = nt_nodes * 100 / G.number_of_nodes()
+
+    num_nodes = G.number_of_nodes()
+    num_edges = G.number_of_edges()
+    general = "Nodes: {}, Edges: {}, Edges/Node: {}".format(
+        num_nodes, num_edges, num_edges / num_nodes)
+    computational = "EPs: {}, LEPs: {}, Time: {}".format(
+        len(ep), len(leps), time)
+    dist_template = "{} - ({}, {}): {}"
+    distribution = dist_template.format("DATA", "MIN", "MAX", "AVG")
+    # calculate some basic stats about non-trivial parts
+    ep_distribution = dist_template.format("\nEP", *__getEPStats(f_ep))
+    lep_distribution = dist_template.format("\nLEP", *__getEPStats(f_leps))
+    printWithLabel("GENERAL COMPUTATION", '=', general + '\n' + computational)
+    printWithLabel("DISTRIBUTIONS", '*', distribution + ep_distribution + lep_distribution)
+    printWithLabel("PERCENT NON-TRIVIAL", '#', "{} %".format(nt_percent))
+
+
+def __getEPStats(set_list):
+    minSize = lambda min, curr: min if min < len(curr) else len(curr)
+    maxSize = lambda max, curr: max if max > len(curr) else len(curr)
+    sumSize = lambda part_sum, curr: part_sum + len(curr)
+    min_len = reduce(minSize, set_list, sys.maxsize)
+    max_len = reduce(maxSize, set_list, 0)
+    avg_len = reduce(sumSize, set_list, 0) / max(len(list(set_list)), 1)
+    return min_len, max_len, avg_len
+
+
+def printWithLabel(label, delim, item, file=sys.stdout):
+    print("{}\n{}\n{}\n".format(label, delim * len(label), item), file=file)
+
 
 def getDivisorMatrixNx(G: nx.Graph | nx.DiGraph, pi: Dict[int, Set[int]]) -> sparse.sparray: # [int, set[int]]:
     """Finds the divisor matrix of a graph with respect to its coarsest equitable partition.
@@ -348,11 +322,6 @@ def getEigenvaluesNx(G: nx.Graph | nx.DiGraph) -> List[complex]:
     lifting_counter = getSetDifference(lifting_counter, lep_globals)
 
     return lifting_counter
-    
-
-def getSetDifference(list1: List[complex], list2: List[complex], epsilon_start=EPSILON, epsilon_max=1e-1) -> List[complex]:
-    return getSymmetricDifference(list1, list2, epsilon_start=epsilon_start, epsilon_max=epsilon_max)[0]
-    
 
 
 def compareEigenvalues(G: nx.Graph | nx.DiGraph) -> None:
@@ -405,6 +374,7 @@ def getEquitablePartitions(G, progress_bars=True, rev=False):
     
     return ep, leps
 
+
 def getEquitablePartitionsFromFile(file_path, num_nodes=None, delim=',', comments='#', directed=False, progress_bars=True, ret_adj_dict=False, rev=False):
     """Finds the coarsest equitable partition and local equitable partitions of a graph.
    
@@ -421,103 +391,80 @@ def getEquitablePartitionsFromFile(file_path, num_nodes=None, delim=',', comment
         The equitable partition (dict; int -> set), local equitable partition (list of sets
             of partition elements grouped together), and computation time (when applicable)
     """
-    C, N = ep_finder.initFromFile(file_path, num_nodes=num_nodes, delim=delim, comments=comments, directed=directed, rev=rev)
+    coo = graphs.oneGraphToRuleThemAll(file_path, visualize=False, directed=directed)
+
+    C, N = ep_finder.initFromSparse(coo)
     ep, N = ep_finder.getEquitablePartition(C, N, progress_bar=progress_bars)
     
-    N_G = lep_finder.initFromFile(file_path, num_nodes=num_nodes, delim=delim, comments=comments, directed=directed, rev=rev)
+    N_G = lep_finder.initFromSparse(coo)
     leps = lep_finder.getLocalEquitablePartitions(N_G, ep, progress_bar=progress_bars)
     if ret_adj_dict:
         return ep, leps, {node: N[node].neighbors for node in N}
     return ep, leps
 
 
-def plotEquitablePartition(G, pi, pos_dict=None):
-    """Plots the equitable partition of a graph, with each element in its own color.
-   
-    ARGUMENTS:
-        G : NetworkX Graph
-            The graph to be plotted
-        pi : dict
-            The equitable partition of the graph, as returned by ep_finder
-        pos_dict : dict (optional)
-            A dictionary mapping nodes to their x,y coordinates. Only used when a such
-            values are available and meaningful (such as a random geometric graph).
-    """
-    # iterator over equidistant colors on the color spectrum
-    color = iter(plt.cm.rainbow(np.linspace(0, 1, len(pi) + 1)))
-    # stores the color for each node
-    default_color = next(color)
-    color_list = [default_color for _ in range(G.number_of_nodes())]
-    # assign all vertices in the same partition element to the same color
-    for V_i in pi.values():
-        c = next(color)
-        for vertex in V_i:
-            color_list[vertex] = c
-    
-    if pos_dict is None:
-        # layout options include: spring, random, circular, spiral, spring, kamada_kawai, etc
-        pos_dict = nx.kamada_kawai_layout(G)
-
-    # set plot as non-blocking
-    plt.ion()
-
-    nx.draw_networkx(G, pos=pos_dict, node_color=color_list)
-    plt.show()
-    noop = 1
-    # need to pause briefly because GUI events (e.g., drawing) happen when the main loop sleeps
-    plt.pause(.001)
-
-def printStats(G):
-    if type(G) is sparse._csr.csr_array:
-        G = ep_finder.initFromSparse(G)
-    else:
-        G = ep_finder.initfromNx(G)
-    # get coarsest EP and list of local EPs
-    ep, leps, time = ep_finder.getEquitablePartitions(G)
-    # keep non-trivial parts of EP and LEPs
-    f_ep = list(filter(lambda i: len(i) != 1, ep.values()))
-    # here, non-trivial just means that there are multiple nodes in the LEP
-    f_leps = list(filter(lambda i: len(i) != 1 or len(ep[list(i)[0]]) != 1, leps))
-    # calculate how much is non-trivial
-    partitionSize = lambda part_el: len(ep[part_el])
-    # calculate number of non-trivial nodes
-    nt_nodes = reduce(
-        lambda part_sum, curr: part_sum + sum([partitionSize(i) for i in curr]),
-        f_leps, 0)
-    nt_nodes2 = reduce(
-        lambda part_sum, curr: part_sum + len(curr), f_ep, 0)
-    print("\nnt1 = {}\nnt2 = {}\n\n".format(nt_nodes, nt_nodes2))
-    # percentage of nodes that are non-trivial
-    nt_percent = nt_nodes * 100 / G.number_of_nodes()
-
-    num_nodes = G.number_of_nodes()
-    num_edges = G.number_of_edges()
-    general = "Nodes: {}, Edges: {}, Edges/Node: {}".format(
-        num_nodes, num_edges, num_edges / num_nodes)
-    computational = "EPs: {}, LEPs: {}, Time: {}".format(
-        len(ep), len(leps), time)
-    dist_template = "{} - ({}, {}): {}"
-    distribution = dist_template.format("DATA", "MIN", "MAX", "AVG")
-    # calculate some basic stats about non-trivial parts
-    ep_distribution = dist_template.format("\nEP", *__getEPStats(f_ep))
-    lep_distribution = dist_template.format("\nLEP", *__getEPStats(f_leps))
-    printWithLabel("GENERAL COMPUTATION", '=', general + '\n' + computational)
-    printWithLabel("DISTRIBUTIONS", '*', distribution + ep_distribution + lep_distribution)
-    printWithLabel("PERCENT NON-TRIVIAL", '#', "{} %".format(nt_percent))
-
-def __getEPStats(set_list):
-    minSize = lambda min, curr: min if min < len(curr) else len(curr)
-    maxSize = lambda max, curr: max if max > len(curr) else len(curr)
-    sumSize = lambda part_sum, curr: part_sum + len(curr)
-    min_len = reduce(minSize, set_list, sys.maxsize)
-    max_len = reduce(maxSize, set_list, 0)
-    avg_len = reduce(sumSize, set_list, 0) / max(len(list(set_list)), 1)
-    return min_len, max_len, avg_len
-
-def printWithLabel(label, delim, item, file=sys.stdout):
-    print("{}\n{}\n{}\n".format(label, delim * len(label), item), file=file)
-
 # Joseph Methods
+
+def getPercentNonTrivial(G,ep=None) -> float:
+        if ep is None:
+            ep = ep_finder.getEquitablePartition(ep_finder.initFromSparse(G))
+        num_nodes = G.shape[0]
+        num_parts = len(ep.keys())
+
+        nt_nodes = reduce(
+            lambda part_sum, curr: part_sum if len(curr) == 1 else part_sum + len(curr), ep.values(), 0)
+        nt_partitions = reduce(
+            lambda ep_part_sum, curr: ep_part_sum if len(curr) == 1 else ep_part_sum + 1, ep.values(), 0)
+        return nt_nodes * 100 / num_nodes, nt_partitions * 100 / num_parts, nt_nodes, nt_partitions
+
+def _getEigenvaluesSparseFromPartialLeps(csc: sparse.csc_array, csr: sparse.csr_array, pi: Dict[int, List[int]], leps: List[List[int]], include_globals=True) -> Tuple[List[float | complex], List[float | complex]]:
+    """Get the leps by constructing only partial divisor matrices. 
+    It can constuct the full divisor matrix and get
+    the globals if desired but to save time on larger graphs 
+    it doesn't usually do that.
+    """
+    if include_globals:
+        divisor_matrix = getDivisorMatrixSparse(csc, pi)
+
+        # in practice, np.linalg.eigvals, scipy.linalg.eigvals, and scipy.linalg.eigvals(..., overwrite_a=True) run
+        #   in roughly the same amount of time
+        globals = np.linalg.eigvals(divisor_matrix)
+    else:
+        globals = []
+
+    # 3. Find Local Eigenvalues
+    #    For each LEP:
+    #       a. Create subgraph
+    #       b. Compute divisor graph of subgraph
+    #       c. Calculate spectrum of subgraph, divisor graph
+    #       d. Compute difference eigs(SG) - eigs(DG)
+
+
+    locals = []
+    for lep in leps:
+        nodes = []
+        sub_pi = {}
+        min_node = np.inf
+        relabel_ind = 0
+        for i, V in enumerate(lep):
+            nodes.extend(pi[V])
+            # create the new sub ep element dict.
+            sub_pi[i] = [j for j in range(relabel_ind,relabel_ind + len(pi[V]))]
+            relabel_ind += len(pi[V])
+        # sub_pi = {v:[relabler[node] for node in l] for v,l in zip(np.arange(len(sub_pi.keys())),sub_pi.values())}
+        # skip iterations for which globals = locals
+        if len(nodes) < 2:
+            continue
+        
+        subgraph = csr[nodes,:][:,nodes]
+        divisor_submatrix = getDivisorMatrixSparse(subgraph.tocsc(), sub_pi) #divisor_matrix[lep,:][:,lep]
+
+        subgraph_globals = np.linalg.eigvals(divisor_submatrix)
+        subgraph_locals = np.linalg.eigvals(subgraph.todense())
+
+        locals.extend(getSetDifference(subgraph_locals, subgraph_globals))
+
+    return globals, locals
 
 def GetSpectrumFromLEPs(G,partition_data=None,with_grand_divisor=True,progress_bars=False,verbose=False,fake_parallel=False,parallel=False):
     """Gets the spectrum of a graph using the decomposition by leps method
@@ -593,15 +540,3 @@ def ValidateMethod(G):
 
     return Counter(our_spec) == Counter(their_spec)
 
-if __name__ == "__main__":
-    # G = nx.erdos_renyi_graph(3000, .005, directed=True, seed=0)
-    # sparse_array = nx.adjacency_matrix(G)
-    # getEigenvaluesSparse(sparse_array)
-    # getEigenvaluesNx(G)
-    mat = graphs.genBerthaSparse(10000)
-    
-    csr = mat.tocsr()
-    
-    pi = ep_finder.getEquitablePartition(ep_finder.initFromSparse(csr), progress_bar=True)
-    
-    print("Done")
