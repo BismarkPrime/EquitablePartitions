@@ -43,7 +43,7 @@ def getNonTrivialGraph(getGraph: Callable[[int], sparse.sparray]) -> Tuple[spars
     Returns the sparse array representation of the graph and the seed used to generate it.
     """
     def isNonTrivial(sp_array: sparse.sparray) -> bool:
-        pi = ep_finder.getEquitablePartition(ep_finder.initFromSparse(sp_array))
+        pi = ep_finder.getEquitablePartition(ep_finder.initFromSparse(sp_array.tocsr()))
         return len(pi) < sp_array.shape[0]
     
     while True:

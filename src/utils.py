@@ -1,12 +1,12 @@
 import cmath
 from scipy import sparse
 
-from typing import List, Tuple
+from typing import List, Tuple, Sequence
 
 # for debugging purposes
 from matplotlib import pyplot as plt
 
-def getSymmetricDifference(list1: List[complex], list2: List[complex], epsilon_start=1e-4, epsilon_max=1e-1) -> Tuple[List[complex], List[complex]]:
+def getSymmetricDifference(list1: Sequence[complex], list2: Sequence[complex], epsilon_start=1e-4, epsilon_max=1e-1) -> Tuple[List[complex], List[complex]]:
     '''
         Gets the symmetric difference of two lists. (Returns list1 - list2, list2 - list1)
         Assumes that two elements are equal if they are within epsilon of one another.

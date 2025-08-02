@@ -37,9 +37,8 @@ class LinkedListNode:
     __slots__ = 'next', 'prev'
 
     def __init__(self):
-        self.next = None
-        self.prev = None
-
+        self.next: Node | None = None
+        self.prev: Node | None = None
 
 class Node(LinkedListNode):
     """
@@ -63,7 +62,7 @@ class Node(LinkedListNode):
     __slots__ = 'label', 'old_color', 'new_color', 'neighbors', \
         'out_edge_count'
 
-    def __init__(self, label: Any, color_class_ind: int, neighbors: List[int]=None):
+    def __init__(self, label: Any, color_class_ind: int, neighbors: List[int]):
         """
         Initialize the node with its label and initial color.
         """
@@ -80,12 +79,12 @@ class Node(LinkedListNode):
         self.out_edge_count = 0
 
     # magic methods
-    def __hash__(self):
+    def __hash__(self) -> int:
         if type(self.label) == int:
             return self.label
         return self.label.__hash__()
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(self.label)
 
     
@@ -94,7 +93,7 @@ class LinkedList:
 
     __slots__ = 'head', 'tail', 'size'
 
-    def __init__(self, data: List[Node]=None):
+    def __init__(self, data: List[Node]=[]):
         """
         Initialize doubly-linked list.
 
@@ -104,7 +103,7 @@ class LinkedList:
                     data is not given, initializes an empty linked list.
         """
 
-        if data is not None:
+        if data != []:
             self.head = data[0]
             self.tail = data[-1]
             
@@ -129,6 +128,8 @@ class LinkedList:
             self.head = node
             self.tail = node
         else:
+            if self.tail is None:
+                raise ValueError("List is corrupted: tail is None but head is not.")
             self.tail.next = node
             node.prev = self.tail
             self.tail = node
@@ -178,7 +179,7 @@ class ColorClass(LinkedList):
         """
         Initializes a ColorClass object.
         """
-        super().__init__()
+        super().__init__([])
         self.out_edge_neighbors = list()
         self.curr_color_neighbors = 0
 
@@ -349,18 +350,15 @@ def bucketSort(objs: List[Any], attribute: str, attr_min_val: int, attr_max_val:
     Space: Linear with length of objs and (attr_max_val - attr_min_val)
 
     """
-    buckets = [None for _ in range(attr_min_val, attr_max_val + 1)]
+    buckets: List[List[Any]] = [[] for _ in range(attr_min_val, attr_max_val + 1)]
     for obj in objs:
         index = getattr(obj, attribute) - attr_min_val
-        if buckets[index] is None:
-            buckets[index] = []
         buckets[index].append(obj)
     i = 0
     for bucket in buckets:
-        if bucket is not None:
-            for obj in bucket:
-                objs[i] = obj
-                i += 1
+        for obj in bucket:
+            objs[i] = obj
+            i += 1
    
 
 def initFromNx(G: nx.Graph | nx.DiGraph) -> List[Node]:

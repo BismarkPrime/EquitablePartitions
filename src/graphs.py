@@ -240,7 +240,7 @@ def GetLocalSpec(G,ep_dict,lep_list):
         
     return spec_dict, orig_spec
 
-def genBerthaSparse(n: int, parallel: bool=False) -> sp.lil_matrix:
+def genBerthaSparse(n: int, parallel: bool=False) -> sp.lil_array:
     """
     NOTE: this function could be a near-exact copy of GenBertha, but returning `mat` instead of using
     `nx.from_scipy_sparse_array`. However, writing it from scratch may prove more readable and efficient.
@@ -250,7 +250,7 @@ def genBerthaSparse(n: int, parallel: bool=False) -> sp.lil_matrix:
     lep_size = n // num_leps
     num_larger_leps = n - num_leps * lep_size
 
-    mat = sp.lil_matrix((n, n), dtype=int)
+    mat = sp.lil_array((n, n), dtype=int)
     start = 0
     # width and height are named for the submatrices _under_ the diagonal
     width = lep_size + 1 if num_larger_leps > 0 else lep_size

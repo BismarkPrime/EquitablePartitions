@@ -10,7 +10,7 @@ from typing import Any, List, Set, Dict
 # POTENTIAL OPTIMIZATIONS:
 #   Using Disjoint Set data structures to store partitions
 
-def initFromNx(G: nx.Graph | nx.DiGraph) -> Dict[Any, Set[Any]]:
+def initFromNx(G: nx.Graph | nx.DiGraph) -> List[Set[Any]]:
     """Initializes the inverted neighbor dictionary required to compute leps.
     
     ARGUMENTS:
@@ -20,12 +20,13 @@ def initFromNx(G: nx.Graph | nx.DiGraph) -> Dict[Any, Set[Any]]:
         A dictionary with nodes as keys and a set of their in-edge neighbors as values.
     """
 
-    # NOTE: N stores the in-edge neighbors, i.e. N[v] returns all nodes w with an edge w -> v.
-    #    Thus, it is different than just calling G.neighbors(v); (hence, we use G.reverse())
-    N = [set(G.predecessors(node) if G.is_directed() else G.neighbors(node)) for node in G.nodes()]
+    # NOTE: N stores the in-edge neighbors, i.e. N[v] contains all nodes w with an edge w -> v.
+    #    Thus, it is different than just calling G.neighbors(v) for directed graphs.
+    N = [set(G.predecessors(node) if type(G) is nx.DiGraph else G.neighbors(node)) for node in G.nodes()]
+
     return N
 
-def initFromSparse(mat: sparse.csc_array) -> Dict[Any, Set[Any]]:
+def initFromSparse(mat: sparse.csc_array) -> List[Set[Any]]:
     """Initializes the inverted neighbor dictionary required to compute leps.
     
     ARGUMENTS:
@@ -37,17 +38,18 @@ def initFromSparse(mat: sparse.csc_array) -> Dict[Any, Set[Any]]:
 
     # ensure that matrix is in csc format (csr format will create an out-edge neighbor mapping)
     # mat = mat.tocsc()
- 
-    # NOTE: we should revert to using arrays/lists where possible instead of dictionaries to reduce spatial complexity
+    if type(mat) is not sparse.csc_array:
+        raise ValueError("Input matrix must be in CSC format.")
     N = [set(mat.indices[mat.indptr[i]:mat.indptr[i + 1]]) for i in range(mat.shape[0])]
+    print(f"{N=}")
     
     return N
 
-def getLocalEquitablePartitions(N: Dict[Any, Set[Any]], ep: Dict[int, Set[Any]]) -> List[List[int]]:
+def getLocalEquitablePartitions(N: List[Set[Any]], ep: Dict[int, List[Any]]) -> List[List[int]]:
     """Finds the local equitable partitions of a graph.
    
     ARGUMENTS:
-        N :     A dictionary containing nodes as keys with their in-edge neighbors as values
+        N :     A list of sets, with each set containing the in-edge neighbors of a node
         ep :    The equitable partition of the graph, as returned by ep_finder
         progress_bar : whether to show realtime progress bar (disabled by default)
     
@@ -97,11 +99,11 @@ def __computeLocalEquitablePartitions(N: List[Set[int]], pi: Dict[int, List[Any]
 def __link(i: int, j: int, edge_dict: Dict[int, Set[int]]) -> None:
     if i not in edge_dict:
         edge_dict.update({i: set()})
-    edge_dict.get(i).add(j)
+    edge_dict.get(i).add(j) # type: ignore
 
     if j not in edge_dict:
         edge_dict.update({j: set()})
-    edge_dict.get(j).add(i)
+    edge_dict.get(j).add(i) # type: ignore
 
 def __extractConnectedComponents(edge_dict: Dict[int, Set[int]], num_nodes: int) -> List[Set[int]]:
     visited = set()
@@ -111,12 +113,11 @@ def __extractConnectedComponents(edge_dict: Dict[int, Set[int]], num_nodes: int)
             scc = set()
             scc.add(i)
             visited.add(i)
-            if i in edge_dict:
-                neighbors = edge_dict.get(i)
-                while len(neighbors) > 0:
-                    j = neighbors.pop()
-                    scc.add(j)
-                    visited.add(j)
-                    neighbors.update(edge_dict.get(j).difference(scc))
+            neighbors = edge_dict.get(i)
+            while neighbors is not None and len(neighbors) > 0:
+                j = neighbors.pop()
+                scc.add(j)
+                visited.add(j)
+                neighbors.update((edge_dict.get(j) or set()).difference(scc))
             scc_list.append(scc)
     return scc_list
