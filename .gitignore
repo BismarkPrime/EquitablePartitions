@@ -147,3 +147,5 @@ src/DT_Stats/*
 src/Results/*
 DT_Stats/*
 Results/*
+
+eigenvalue_analysis/*

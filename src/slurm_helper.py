@@ -29,6 +29,10 @@ def parse_input(prompt):
             inp = input(f"Not valid input. You must choose one of -> {keywords}: ")
 
 def start_section(content: str) -> None:
-    border = '#' * os.get_terminal_size().columns
-    pad_left = (os.get_terminal_size().columns - len(content)) // 2
+    try:
+        width = os.get_terminal_size().columns
+    except OSError:
+        width = 80  # default width when no terminal
+    border = '#' * width
+    pad_left = (width - len(content)) // 2
     print(f"{border}\n\n{' ' * pad_left}{content.upper()}\n\n{border}")
