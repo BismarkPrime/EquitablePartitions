@@ -1,12 +1,15 @@
 import cmath
+import math
+import numpy as np
 from scipy import sparse
+from scipy.optimize import linear_sum_assignment
 
-from typing import List, Tuple
+from typing import List, Tuple, Sequence
 
 # for debugging purposes
 from matplotlib import pyplot as plt
 
-def getSymmetricDifference(list1: List[complex], list2: List[complex], epsilon_start=1e-4, epsilon_max=1e-1) -> Tuple[List[complex], List[complex]]:
+def getSymmetricDifference(list1: Sequence[complex], list2: Sequence[complex], epsilon_start=1e-4, epsilon_max=1e-1) -> Tuple[List[complex], List[complex]]:
     '''
         Gets the symmetric difference of two lists. (Returns list1 - list2, list2 - list1)
         Assumes that two elements are equal if they are within epsilon of one another.
@@ -83,38 +86,93 @@ def getSymmetricDifference(list1: List[complex], list2: List[complex], epsilon_s
 
     return res1, res2
 
-def getSymmetricDifferenceMatching(list1: List[complex], list2: List[complex], abs_tol=5e-2) -> Tuple[List, List]:
-    '''
-        Gets the symmetric difference of two lists of complex numbers using a bipartite 
-        matching algorithm to find the maximum number of complex pairs (c1, c2), where 
-        c1 is from list1 and c2 from list2, such that c1 and c2 are sufficiently close to
-        be considered equal complex numbers given some floating point tolerance.
-        Returns two lists: list1 - list2, and list2 - list1
-    '''
-    # 1. create a bipartite graph with edges between each complex number in list1 and all 
-    #   complex numbers in list2 that are sufficiently close to be considered equal
-    #   (within some floating-point tolerance)
-    sparse_graph = sparse.dok_matrix((len(list1), len(list2)), dtype=bool)
-    for i, cnum1 in enumerate(list1):
-        for j, cnum2 in enumerate(list2):
-            if cmath.isclose(cnum1, cnum2, abs_tol=abs_tol):
-                sparse_graph[i, j] = True
-    # 2. find the maximum matching of the graph
-    matches = sparse.csgraph.maximum_bipartite_matching(sparse_graph.tocsr(), perm_type='column')
-    # 3. return the symmetric difference of the two lists, where the elements in the
-    #   matching are removed from the lists
-    skipIndices1 = set()
-    skipIndices2 = set()
-    for i, j in enumerate(matches):
-        if j != -1:
-            skipIndices1.add(i)
-            skipIndices2.add(j)
-    res1 = []
-    res2 = []
-    for i, cnum in enumerate(list1):
-        if i not in skipIndices1:
-            res1.append(cnum)
-    for j, cnum in enumerate(list2):
-        if j not in skipIndices2:
-            res2.append(cnum)
+def _try_full_matching(
+    list1: List[complex], list2: List[complex], threshold: float
+) -> Tuple[bool, List[Tuple[int, int]]]:
+    """
+    Try to find a min-cost bipartite matching where ALL elements of list2
+    are matched to elements in list1 at the given threshold.
+
+    Returns:
+        success: True if all elements of list2 were matched
+        matches: List of (idx1, idx2) pairs that were matched
+    """
+    n1, n2 = len(list1), len(list2)
+
+    if n2 == 0:
+        return True, []
+    if n1 == 0:
+        return False, []
+
+    # Build cost matrix (n1 x n2)
+    cost_matrix = np.full((n1, n2), math.inf)
+
+    for i in range(n1):
+        for j in range(n2):
+            dist = abs(list1[i] - list2[j])
+            if dist <= threshold:
+                cost_matrix[i, j] = dist
+
+    # Check if any column is all inf (element of list2 can't match anything)
+    for j in range(n2):
+        if np.all(np.isinf(cost_matrix[:, j])):
+            return False, []
+
+    # Solve assignment problem
+    try:
+        row_ind, col_ind = linear_sum_assignment(cost_matrix)
+    except ValueError:
+        return False, []
+
+    # Extract matches - verify all have finite cost
+    matches = []
+    for i, j in zip(row_ind, col_ind):
+        if math.isinf(cost_matrix[i, j]):
+            # An element of list2 wasn't matched - failure
+            return False, []
+        matches.append((i, j))
+
+    # Success: all n2 elements of list2 were matched
+    return True, matches
+
+
+def getSymmetricDifferenceMatching(
+    list1: List[complex],
+    list2: List[complex],
+    min_threshold: float = 1e-8,
+    max_threshold: float = 1e-2
+) -> Tuple[List[complex], List[complex]]:
+    """
+    Gets the symmetric difference of two lists of complex numbers using min-cost
+    bipartite matching (Hungarian algorithm) to find optimal pairings.
+
+    Uses iterative threshold approach: starts at min_threshold and increases by
+    10x each iteration until a complete matching is found or max_threshold is reached.
+    Each iteration tries to match ALL elements fresh (not incrementally).
+
+    Returns two lists: list1 - list2, and list2 - list1
+    """
+    if len(list1) == 0:
+        return [], list(list2)
+    if len(list2) == 0:
+        return list(list1), []
+
+    threshold = min_threshold
+    matches = []
+
+    # Try matching at increasing thresholds until success or max reached
+    while threshold <= max_threshold:
+        success, matches = _try_full_matching(list1, list2, threshold)
+        if success:
+            break
+        threshold *= 10
+
+    # Build sets of matched indices
+    matched_idx1 = {i for i, j in matches}
+    matched_idx2 = {j for i, j in matches}
+
+    # Collect unmatched elements
+    res1 = [list1[i] for i in range(len(list1)) if i not in matched_idx1]
+    res2 = [list2[j] for j in range(len(list2)) if j not in matched_idx2]
+
     return res1, res2

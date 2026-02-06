@@ -109,7 +109,7 @@ class LEPMetrics(NamedTuple):
     lep_size_skewness: float
     lep_size_kurtosis: float
 
-def main(file_path: str, directed: bool, verify_eigenvalues: bool=True):
+def main(file_path: str, directed: bool, verify_eigenvalues: bool=True, lepard_only: bool=False):
     print(f"Processing {file_path}...")
 
     m_source_file = file_path
@@ -177,10 +177,14 @@ def main(file_path: str, directed: bool, verify_eigenvalues: bool=True):
         pickle.dump(leps, f, protocol=pickle.HIGHEST_PROTOCOL)
 
     # 9. Compute eigenvalues using numpy for speed comparison
-    start_time = time()
-    np_eigenvalues = np.linalg.eigvals(csr.toarray())
-    m_np_eig_time = time() - start_time
-    print(f"Numpy eigenvalues computed in {m_np_eig_time} seconds")
+    if not lepard_only:
+        start_time = time()
+        np_eigenvalues = np.linalg.eigvals(csr.toarray())
+        m_np_eig_time = time() - start_time
+        print(f"Numpy eigenvalues computed in {m_np_eig_time} seconds")
+    else:
+        np_eigenvalues = []
+        m_np_eig_time = 0.0
 
     # REMEMBER that par time is not currently included in total time
     meta_metrics = MetaMetrics(m_source_file, m_ep_file, m_lep_file, m_ep_time, m_lep_time, m_div_mat_time, m_globals_time, m_locals_time, m_total_time, m_np_eig_time)
@@ -194,7 +198,7 @@ def main(file_path: str, directed: bool, verify_eigenvalues: bool=True):
     computeMetricsForDT(pi, leps, global_eigs, local_eigs, file_name)
 
     # 11. Verify that the eigenvalues are correct
-    if verify_eigenvalues:
+    if verify_eigenvalues and not lepard_only:
         eigenvalues = global_eigs + local_eigs
         start_time = time()
         verifyEigenvalues(np_eigenvalues, eigenvalues)
@@ -212,12 +216,23 @@ def getGraph(file_path: str, directed: bool) -> sparse.sparray:
         sys.exit(1)
 
 def computeMetricsForDT(pi: Dict[int, List[Any]], leps: List[List[int]], globals: List[float | complex], locals: List[float | complex], name: str) -> None:
-    category = input("Enter a category for this network (e.g., social, biological, etc.) > ")
-    url = input("Enter a URL for this network (if available) > ")
-    description = input("Enter a description for this network (~10 words) > ")
-
     stats_folder = f"DT_Stats/{name}_stats"
     os.makedirs(stats_folder, exist_ok=True)
+
+    info_file = f"{stats_folder}/info.txt"
+
+    # Only prompt for info if info.txt doesn't already exist
+    if os.path.exists(info_file):
+        print(f"    (Preserving existing info.txt)")
+    else:
+        category = input("Enter a category for this network (e.g., social, biological, etc.) > ")
+        url = input("Enter a URL for this network (if available) > ")
+        description = input("Enter a description for this network (~10 words) > ")
+
+        with open(info_file, 'w') as f:
+            f.write(f"Category: {category}\n")
+            f.write(f"URL: {url}\n")
+            f.write(f"Description: {description}\n")
 
     def writeCountsToFile(counts: Counter, filename: str) -> None:
         with open(f"{stats_folder}/{filename}", 'w') as f:
@@ -237,10 +252,6 @@ def computeMetricsForDT(pi: Dict[int, List[Any]], leps: List[List[int]], globals
     with open(f"{stats_folder}/locals.txt", 'w') as f:
         for local_val in locals:
             f.write(f"{local_val}\n")
-    with open(f"{stats_folder}/info.txt", 'w') as f:
-        f.write(f"Category: {category}\n")
-        f.write(f"URL: {url}\n")
-        f.write(f"Description: {description}\n")
 
 def verifyEigenvalues(np_eigenvalues: List[float | complex], lepard_eigenvalues: List[float | complex]) -> bool:
     our_unique_eigs, their_unique_eigs = ep_utils.getSymmetricDifference(lepard_eigenvalues, np_eigenvalues)
@@ -346,6 +357,7 @@ if __name__=="__main__":
                                      "The attributes in a .csv file called MatricWarden.csv")
     
     parser.add_argument("--directed","-d", action='store_true', help="Necessary if graph is directed.")
+    parser.add_argument("--lepard-only", "-l", action='store_true', help="Only run LEParD algorithm, skip NumPy eigenvalue computation.")
     parser.add_argument("--file", type=str, help="Path to the graph")
     args = parser.parse_args()
 
@@ -353,4 +365,4 @@ if __name__=="__main__":
         Tk().withdraw()
         args.file = filedialog.askopenfilename()
 
-    main(args.file, args.directed)
+    main(args.file, args.directed, lepard_only=args.lepard_only)
