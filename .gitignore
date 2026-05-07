@@ -4,6 +4,7 @@ soc-redditHyperlinks-body.tsv
 Data/
 .DS_Store
 Mathematica/*
+Personal_Jupyter_notebooks/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

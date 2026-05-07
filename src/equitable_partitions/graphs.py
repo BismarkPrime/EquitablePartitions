@@ -262,6 +262,7 @@ def genDivGraph(G, ep_dict, retMat=False):
         node: partEl for partEl in ep_dict.keys() for node in ep_dict[partEl]
     }
 
+
     # create empty divisor to fill
     n = len(ep_dict)
     divMat = np.zeros((n, n))
@@ -272,9 +273,15 @@ def genDivGraph(G, ep_dict, retMat=False):
         # will be the same within the partition elements.
         node = node_list[0]
 
+        if nx.is_directed(G): edges = G.in_edges(node)
+        else: edges = G.edges(node)
+
         # count connection to partitions and update divisor matrix accordingly
-        for connection in G.edges(node):
-            connNode = connection[1]
+        # for connection in G.edges(node):
+        for connection in edges:
+            # need this logic because undirected defaults to transmitting edges, but directed defaults to in edges.
+            if nx.is_directed(G): connNode = connection[0]
+            else: connNode = connection[1]
             divMat[curPartElInd][rev_ep_dict[connNode]] += 1
 
     # return matrix if desired
