@@ -8,7 +8,7 @@ from matplotlib import pyplot as plt
 from time import perf_counter as pc
 import ep_utils
 from collections import Counter
-import slurm_helper as h
+import src.slurm_helper as h
 import pandas as pd
 import json
 
