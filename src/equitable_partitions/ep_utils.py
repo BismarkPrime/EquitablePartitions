@@ -10,9 +10,9 @@ from typing import Any, Dict, List, Set, Tuple, Sequence
 from collections import Counter
 from multiprocessing import Pool as ThreadPool
 
-import ep_finder, lep_finder
-import graphs
-from utils import getSymmetricDifference, getSymmetricDifferenceMatching
+from . import ep_finder, lep_finder
+from . import graphs
+from .utils import getSymmetricDifference, getSymmetricDifferenceMatching
 
 # TODO: update naming to match paper
 # TODO: use child processes for finding EP and LEP to release memory after computation.

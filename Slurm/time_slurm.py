@@ -19,7 +19,7 @@ import subprocess
 import ep_finder, lep_finder
 from time import perf_counter as pc
 import scipy.sparse as sp
-import slurm_helper as h
+from equitable_partitions import slurm_helper as h
 
 CUST_COM="#"
 CUST_DEL=" "

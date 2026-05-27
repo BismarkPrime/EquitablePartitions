@@ -1,8 +1,8 @@
 
 from functools import reduce
 import os
-from ep_utils import printWithLabel
-import ep_utils
+from .ep_utils import printWithLabel
+from . import ep_utils
 from sys import maxsize as MAX_INT
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
